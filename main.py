@@ -147,11 +147,12 @@ def search_naver_shopping(query: str, headers: dict) -> Optional[dict]:
 # ── Pydantic 스키마 ───────────────────────────────────────────────────────
 class ReviewItem(BaseModel):
     index: int
-    brand_name:      Optional[str] = None
-    product_name:    Optional[str] = None
-    category:        Optional[str] = None
-    purchase_source: Optional[str] = None
-    price_paid:      Optional[str] = None   # 후기에서 언급된 구매 가격
+    brand_name:                Optional[str] = None
+    product_name:              Optional[str] = None
+    category:                  Optional[str] = None
+    purchase_source:           Optional[str] = None
+    price_paid:                Optional[str] = None   # 후기에서 언급된 구매 가격
+    is_direct_purchase_review: bool = True            # 실제 해외직구 후기 여부
 
 class ExtractionResult(BaseModel):
     items: List[ReviewItem]
@@ -352,6 +353,7 @@ def search():
 - category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나 (없으면 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
 - price_paid: 후기에서 언급된 구매 가격 (예: "$120", "15만원", "89달러", 없으면 null)
+- is_direct_purchase_review: 실제로 해외직구(아마존/이베이/알리/직접구매 등)로 구매한 상품의 후기면 true, 단순 브랜드 언급/AS수리안내/광고/국내구매 후기면 false
 
 후기 목록:
 {reviews_text}
@@ -364,11 +366,17 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
 
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
+    # 직구 후기가 아닌 항목 필터링 (is_direct_purchase_review=False 제거)
+    relevant_pairs = []
+    for i, item in enumerate(all_items, 1):
+        ext = extracted_map.get(i)
+        if ext is None or getattr(ext, 'is_direct_purchase_review', True):
+            relevant_pairs.append((ext, item))
+
     # 네이버 쇼핑 조회 (중복 제거)
     shopping_cache = {}
     shopping_calls = 0
-    for idx in range(1, len(all_items) + 1):
-        ext = extracted_map.get(idx)
+    for ext, item in relevant_pairs:
         if not ext:
             continue
         parts = [p for p in [ext.brand_name, ext.product_name] if p]
@@ -382,8 +390,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
     increment_usage(shopping_calls)
 
     results = []
-    for i, item in enumerate(all_items, 1):
-        ext = extracted_map.get(i)
+    for i, (ext, item) in enumerate(relevant_pairs, 1):
         shopping_info = None
         if ext:
             parts = [p for p in [ext.brand_name, ext.product_name] if p]
@@ -416,6 +423,58 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
         "keyword":     keyword,
         "page":        page,
     })
+
+
+# 소싱 후보 목록 조회
+@app.route("/api/candidates")
+def get_candidates():
+    if not FIREBASE_ENABLED:
+        return jsonify({"items": [], "firebase": False})
+    try:
+        docs = (db.collection('sourcing_candidates')
+                .order_by('saved_at', direction=fb_fs.Query.DESCENDING)
+                .limit(500)
+                .stream())
+        items = []
+        for doc in docs:
+            d = doc.to_dict()
+            d['id'] = doc.id
+            if 'saved_at' in d and hasattr(d['saved_at'], 'isoformat'):
+                d['saved_at'] = d['saved_at'].isoformat()
+            items.append(d)
+        return jsonify({"items": items, "count": len(items)})
+    except Exception as e:
+        return jsonify({"items": [], "error": str(e)})
+
+
+# 소싱 후보 상태 업데이트
+@app.route("/api/candidates/<doc_id>", methods=["PATCH"])
+def update_candidate(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    data = request.get_json()
+    update_data = {}
+    if 'status' in data:
+        update_data['status'] = data['status']
+    if not update_data:
+        return jsonify({"error": "변경할 데이터 없음"}), 400
+    try:
+        db.collection('sourcing_candidates').document(doc_id).update(update_data)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# 소싱 후보 삭제
+@app.route("/api/candidates/<doc_id>", methods=["DELETE"])
+def delete_candidate(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    try:
+        db.collection('sourcing_candidates').document(doc_id).delete()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 def main():

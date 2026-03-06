@@ -18,12 +18,35 @@
     header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: white;
-      padding: 20px 32px 12px;
+      padding: 20px 32px 0;
       box-shadow: 0 2px 12px rgba(0,0,0,0.2);
     }
 
+    .header-top { padding-bottom: 12px; }
     header h1 { font-size: 1.4rem; font-weight: 700; }
     header p  { font-size: 0.8rem; color: #a0aec0; margin-top: 3px; }
+
+    /* ── 탭 네비게이션 ── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: #718096;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .tab-btn.active { color: #63b3ed; border-bottom-color: #63b3ed; }
+    .tab-btn:hover:not(.active) { color: #a0aec0; }
 
     /* ── API 사용량 바 ── */
     .usage-bar {
@@ -425,6 +448,62 @@
 
     .btn-next:hover { opacity: 0.9; }
 
+    /* ── 소싱 후보 탭 ── */
+    #candidatesTab { display: none; }
+
+    .cand-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .cand-header h2 { font-size: 1rem; font-weight: 700; color: #2d3748; }
+
+    .cand-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+      margin-bottom: 80px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-pending  { background: #fef3c7; color: #92400e; }
+    .status-good     { background: #d1fae5; color: #065f46; }
+    .status-pass     { background: #fee2e2; color: #991b1b; }
+
+    .btn-icon {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      font-size: 0.75rem;
+      cursor: pointer;
+      color: #4a5568;
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover { background: #f0f4ff; border-color: #4a6cf7; color: #4a6cf7; }
+    .btn-icon.del   { color: #e53e3e; border-color: #fed7d7; }
+    .btn-icon.del:hover { background: #fff5f5; border-color: #fc8181; color: #c53030; }
+
+    .cand-empty {
+      text-align: center;
+      padding: 60px;
+      color: #a0aec0;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+
     /* ── 토스트 ── */
     .toast {
       position: fixed;
@@ -470,14 +549,20 @@
 <body>
 
 <header>
-  <h1>직구 소싱 앱</h1>
-  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 분석 + 네이버 쇼핑 최저가</p>
+  <div class="header-top">
+    <h1>직구 소싱 앱</h1>
+    <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 분석 + 네이버 쇼핑 최저가</p>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tab-search" onclick="switchTab('search')">검색</button>
+    <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
+  </nav>
 </header>
 
 <!-- API 사용량 -->
 <div class="usage-bar">
   <div class="usage-inner">
-    <span class="usage-label">오늘 API 사용량</span>
+    <span class="usage-label">네이버 API</span>
     <div class="usage-track">
       <div class="usage-fill" id="usageFill" style="width:0%"></div>
     </div>
@@ -486,97 +571,146 @@
   </div>
 </div>
 
-<div class="container">
+<!-- ══ 검색 탭 ══ -->
+<div id="searchTab">
+  <div class="container">
 
-  <!-- 검색 카드 -->
-  <div class="search-card">
-    <div class="search-row" style="margin-top:0">
-      <input type="text" id="keyword" class="search-input"
-        placeholder="검색 키워드 (예: 나이키, 뉴발란스, 다이슨)" maxlength="100" />
-      <button id="searchBtn" class="btn-search" onclick="goSearch(1)">검색</button>
-    </div>
-
-    <div class="search-row">
-      <span class="label-inline">제외 키워드</span>
-      <input type="text" id="excludeKeywords" class="search-input"
-        placeholder="제외할 단어 (쉼표로 구분, 예: 품절, 가품)"
-        style="font-size:0.85rem;" />
-    </div>
-
-    <div class="search-row">
-      <div class="source-toggle">
-        <input type="radio" name="source" id="src-blog" value="blog" checked />
-        <label for="src-blog">블로그</label>
-        <input type="radio" name="source" id="src-cafe" value="cafe" />
-        <label for="src-cafe">카페</label>
-        <input type="radio" name="source" id="src-all" value="all" />
-        <label for="src-all">전체</label>
+    <!-- 검색 카드 -->
+    <div class="search-card">
+      <div class="search-row" style="margin-top:0">
+        <input type="text" id="keyword" class="search-input"
+          placeholder="검색 키워드 (예: 나이키, 뉴발란스, 다이슨)" maxlength="100" />
+        <button id="searchBtn" class="btn-search" onclick="goSearch(1)">검색</button>
       </div>
-      <span class="label-inline">날짜 범위</span>
-      <input type="date" id="startDate" />
-      <span class="date-sep">~</span>
-      <input type="date" id="endDate" />
-      <button class="btn-sm" onclick="clearDates()">날짜 초기화</button>
+
+      <div class="search-row">
+        <span class="label-inline">제외 키워드</span>
+        <input type="text" id="excludeKeywords" class="search-input"
+          placeholder="제외할 단어 (쉼표로 구분, 예: 품절, 가품)"
+          style="font-size:0.85rem;" />
+      </div>
+
+      <div class="search-row">
+        <div class="source-toggle">
+          <input type="radio" name="source" id="src-blog" value="blog" checked />
+          <label for="src-blog">블로그</label>
+          <input type="radio" name="source" id="src-cafe" value="cafe" />
+          <label for="src-cafe">카페</label>
+          <input type="radio" name="source" id="src-all" value="all" />
+          <label for="src-all">전체</label>
+        </div>
+        <span class="label-inline">날짜 범위</span>
+        <input type="date" id="startDate" />
+        <span class="date-sep">~</span>
+        <input type="date" id="endDate" />
+        <button class="btn-sm" onclick="clearDates()">날짜 초기화</button>
+      </div>
+
+      <p class="search-hint">실제 해외직구 후기만 필터링 · 페이지당 최신순 100개 수집 · 완료(✓) 페이지는 Firestore에 저장</p>
     </div>
 
-    <p class="search-hint">페이지당 100개씩 최신순으로 수집합니다. 완료(✓) 페이지는 Firestore에 진행상황이 저장됩니다.</p>
-  </div>
-
-  <!-- 페이지네이션 -->
-  <div class="pagination-card" id="paginationCard">
-    <div class="page-label">
-      페이지 선택 (최대 10페이지 · 페이지당 100개)
-      <span id="doneLabel"></span>
+    <!-- 페이지네이션 -->
+    <div class="pagination-card" id="paginationCard">
+      <div class="page-label">
+        페이지 선택 (최대 10페이지 · 페이지당 100개)
+        <span id="doneLabel"></span>
+      </div>
+      <div class="page-buttons" id="pageButtons"></div>
     </div>
-    <div class="page-buttons" id="pageButtons"></div>
-  </div>
 
-  <div id="statusBar" class="status-bar"></div>
-  <div id="errorBox" class="error-box"></div>
+    <div id="statusBar" class="status-bar"></div>
+    <div id="errorBox" class="error-box"></div>
 
-  <div id="loadingOverlay" class="loading-overlay">
-    <div class="spinner"></div>
-    <p id="loadingMsg">검색 중...</p>
-    <p class="sub" id="loadingSub"></p>
-  </div>
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="spinner"></div>
+      <p id="loadingMsg">검색 중...</p>
+      <p class="sub" id="loadingSub"></p>
+    </div>
 
-  <!-- 결과 -->
-  <div id="resultsWrapper" class="results-wrapper">
-    <div class="results-header">
-      <h2 id="resultsTitle">검색 결과</h2>
-      <div class="results-header-right">
-        <span id="resultsCount" class="results-count"></span>
-        <label class="select-all-label">
-          <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" />
-          전체 선택
-        </label>
+    <!-- 결과 -->
+    <div id="resultsWrapper" class="results-wrapper">
+      <div class="results-header">
+        <h2 id="resultsTitle">검색 결과</h2>
+        <div class="results-header-right">
+          <span id="resultsCount" class="results-count"></span>
+          <label class="select-all-label">
+            <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" />
+            전체 선택
+          </label>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="cb-cell">
+                <input type="checkbox" id="selectAllTop" onchange="toggleSelectAll(this)" />
+              </th>
+              <th style="width:32px">#</th>
+              <th style="width:48px">출처</th>
+              <th style="width:68px">이미지</th>
+              <th>브랜드</th>
+              <th>상품명</th>
+              <th>카테고리</th>
+              <th>구매처</th>
+              <th>후기 가격</th>
+              <th>네이버 최저가</th>
+              <th>제목 / 내용</th>
+              <th>날짜</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
       </div>
     </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th class="cb-cell">
-              <input type="checkbox" id="selectAllTop" onchange="toggleSelectAll(this)" />
-            </th>
-            <th style="width:32px">#</th>
-            <th style="width:48px">출처</th>
-            <th style="width:68px">이미지</th>
-            <th>브랜드</th>
-            <th>상품명</th>
-            <th>카테고리</th>
-            <th>구매처</th>
-            <th>후기 가격</th>
-            <th>네이버 최저가</th>
-            <th>제목 / 내용</th>
-            <th>날짜</th>
-          </tr>
-        </thead>
-        <tbody id="resultsBody"></tbody>
-      </table>
-    </div>
-  </div>
 
+  </div>
+</div>
+
+<!-- ══ 소싱 후보 탭 ══ -->
+<div id="candidatesTab">
+  <div class="container">
+    <div class="cand-header">
+      <h2>소싱 후보 목록</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
+        <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.85rem">새로고침</button>
+      </div>
+    </div>
+
+    <div id="candLoading" style="display:none;text-align:center;padding:40px;background:white;border-radius:12px;">
+      <div class="spinner" style="margin:0 auto 12px"></div>
+      <p style="color:#718096">로딩 중...</p>
+    </div>
+
+    <div class="cand-card" id="candCard" style="display:none">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>저장일</th>
+              <th>키워드</th>
+              <th>브랜드</th>
+              <th>상품명</th>
+              <th>카테고리</th>
+              <th>구매처</th>
+              <th>후기가격</th>
+              <th>최저가</th>
+              <th>제목</th>
+              <th>상태</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody id="candBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cand-empty" id="candEmpty" style="display:none;background:white;border-radius:12px;">
+      저장된 소싱 후보가 없습니다.<br>검색 후 관심 항목을 체크박스로 선택해 저장하세요.
+    </div>
+
+  </div>
 </div>
 
 <!-- 하단 액션 바 -->
@@ -627,6 +761,15 @@
     lb.classList.add('open');
   }
 
+  // ── 탭 전환 ──
+  function switchTab(tab) {
+    document.getElementById('searchTab').style.display     = tab === 'search'     ? '' : 'none';
+    document.getElementById('candidatesTab').style.display = tab === 'candidates' ? '' : 'none';
+    document.getElementById('tab-search').classList.toggle('active',     tab === 'search');
+    document.getElementById('tab-candidates').classList.toggle('active', tab === 'candidates');
+    if (tab === 'candidates') loadCandidates();
+  }
+
   // ── API 사용량 ──
   async function loadUsage() {
     try {
@@ -638,7 +781,7 @@
       fill.style.width = pct + '%';
       fill.className   = 'usage-fill' + (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
       document.getElementById('usageText').textContent =
-        `${count.toLocaleString()} / ${limit.toLocaleString()}회  (남은 횟수: ${remain.toLocaleString()})`;
+        `오늘 ${count.toLocaleString()}회 사용 / ${limit.toLocaleString()}회  (남은 횟수: ${remain.toLocaleString()})`;
       document.getElementById('usageNote').textContent =
         firebase ? '' : '※ Firebase 미설정 — 추적 불가';
     } catch {
@@ -682,7 +825,6 @@
 
     if (!keyword) { showError('키워드를 입력해주세요.'); return; }
 
-    // 키워드·소스 변경 시 progress 새로 로드
     if (keyword !== curKeyword || source !== curSource) {
       curKeyword = keyword;
       curSource  = source;
@@ -701,7 +843,7 @@
 
     const steps = [
       ['① 네이버 검색 중...', `${page}페이지 · 최신순 100개`],
-      ['② Claude AI 분석 중...', '브랜드명 / 상품명 / 가격 추출'],
+      ['② Claude AI 분석 중...', '실제 직구 후기 필터링 + 상품 정보 추출'],
       ['③ 네이버 쇼핑 조회 중...', '상품별 최저가 수집'],
     ];
 
@@ -733,7 +875,6 @@
       allResults = data.results;
       renderResults(data);
 
-      // 완료 페이지 업데이트
       if (!donePgs.includes(page)) { donePgs.push(page); donePgs.sort((a,b)=>a-b); }
       renderPages();
       loadUsage();
@@ -761,7 +902,7 @@
     if (source === 'all') tot += ' · ';
     if (source === 'cafe' || source === 'all') tot += `카페 <strong>${(total_cafe||0).toLocaleString()}건</strong>`;
     statusBar.innerHTML =
-      `<strong>"${escHtml(keyword)} 직구 후기"</strong> ${page}페이지 — ${tot} 검색, <strong>${results.length}건</strong> 표시`;
+      `<strong>"${escHtml(keyword)} 직구 후기"</strong> — ${tot} 검색,  직구 후기 <strong>${results.length}건</strong> 표시`;
 
     document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" ${page}페이지`;
     document.getElementById('resultsCount').textContent = `${results.length}건`;
@@ -771,7 +912,7 @@
     if (results.length === 0) {
       document.getElementById('resultsWrapper').style.display = 'block';
       document.getElementById('resultsBody').innerHTML =
-        `<tr><td colspan="12" style="padding:60px;text-align:center;color:#718096;">이 페이지에 결과가 없습니다.</td></tr>`;
+        `<tr><td colspan="12" style="padding:60px;text-align:center;color:#718096;">이 페이지에 직구 후기가 없습니다.</td></tr>`;
       return;
     }
 
@@ -793,7 +934,7 @@
         shopHtml = `
           <div class="shopping-price">${formatPrice(r.shopping_price)}</div>
           ${r.shopping_mall ? `<div class="shopping-mall">${escHtml(r.shopping_mall)}</div>` : ''}
-          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">바로가기</a>` : ''}`;
+          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">쇼핑 바로가기</a>` : ''}`;
       }
 
       return `<tr id="row-${r.index}">
@@ -880,8 +1021,7 @@
         return;
       }
 
-      showToast(`✓ ${data.saved}개 항목을 Firestore에 저장했습니다!`);
-      // 체크 해제
+      showToast(`✓ ${data.saved}개 항목을 소싱 후보에 저장했습니다!`);
       selectedIdx.clear();
       document.querySelectorAll('#resultsBody input[type="checkbox"]').forEach(el => el.checked = false);
       document.querySelectorAll('#resultsBody tr.selected').forEach(el => el.classList.remove('selected'));
@@ -891,6 +1031,103 @@
 
     } catch (err) {
       showToast('저장 실패: ' + err.message, true);
+    }
+  }
+
+  // ── 소싱 후보 목록 ──
+  async function loadCandidates() {
+    document.getElementById('candLoading').style.display = 'block';
+    document.getElementById('candCard').style.display    = 'none';
+    document.getElementById('candEmpty').style.display   = 'none';
+
+    try {
+      const data = await (await fetch('/api/candidates')).json();
+      document.getElementById('candLoading').style.display = 'none';
+
+      if (!data.items || data.items.length === 0) {
+        document.getElementById('candEmpty').style.display = 'block';
+        document.getElementById('candCount').textContent = '';
+        return;
+      }
+
+      document.getElementById('candCount').textContent = `총 ${data.items.length}개`;
+      document.getElementById('candCard').style.display = 'block';
+      renderCandidates(data.items);
+
+    } catch (err) {
+      document.getElementById('candLoading').style.display = 'none';
+      document.getElementById('candEmpty').style.display = 'block';
+      document.getElementById('candEmpty').textContent = '로딩 실패: ' + err.message;
+    }
+  }
+
+  function renderCandidates(items) {
+    const statusMap = {
+      pending:  ['검토중',   'status-pending'],
+      good:     ['소싱예정', 'status-good'],
+      pass:     ['제외',     'status-pass'],
+    };
+
+    document.getElementById('candBody').innerHTML = items.map(item => {
+      const savedAt = item.saved_at ? item.saved_at.slice(0, 10) : '-';
+      const [statusLabel, statusClass] = statusMap[item.status] || ['검토중', 'status-pending'];
+
+      return `<tr id="cand-${escHtml(item.id)}">
+        <td class="postdate">${savedAt}</td>
+        <td><span class="badge badge-brand">${escHtml(item.keyword || '-')}</span></td>
+        <td>${item.brand_name ? `<span class="badge badge-brand">${escHtml(item.brand_name)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+        <td style="font-weight:500;min-width:90px">${item.product_name ? escHtml(item.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+        <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+        <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+        <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
+        <td>${item.shopping_price ? `<span class="shopping-price">${formatPrice(item.shopping_price)}</span>` : '-'}</td>
+        <td class="blog-title" style="min-width:160px">
+          ${item.link ? `<a href="${escHtml(item.link)}" target="_blank" rel="noopener">${escHtml(item.title || '-')}</a>` : escHtml(item.title || '-')}
+        </td>
+        <td>
+          <select class="btn-sm" onchange="updateStatus('${escHtml(item.id)}', this.value)" style="padding:4px 6px;font-size:0.75rem">
+            <option value="pending" ${item.status === 'pending' || !item.status ? 'selected' : ''}>검토중</option>
+            <option value="good"    ${item.status === 'good'    ? 'selected' : ''}>소싱예정</option>
+            <option value="pass"    ${item.status === 'pass'    ? 'selected' : ''}>제외</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn-icon del" onclick="deleteCandidate('${escHtml(item.id)}')">삭제</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function updateStatus(docId, status) {
+    try {
+      await fetch(`/api/candidates/${encodeURIComponent(docId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      showToast('상태 업데이트 완료');
+    } catch (err) {
+      showToast('업데이트 실패: ' + err.message, true);
+    }
+  }
+
+  async function deleteCandidate(docId) {
+    if (!confirm('이 항목을 삭제하시겠습니까?')) return;
+    try {
+      const resp = await fetch(`/api/candidates/${encodeURIComponent(docId)}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('삭제 실패');
+      const row = document.getElementById(`cand-${docId}`);
+      if (row) row.remove();
+      showToast('삭제 완료');
+      const remaining = document.querySelectorAll('#candBody tr').length;
+      document.getElementById('candCount').textContent = `총 ${remaining}개`;
+      if (remaining === 0) {
+        document.getElementById('candCard').style.display  = 'none';
+        document.getElementById('candEmpty').style.display = 'block';
+        document.getElementById('candEmpty').textContent   = '저장된 소싱 후보가 없습니다.\n검색 후 관심 항목을 체크박스로 선택해 저장하세요.';
+      }
+    } catch (err) {
+      showToast('삭제 실패: ' + err.message, true);
     }
   }
 
