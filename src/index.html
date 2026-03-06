@@ -14,24 +14,68 @@
       min-height: 100vh;
     }
 
+    /* ── 헤더 ── */
     header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: white;
-      padding: 24px 32px;
+      padding: 20px 32px 12px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.2);
     }
 
-    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
-    header p { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p  { font-size: 0.8rem; color: #a0aec0; margin-top: 3px; }
 
-    .container { max-width: 1400px; margin: 0 auto; padding: 32px 16px; }
+    /* ── API 사용량 바 ── */
+    .usage-bar {
+      background: #0f1526;
+      border-bottom: 1px solid #2d3748;
+      padding: 8px 32px;
+    }
 
+    .usage-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: #718096;
+    }
+
+    .usage-label { white-space: nowrap; font-weight: 500; color: #a0aec0; }
+
+    .usage-track {
+      flex: 1;
+      max-width: 160px;
+      height: 5px;
+      background: #2d3748;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .usage-fill {
+      height: 100%;
+      background: #48bb78;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .usage-fill.warn   { background: #ecc94b; }
+    .usage-fill.danger { background: #fc8181; }
+
+    .usage-text  { color: #e2e8f0; font-weight: 500; white-space: nowrap; }
+    .usage-note  { color: #4a5568; font-size: 0.72rem; }
+
+    /* ── 컨테이너 ── */
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── 검색 카드 ── */
     .search-card {
       background: white;
       border-radius: 12px;
-      padding: 24px;
+      padding: 20px 24px;
       box-shadow: 0 1px 8px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
+      margin-bottom: 16px;
     }
 
     .search-row {
@@ -46,11 +90,11 @@
 
     .search-input {
       flex: 1;
-      min-width: 200px;
-      padding: 11px 16px;
+      min-width: 180px;
+      padding: 10px 14px;
       border: 2px solid #e2e8f0;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -58,58 +102,18 @@
     .search-input:focus { border-color: #4a6cf7; }
 
     select, input[type="date"] {
-      padding: 11px 12px;
+      padding: 10px 10px;
       border: 2px solid #e2e8f0;
       border-radius: 8px;
-      font-size: 0.875rem;
+      font-size: 0.85rem;
       outline: none;
       background: white;
       cursor: pointer;
       color: #2d3748;
     }
 
-    select:focus, input[type="date"]:focus { border-color: #4a6cf7; }
-
-    .label-inline {
-      font-size: 0.8rem;
-      color: #718096;
-      white-space: nowrap;
-    }
-
-    .date-sep { color: #a0aec0; font-size: 0.85rem; }
-
-    .btn-search {
-      padding: 11px 28px;
-      background: linear-gradient(135deg, #4a6cf7, #3a56d4);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.1s, opacity 0.2s;
-      white-space: nowrap;
-    }
-
-    .btn-search:hover { opacity: 0.9; }
-    .btn-search:active { transform: scale(0.98); }
-    .btn-search:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .btn-reset {
-      padding: 9px 12px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-      font-size: 0.8rem;
-      color: #718096;
-    }
-
-    .search-hint {
-      margin-top: 10px;
-      font-size: 0.8rem;
-      color: #718096;
-    }
+    .label-inline { font-size: 0.78rem; color: #718096; white-space: nowrap; }
+    .date-sep     { color: #a0aec0; }
 
     .source-toggle {
       display: flex;
@@ -118,31 +122,135 @@
       overflow: hidden;
     }
 
+    .source-toggle input[type="radio"] { display: none; }
+
     .source-toggle label {
-      padding: 9px 14px;
+      padding: 8px 14px;
       font-size: 0.85rem;
       cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
       user-select: none;
+      transition: background 0.15s;
     }
 
-    .source-toggle input[type="radio"] { display: none; }
-    .source-toggle input[type="radio"]:checked + label { background: #4a6cf7; color: white; font-weight: 600; }
+    .source-toggle input[type="radio"]:checked + label {
+      background: #4a6cf7;
+      color: white;
+      font-weight: 600;
+    }
+
     .source-toggle label:hover { background: #f0f4ff; }
     .source-toggle input[type="radio"]:checked + label:hover { background: #4a6cf7; }
 
+    .btn-search {
+      padding: 10px 26px;
+      background: linear-gradient(135deg, #4a6cf7, #3a56d4);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+
+    .btn-search:hover   { opacity: 0.9; }
+    .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-sm {
+      padding: 8px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: #718096;
+    }
+
+    .search-hint { margin-top: 10px; font-size: 0.78rem; color: #718096; }
+
+    /* ── 페이지네이션 카드 ── */
+    .pagination-card {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 16px 24px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+
+    .pagination-card.show { display: block; }
+
+    .page-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 10px;
+    }
+
+    .page-label span { font-weight: 400; color: #a0aec0; margin-left: 6px; }
+
+    .page-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .page-btn {
+      position: relative;
+      width: 44px;
+      height: 36px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .page-btn:hover   { border-color: #4a6cf7; color: #4a6cf7; }
+    .page-btn.current { background: #4a6cf7; color: white; border-color: #4a6cf7; }
+
+    .page-btn.done {
+      border-color: #48bb78;
+      color: #276749;
+    }
+
+    .page-btn.done::after {
+      content: '✓';
+      position: absolute;
+      top: -7px; right: -7px;
+      width: 15px; height: 15px;
+      background: #48bb78;
+      color: white;
+      border-radius: 50%;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-btn.current.done { background: #276749; border-color: #276749; }
+
+    /* ── 상태/에러/로딩 ── */
     .status-bar {
       display: none;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-      padding: 12px 16px;
+      padding: 10px 16px;
       background: #ebf8ff;
       border-radius: 8px;
       border-left: 4px solid #4a6cf7;
-      font-size: 0.875rem;
+      font-size: 0.85rem;
       color: #2b6cb0;
+      margin-bottom: 16px;
+    }
+
+    .error-box {
+      display: none;
+      padding: 14px 16px;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-radius: 8px;
+      color: #c53030;
+      font-size: 0.875rem;
+      margin-bottom: 16px;
     }
 
     .loading-overlay {
@@ -167,50 +275,51 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .loading-overlay p { color: #718096; font-size: 0.9rem; }
-    .loading-step { margin-top: 6px; font-size: 0.8rem; color: #a0aec0; }
+    .loading-overlay p    { color: #718096; font-size: 0.9rem; }
+    .loading-overlay .sub { margin-top: 6px; font-size: 0.8rem; color: #a0aec0; }
 
-    .error-box {
-      display: none;
-      padding: 16px;
-      background: #fff5f5;
-      border: 1px solid #fed7d7;
-      border-radius: 8px;
-      color: #c53030;
-      font-size: 0.9rem;
-      margin-bottom: 16px;
-    }
-
+    /* ── 결과 테이블 ── */
     .results-wrapper {
       display: none;
       background: white;
       border-radius: 12px;
       box-shadow: 0 1px 8px rgba(0,0,0,0.08);
       overflow: hidden;
+      margin-bottom: 80px;
     }
 
     .results-header {
-      padding: 16px 24px;
+      padding: 14px 20px;
       border-bottom: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .results-header h2 { font-size: 1rem; font-weight: 600; color: #2d3748; }
-    .results-count { font-size: 0.85rem; color: #718096; }
+    .results-header h2   { font-size: 0.95rem; font-weight: 600; color: #2d3748; }
+    .results-header-right { display: flex; align-items: center; gap: 14px; }
+    .results-count       { font-size: 0.82rem; color: #718096; }
+
+    .select-all-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      color: #4a5568;
+    }
 
     .table-scroll { overflow-x: auto; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     thead { background: #f7fafc; }
 
     th {
-      padding: 11px 12px;
+      padding: 10px 10px;
       text-align: left;
       font-weight: 600;
       color: #4a5568;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       border-bottom: 2px solid #e2e8f0;
@@ -218,19 +327,25 @@
     }
 
     td {
-      padding: 10px 12px;
+      padding: 10px 10px;
       border-bottom: 1px solid #f0f4f8;
       vertical-align: middle;
     }
 
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f7fafc; }
+    tr:hover td      { background: #f7fafc; }
+    tr.selected td   { background: #f0f4ff; }
 
+    /* 체크박스 */
+    .cb-cell { width: 36px; text-align: center; }
+    input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #4a6cf7; }
+
+    /* 배지 */
     .badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 3px 9px;
       border-radius: 20px;
-      font-size: 0.75rem;
+      font-size: 0.73rem;
       font-weight: 500;
       white-space: nowrap;
     }
@@ -243,9 +358,9 @@
     .badge-null     { background: #f7fafc; color: #a0aec0; font-style: italic; }
 
     /* 이미지 */
-    .img-cell { width: 72px; text-align: center; }
+    .img-cell { width: 68px; text-align: center; }
     .img-cell img {
-      width: 64px; height: 64px;
+      width: 60px; height: 60px;
       object-fit: cover;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
@@ -253,65 +368,82 @@
       transition: opacity 0.15s;
     }
     .img-cell img:hover { opacity: 0.8; }
-    .img-none { color: #cbd5e0; font-size: 0.75rem; }
+    .img-none { color: #cbd5e0; font-size: 0.72rem; }
 
     /* 가격 */
-    .price-paid {
-      font-size: 0.85rem;
-      color: #2d3748;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .shopping-price {
-      font-weight: 700;
-      color: #e53e3e;
-      white-space: nowrap;
-    }
-
-    .shopping-mall {
-      font-size: 0.75rem;
-      color: #718096;
-      margin-top: 2px;
-    }
-
+    .price-paid      { font-size: 0.83rem; color: #2d3748; font-weight: 500; white-space: nowrap; }
+    .shopping-price  { font-weight: 700; color: #e53e3e; white-space: nowrap; font-size: 0.9rem; }
+    .shopping-mall   { font-size: 0.72rem; color: #718096; margin-top: 2px; }
     .btn-shop {
-      display: inline-block;
-      margin-top: 4px;
+      display: inline-block; margin-top: 4px;
       padding: 2px 8px;
-      background: #03c75a;
-      color: white;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
+      background: #03c75a; color: white;
+      border-radius: 4px; font-size: 0.68rem; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
     }
-
     .btn-shop:hover { opacity: 0.85; }
 
-    .blog-title a {
-      color: #4a6cf7;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
+    /* 제목 */
+    .blog-title a { color: #4a6cf7; text-decoration: none; font-weight: 500; line-height: 1.4; }
     .blog-title a:hover { text-decoration: underline; }
-
     .description {
-      font-size: 0.8rem;
-      color: #718096;
-      margin-top: 3px;
+      font-size: 0.78rem; color: #718096; margin-top: 3px;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
 
-    .postdate { color: #a0aec0; font-size: 0.8rem; white-space: nowrap; }
-    .num-cell { color: #a0aec0; font-size: 0.8rem; text-align: center; }
+    .postdate  { color: #a0aec0; font-size: 0.78rem; white-space: nowrap; }
+    .num-cell  { color: #a0aec0; font-size: 0.78rem; text-align: center; }
 
-    /* 라이트박스 */
+    /* ── 하단 액션 바 ── */
+    .action-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #1a1a2e;
+      padding: 12px 32px;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 200;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+    }
+
+    .action-bar.show { display: flex; }
+
+    .action-bar-info { font-size: 0.88rem; color: #a0aec0; }
+    .action-bar-info strong { color: white; font-size: 1rem; }
+
+    .btn-next {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white; border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-next:hover { opacity: 0.9; }
+
+    /* ── 토스트 ── */
+    .toast {
+      position: fixed;
+      bottom: 76px; left: 50%;
+      transform: translateX(-50%);
+      background: #2d3748; color: white;
+      padding: 11px 22px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      z-index: 300;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show { opacity: 1; }
+
+    /* ── 라이트박스 ── */
     #lightbox {
       display: none;
       position: fixed; inset: 0;
@@ -322,15 +454,16 @@
     }
 
     #lightbox.open { display: flex; }
-    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+    #lightbox img  { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+
     #lightbox-close {
       position: absolute; top: 16px; right: 24px;
-      color: white; font-size: 2rem; cursor: pointer; line-height: 1;
+      color: white; font-size: 2rem; cursor: pointer;
     }
 
     @media (max-width: 640px) {
-      header { padding: 16px; }
-      .container { padding: 16px; }
+      header, .usage-bar { padding-left: 16px; padding-right: 16px; }
+      .container { padding: 12px; }
     }
   </style>
 </head>
@@ -338,34 +471,38 @@
 
 <header>
   <h1>직구 소싱 앱</h1>
-  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 상품 정보 · 가격 추출 + 네이버 쇼핑 최저가</p>
+  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 분석 + 네이버 쇼핑 최저가</p>
 </header>
+
+<!-- API 사용량 -->
+<div class="usage-bar">
+  <div class="usage-inner">
+    <span class="usage-label">오늘 API 사용량</span>
+    <div class="usage-track">
+      <div class="usage-fill" id="usageFill" style="width:0%"></div>
+    </div>
+    <span class="usage-text" id="usageText">로딩중...</span>
+    <span class="usage-note" id="usageNote"></span>
+  </div>
+</div>
 
 <div class="container">
 
+  <!-- 검색 카드 -->
   <div class="search-card">
-    <!-- 1행: 키워드 + 결과수 + 검색 -->
     <div class="search-row" style="margin-top:0">
       <input type="text" id="keyword" class="search-input"
-        placeholder="검색 키워드 입력 (예: 나이키, 뉴발란스, 다이슨)" maxlength="100" />
-      <select id="display">
-        <option value="5">5개</option>
-        <option value="10" selected>10개</option>
-        <option value="20">20개</option>
-        <option value="30">30개</option>
-      </select>
-      <button id="searchBtn" class="btn-search" onclick="doSearch()">검색</button>
+        placeholder="검색 키워드 (예: 나이키, 뉴발란스, 다이슨)" maxlength="100" />
+      <button id="searchBtn" class="btn-search" onclick="goSearch(1)">검색</button>
     </div>
 
-    <!-- 2행: 제외 키워드 -->
     <div class="search-row">
       <span class="label-inline">제외 키워드</span>
       <input type="text" id="excludeKeywords" class="search-input"
-        placeholder="제외할 단어 (쉼표로 구분, 예: 품절, 가품, 불량)"
-        style="font-size:0.875rem;" />
+        placeholder="제외할 단어 (쉼표로 구분, 예: 품절, 가품)"
+        style="font-size:0.85rem;" />
     </div>
 
-    <!-- 3행: 출처 + 날짜 -->
     <div class="search-row">
       <div class="source-toggle">
         <input type="radio" name="source" id="src-blog" value="blog" checked />
@@ -379,12 +516,19 @@
       <input type="date" id="startDate" />
       <span class="date-sep">~</span>
       <input type="date" id="endDate" />
-      <button class="btn-reset" onclick="clearDates()">날짜 초기화</button>
+      <button class="btn-sm" onclick="clearDates()">날짜 초기화</button>
     </div>
 
-    <p class="search-hint">
-      키워드 + "직구 후기"로 검색 · Claude AI가 상품 정보와 구매 가격 추출 · 네이버 쇼핑에서 현재 최저가 조회
-    </p>
+    <p class="search-hint">페이지당 100개씩 최신순으로 수집합니다. 완료(✓) 페이지는 Firestore에 진행상황이 저장됩니다.</p>
+  </div>
+
+  <!-- 페이지네이션 -->
+  <div class="pagination-card" id="paginationCard">
+    <div class="page-label">
+      페이지 선택 (최대 10페이지 · 페이지당 100개)
+      <span id="doneLabel"></span>
+    </div>
+    <div class="page-buttons" id="pageButtons"></div>
   </div>
 
   <div id="statusBar" class="status-bar"></div>
@@ -393,21 +537,31 @@
   <div id="loadingOverlay" class="loading-overlay">
     <div class="spinner"></div>
     <p id="loadingMsg">검색 중...</p>
-    <p class="loading-step" id="loadingStep"></p>
+    <p class="sub" id="loadingSub"></p>
   </div>
 
+  <!-- 결과 -->
   <div id="resultsWrapper" class="results-wrapper">
     <div class="results-header">
       <h2 id="resultsTitle">검색 결과</h2>
-      <span id="resultsCount" class="results-count"></span>
+      <div class="results-header-right">
+        <span id="resultsCount" class="results-count"></span>
+        <label class="select-all-label">
+          <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" />
+          전체 선택
+        </label>
+      </div>
     </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th style="width:36px">#</th>
-            <th style="width:52px">출처</th>
-            <th style="width:72px">이미지</th>
+            <th class="cb-cell">
+              <input type="checkbox" id="selectAllTop" onchange="toggleSelectAll(this)" />
+            </th>
+            <th style="width:32px">#</th>
+            <th style="width:48px">출처</th>
+            <th style="width:68px">이미지</th>
             <th>브랜드</th>
             <th>상품명</th>
             <th>카테고리</th>
@@ -425,77 +579,331 @@
 
 </div>
 
-<!-- 라이트박스 -->
+<!-- 하단 액션 바 -->
+<div class="action-bar" id="actionBar">
+  <div class="action-bar-info">
+    <strong id="selectedCount">0</strong>개 항목 선택됨
+  </div>
+  <button class="btn-next" onclick="saveSelected()">
+    선택한 항목 다음 단계로 →
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <div id="lightbox">
   <span id="lightbox-close">&times;</span>
   <img id="lightbox-img" src="" alt="크게 보기" />
 </div>
 
 <script>
-  document.getElementById('keyword').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
+  // ── 상태 ──
+  let curKeyword  = '';
+  let curSource   = 'blog';
+  let curPage     = 1;
+  let donePgs     = [];
+  let allResults  = [];
+  let selectedIdx = new Set();
+
+  // ── 초기화 ──
+  document.addEventListener('DOMContentLoaded', () => {
+    loadUsage();
+    document.getElementById('keyword').addEventListener('keydown', e => {
+      if (e.key === 'Enter') goSearch(curPage || 1);
+    });
+    document.querySelectorAll('input[name="source"]').forEach(el => {
+      el.addEventListener('change', () => {
+        if (curKeyword) loadProgress(curKeyword, el.value);
+      });
+    });
   });
 
   // 라이트박스
   const lb = document.getElementById('lightbox');
   document.getElementById('lightbox-close').onclick = () => lb.classList.remove('open');
   lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
-
   function openLightbox(src) {
     document.getElementById('lightbox-img').src = src;
     lb.classList.add('open');
   }
 
-  function clearDates() {
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
+  // ── API 사용량 ──
+  async function loadUsage() {
+    try {
+      const data = await (await fetch('/api/usage')).json();
+      const { count, limit, firebase } = data;
+      const pct    = Math.min(count / limit * 100, 100);
+      const remain = limit - count;
+      const fill   = document.getElementById('usageFill');
+      fill.style.width = pct + '%';
+      fill.className   = 'usage-fill' + (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
+      document.getElementById('usageText').textContent =
+        `${count.toLocaleString()} / ${limit.toLocaleString()}회  (남은 횟수: ${remain.toLocaleString()})`;
+      document.getElementById('usageNote').textContent =
+        firebase ? '' : '※ Firebase 미설정 — 추적 불가';
+    } catch {
+      document.getElementById('usageText').textContent = '조회 실패';
+    }
   }
 
-  function escHtml(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // ── 페이지네이션 ──
+  async function loadProgress(keyword, source) {
+    try {
+      const data = await (await fetch(
+        `/api/progress?keyword=${encodeURIComponent(keyword)}&source=${encodeURIComponent(source)}`
+      )).json();
+      donePgs = data.completed_pages || [];
+    } catch {
+      donePgs = [];
+    }
+    renderPages();
   }
 
-  function badge(value, type) {
-    if (!value) return '<span class="badge badge-null">-</span>';
-    return `<span class="badge badge-${type}">${escHtml(value)}</span>`;
+  function renderPages() {
+    document.getElementById('paginationCard').classList.add('show');
+    document.getElementById('doneLabel').textContent =
+      donePgs.length ? `— 완료: ${donePgs.join(', ')}페이지` : '';
+
+    document.getElementById('pageButtons').innerHTML = Array.from({ length: 10 }, (_, i) => {
+      const p    = i + 1;
+      const done = donePgs.includes(p);
+      const cur  = p === curPage;
+      let cls    = 'page-btn';
+      if (done) cls += ' done';
+      if (cur)  cls += ' current';
+      return `<button class="${cls}" onclick="goSearch(${p})">${p}</button>`;
+    }).join('');
   }
 
-  function sourceBadge(src) {
-    const cls = src === '카페' ? 'badge-cafe' : 'badge-blog';
-    return `<span class="badge ${cls}">${escHtml(src)}</span>`;
+  // ── 검색 ──
+  async function goSearch(page) {
+    const keyword = document.getElementById('keyword').value.trim();
+    const source  = document.querySelector('input[name="source"]:checked').value;
+
+    if (!keyword) { showError('키워드를 입력해주세요.'); return; }
+
+    // 키워드·소스 변경 시 progress 새로 로드
+    if (keyword !== curKeyword || source !== curSource) {
+      curKeyword = keyword;
+      curSource  = source;
+      await loadProgress(keyword, source);
+    }
+
+    curPage = page;
+    renderPages();
+
+    hideError();
+    document.getElementById('statusBar').style.display  = 'none';
+    document.getElementById('resultsWrapper').style.display = 'none';
+    document.getElementById('searchBtn').disabled = true;
+    selectedIdx.clear();
+    updateActionBar();
+
+    const steps = [
+      ['① 네이버 검색 중...', `${page}페이지 · 최신순 100개`],
+      ['② Claude AI 분석 중...', '브랜드명 / 상품명 / 가격 추출'],
+      ['③ 네이버 쇼핑 조회 중...', '상품별 최저가 수집'],
+    ];
+
+    let si = 0;
+    document.getElementById('loadingMsg').textContent = steps[0][0];
+    document.getElementById('loadingSub').textContent = steps[0][1];
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    const timer = setInterval(() => {
+      si = Math.min(si + 1, steps.length - 1);
+      document.getElementById('loadingMsg').textContent = steps[si][0];
+      document.getElementById('loadingSub').textContent = steps[si][1];
+    }, 2500);
+
+    try {
+      const resp = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword, source, page,
+          start_date:       document.getElementById('startDate').value,
+          end_date:         document.getElementById('endDate').value,
+          exclude_keywords: document.getElementById('excludeKeywords').value.trim(),
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) { showError(data.error || '오류가 발생했습니다.'); return; }
+
+      allResults = data.results;
+      renderResults(data);
+
+      // 완료 페이지 업데이트
+      if (!donePgs.includes(page)) { donePgs.push(page); donePgs.sort((a,b)=>a-b); }
+      renderPages();
+      loadUsage();
+
+    } catch (err) {
+      showError('서버 연결 실패: ' + err.message);
+    } finally {
+      clearInterval(timer);
+      document.getElementById('loadingOverlay').style.display = 'none';
+      document.getElementById('searchBtn').disabled = false;
+      document.getElementById('loadingMsg').textContent = '검색 중...';
+      document.getElementById('loadingSub').textContent = '';
+    }
   }
 
-  function formatPrice(price) {
-    if (!price) return null;
-    return parseInt(price).toLocaleString('ko-KR') + '원';
+  // ── 결과 렌더링 ──
+  function renderResults(data) {
+    const { results, total_blog, total_cafe, keyword, page } = data;
+    const source = document.querySelector('input[name="source"]:checked').value;
+
+    const statusBar = document.getElementById('statusBar');
+    statusBar.style.display = 'block';
+    let tot = '';
+    if (source === 'blog' || source === 'all') tot += `블로그 <strong>${(total_blog||0).toLocaleString()}건</strong>`;
+    if (source === 'all') tot += ' · ';
+    if (source === 'cafe' || source === 'all') tot += `카페 <strong>${(total_cafe||0).toLocaleString()}건</strong>`;
+    statusBar.innerHTML =
+      `<strong>"${escHtml(keyword)} 직구 후기"</strong> ${page}페이지 — ${tot} 검색, <strong>${results.length}건</strong> 표시`;
+
+    document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" ${page}페이지`;
+    document.getElementById('resultsCount').textContent = `${results.length}건`;
+    document.getElementById('selectAllChk').checked = false;
+    document.getElementById('selectAllTop').checked = false;
+
+    if (results.length === 0) {
+      document.getElementById('resultsWrapper').style.display = 'block';
+      document.getElementById('resultsBody').innerHTML =
+        `<tr><td colspan="12" style="padding:60px;text-align:center;color:#718096;">이 페이지에 결과가 없습니다.</td></tr>`;
+      return;
+    }
+
+    const needsOg = [];
+
+    document.getElementById('resultsBody').innerHTML = results.map(r => {
+      let imgHtml;
+      if (r.shopping_image) {
+        imgHtml = `<img src="${escHtml(r.shopping_image)}" alt="상품"
+          onclick="openLightbox('${escHtml(r.shopping_image)}')"
+          onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
+      } else {
+        needsOg.push({ index: r.index, link: r.link });
+        imgHtml = '<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">로딩중</span>';
+      }
+
+      let shopHtml = '<span class="badge badge-null">-</span>';
+      if (r.shopping_price) {
+        shopHtml = `
+          <div class="shopping-price">${formatPrice(r.shopping_price)}</div>
+          ${r.shopping_mall ? `<div class="shopping-mall">${escHtml(r.shopping_mall)}</div>` : ''}
+          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">바로가기</a>` : ''}`;
+      }
+
+      return `<tr id="row-${r.index}">
+        <td class="cb-cell">
+          <input type="checkbox" data-idx="${r.index}" onchange="onCheck(this)" />
+        </td>
+        <td class="num-cell">${r.index}</td>
+        <td>${srcBadge(r.source)}</td>
+        <td class="img-cell" id="img-${r.index}">${imgHtml}</td>
+        <td>${badge(r.brand_name, 'brand')}</td>
+        <td style="font-weight:500;color:#2d3748;min-width:90px">
+          ${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}
+        </td>
+        <td>${badge(r.category, 'category')}</td>
+        <td>${badge(r.purchase_source, 'source')}</td>
+        <td class="price-paid">${r.price_paid ? escHtml(r.price_paid) : '<span style="color:#a0aec0">-</span>'}</td>
+        <td>${shopHtml}</td>
+        <td class="blog-title" style="min-width:180px">
+          <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
+          ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
+        </td>
+        <td class="postdate">${r.postdate || '-'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('resultsWrapper').style.display = 'block';
+    needsOg.forEach(({ index, link }) => loadOgImage(index, link));
   }
 
-  function setLoading(on) {
-    document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+  // ── 체크박스 ──
+  function onCheck(el) {
+    const idx = parseInt(el.dataset.idx);
+    if (el.checked) selectedIdx.add(idx);
+    else            selectedIdx.delete(idx);
+
+    const row = document.getElementById(`row-${idx}`);
+    if (row) row.classList.toggle('selected', el.checked);
+
+    const total  = document.querySelectorAll('#resultsBody input[type="checkbox"]').length;
+    const allSel = selectedIdx.size === total && total > 0;
+    document.getElementById('selectAllChk').checked = allSel;
+    document.getElementById('selectAllTop').checked = allSel;
+
+    updateActionBar();
   }
 
-  function showError(msg) {
-    const box = document.getElementById('errorBox');
-    box.textContent = msg;
-    box.style.display = 'block';
+  function toggleSelectAll(master) {
+    const checked = master.checked;
+    document.querySelectorAll('#resultsBody input[type="checkbox"]').forEach(el => {
+      el.checked = checked;
+      const idx  = parseInt(el.dataset.idx);
+      if (checked) selectedIdx.add(idx);
+      else         selectedIdx.delete(idx);
+      const row = document.getElementById(`row-${idx}`);
+      if (row) row.classList.toggle('selected', checked);
+    });
+    document.getElementById('selectAllChk').checked = checked;
+    document.getElementById('selectAllTop').checked = checked;
+    updateActionBar();
   }
 
-  function hideError() {
-    document.getElementById('errorBox').style.display = 'none';
+  function updateActionBar() {
+    const bar = document.getElementById('actionBar');
+    const n   = selectedIdx.size;
+    document.getElementById('selectedCount').textContent = n;
+    bar.classList.toggle('show', n > 0);
   }
 
-  // OG 이미지 lazy load (쇼핑 이미지 없는 경우 폴백)
+  // ── 저장 ──
+  async function saveSelected() {
+    const items = allResults.filter(r => selectedIdx.has(r.index));
+    if (!items.length) return;
+
+    try {
+      const resp = await fetch('/api/save-selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, keyword: curKeyword }),
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        showToast('저장 실패: ' + (data.error || ''), true);
+        return;
+      }
+
+      showToast(`✓ ${data.saved}개 항목을 Firestore에 저장했습니다!`);
+      // 체크 해제
+      selectedIdx.clear();
+      document.querySelectorAll('#resultsBody input[type="checkbox"]').forEach(el => el.checked = false);
+      document.querySelectorAll('#resultsBody tr.selected').forEach(el => el.classList.remove('selected'));
+      document.getElementById('selectAllChk').checked = false;
+      document.getElementById('selectAllTop').checked = false;
+      updateActionBar();
+
+    } catch (err) {
+      showToast('저장 실패: ' + err.message, true);
+    }
+  }
+
+  // ── OG 이미지 폴백 ──
   async function loadOgImage(index, url) {
     const cell = document.getElementById(`img-${index}`);
     if (!cell || cell.querySelector('img')) return;
     try {
-      const resp = await fetch(`/api/og-image?url=${encodeURIComponent(url)}`);
-      const data = await resp.json();
+      const data = await (await fetch(`/api/og-image?url=${encodeURIComponent(url)}`)).json();
       if (data.images && data.images.length > 0) {
-        cell.innerHTML = `<img src="${escHtml(data.images[0])}" alt="이미지"
-          onclick="openLightbox('${escHtml(data.images[0])}')"
+        const src = data.images[0];
+        cell.innerHTML = `<img src="${escHtml(src)}" alt="이미지"
+          onclick="openLightbox('${escHtml(src)}')"
           onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
       } else {
         cell.innerHTML = '<span class="img-none">-</span>';
@@ -505,139 +913,47 @@
     }
   }
 
-  async function doSearch() {
-    const keyword = document.getElementById('keyword').value.trim();
-    const display  = parseInt(document.getElementById('display').value);
-    const source   = document.querySelector('input[name="source"]:checked').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate   = document.getElementById('endDate').value;
-    const excludeKeywords = document.getElementById('excludeKeywords').value.trim();
-
-    if (!keyword) { showError('키워드를 입력해주세요.'); return; }
-
-    hideError();
-    document.getElementById('statusBar').style.display = 'none';
-    document.getElementById('resultsWrapper').style.display = 'none';
-    document.getElementById('searchBtn').disabled = true;
-
-    const steps = [
-      ['① 네이버 검색 중...', '블로그 · 카페 API 호출'],
-      ['② Claude AI 분석 중...', '브랜드명 / 상품명 / 구매 가격 추출'],
-      ['③ 네이버 쇼핑 조회 중...', '상품별 최저가 · 이미지 수집'],
-    ];
-    let stepIdx = 0;
-
-    const updateStep = () => {
-      if (stepIdx < steps.length) {
-        document.getElementById('loadingMsg').textContent = steps[stepIdx][0];
-        document.getElementById('loadingStep').textContent = steps[stepIdx][1];
-        stepIdx++;
-      }
-    };
-
-    updateStep();
-    setLoading(true);
-    const stepTimer = setInterval(updateStep, 2000);
-
-    try {
-      const resp = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keyword, display, source,
-          start_date: startDate, end_date: endDate,
-          exclude_keywords: excludeKeywords,
-        }),
-      });
-
-      const data = await resp.json();
-      if (!resp.ok) { showError(data.error || '오류가 발생했습니다.'); return; }
-      renderResults(data, source);
-
-    } catch (err) {
-      showError('서버 연결 실패: ' + err.message);
-    } finally {
-      clearInterval(stepTimer);
-      setLoading(false);
-      document.getElementById('searchBtn').disabled = false;
-      document.getElementById('loadingMsg').textContent = '검색 중...';
-      document.getElementById('loadingStep').textContent = '';
-    }
+  // ── 유틸 ──
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function renderResults(data, source) {
-    const { results, total_blog, total_cafe, keyword } = data;
+  function badge(v, t) {
+    if (!v) return '<span class="badge badge-null">-</span>';
+    return `<span class="badge badge-${t}">${escHtml(v)}</span>`;
+  }
 
-    const statusBar = document.getElementById('statusBar');
-    statusBar.style.display = 'flex';
-    let totalInfo = '';
-    if (source === 'blog' || source === 'all') totalInfo += `블로그 <strong>${(total_blog||0).toLocaleString()}건</strong>`;
-    if (source === 'all') totalInfo += ' · ';
-    if (source === 'cafe' || source === 'all') totalInfo += `카페 <strong>${(total_cafe||0).toLocaleString()}건</strong>`;
-    statusBar.innerHTML = `<strong>"${escHtml(keyword)} 직구 후기"</strong> &mdash; ${totalInfo} 검색, <strong>${results.length}건</strong> 표시`;
+  function srcBadge(src) {
+    return `<span class="badge badge-${src==='카페'?'cafe':'blog'}">${escHtml(src)}</span>`;
+  }
 
-    if (results.length === 0) {
-      document.getElementById('resultsWrapper').style.display = 'block';
-      document.getElementById('resultsTitle').textContent = '검색 결과';
-      document.getElementById('resultsCount').textContent = '0건';
-      document.getElementById('resultsBody').innerHTML = `
-        <tr><td colspan="11" style="padding:60px;text-align:center;color:#718096;">
-          검색 결과가 없습니다. 키워드나 날짜 범위를 조정해보세요.
-        </td></tr>`;
-      return;
-    }
+  function formatPrice(p) {
+    return parseInt(p).toLocaleString('ko-KR') + '원';
+  }
 
-    document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" 검색 결과`;
-    document.getElementById('resultsCount').textContent = `${results.length}건`;
+  function clearDates() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value   = '';
+  }
 
-    const needsOg = [];
+  function showError(msg) {
+    const b = document.getElementById('errorBox');
+    b.textContent = msg;
+    b.style.display = 'block';
+  }
 
-    document.getElementById('resultsBody').innerHTML = results.map(r => {
-      // 이미지 셀
-      let imgHtml;
-      if (r.shopping_image) {
-        imgHtml = `<img src="${escHtml(r.shopping_image)}" alt="상품이미지"
-          onclick="openLightbox('${escHtml(r.shopping_image)}')"
-          onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
-      } else {
-        needsOg.push({ index: r.index, link: r.link });
-        imgHtml = '<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">로딩중</span>';
-      }
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
 
-      // 네이버 최저가 셀
-      let shoppingHtml = '<span class="badge badge-null">-</span>';
-      if (r.shopping_price) {
-        shoppingHtml = `
-          <div class="shopping-price">${formatPrice(r.shopping_price)}</div>
-          ${r.shopping_mall ? `<div class="shopping-mall">${escHtml(r.shopping_mall)}</div>` : ''}
-          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">쇼핑 바로가기</a>` : ''}
-        `;
-      }
-
-      return `
-        <tr>
-          <td class="num-cell">${r.index}</td>
-          <td>${sourceBadge(r.source)}</td>
-          <td class="img-cell" id="img-${r.index}">${imgHtml}</td>
-          <td>${badge(r.brand_name, 'brand')}</td>
-          <td style="font-weight:500;color:#2d3748;min-width:100px">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
-          <td>${badge(r.category, 'category')}</td>
-          <td>${badge(r.purchase_source, 'source')}</td>
-          <td class="price-paid">${r.price_paid ? escHtml(r.price_paid) : '<span style="color:#a0aec0">-</span>'}</td>
-          <td>${shoppingHtml}</td>
-          <td class="blog-title" style="min-width:200px">
-            <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
-            ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
-          </td>
-          <td class="postdate">${r.postdate || '-'}</td>
-        </tr>
-      `;
-    }).join('');
-
-    document.getElementById('resultsWrapper').style.display = 'block';
-
-    // 쇼핑 이미지 없는 항목만 OG 이미지 lazy load
-    needsOg.forEach(({ index, link }) => loadOgImage(index, link));
+  function showToast(msg, isErr) {
+    const t = document.getElementById('toast');
+    t.textContent      = msg;
+    t.style.background = isErr ? '#e53e3e' : '#276749';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
   }
 </script>
 
