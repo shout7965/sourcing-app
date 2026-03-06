@@ -189,27 +189,51 @@ def get_progress():
     except Exception as e:
         return jsonify({"completed_pages": [], "error": str(e)})
 
-# 선택 항목 저장
+# 선택 항목 저장 (네이버 쇼핑 조회 포함)
 @app.route("/api/save-selected", methods=["POST"])
 def save_selected():
     if not FIREBASE_ENABLED:
         return jsonify({
             "error": "Firebase 미설정 상태입니다. Railway Variables에 FIREBASE_SERVICE_ACCOUNT_JSON을 추가해주세요."
         }), 503
-    data  = request.get_json()
+    data    = request.get_json()
     items   = data.get('items', [])
     keyword = data.get('keyword', '')
     if not items:
         return jsonify({"error": "선택된 항목이 없습니다."}), 400
+
+    # 선택된 항목만 네이버 쇼핑 조회
+    naver_headers = {
+        "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+    }
+    shopping_cache = {}
+    shopping_calls = 0
+    for item in items:
+        parts = [p for p in [item.get('brand_name'), item.get('product_name')] if p]
+        if not parts:
+            continue
+        key = " ".join(parts)
+        if key not in shopping_cache:
+            shopping_cache[key] = search_naver_shopping(key, naver_headers)
+            shopping_calls += 1
+    increment_usage(shopping_calls)
+
     try:
         batch = db.batch()
         for item in items:
+            parts = [p for p in [item.get('brand_name'), item.get('product_name')] if p]
+            shopping_info = shopping_cache.get(" ".join(parts)) if parts else None
             ref = db.collection('sourcing_candidates').document()
             batch.set(ref, {
                 **item,
-                'keyword':  keyword,
-                'saved_at': fb_fs.SERVER_TIMESTAMP,
-                'status':   'pending',
+                'keyword':        keyword,
+                'saved_at':       fb_fs.SERVER_TIMESTAMP,
+                'status':         'pending',
+                'shopping_price': shopping_info['shopping_price'] if shopping_info else None,
+                'shopping_image': shopping_info['shopping_image'] if shopping_info else None,
+                'shopping_link':  shopping_info['shopping_link']  if shopping_info else None,
+                'shopping_mall':  shopping_info['shopping_mall']  if shopping_info else None,
             })
         batch.commit()
         return jsonify({"saved": len(items), "success": True})
@@ -373,30 +397,9 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
         if ext is None or getattr(ext, 'is_direct_purchase_review', True):
             relevant_pairs.append((ext, item))
 
-    # 네이버 쇼핑 조회 (중복 제거)
-    shopping_cache = {}
-    shopping_calls = 0
-    for ext, item in relevant_pairs:
-        if not ext:
-            continue
-        parts = [p for p in [ext.brand_name, ext.product_name] if p]
-        if not parts:
-            continue
-        key = " ".join(parts)
-        if key not in shopping_cache:
-            shopping_cache[key] = search_naver_shopping(key, naver_headers)
-            shopping_calls += 1
-
-    increment_usage(shopping_calls)
-
+    # 쇼핑 조회는 "다음 단계로" 버튼 클릭 시 선택 항목만 조회 (save-selected 엔드포인트)
     results = []
     for i, (ext, item) in enumerate(relevant_pairs, 1):
-        shopping_info = None
-        if ext:
-            parts = [p for p in [ext.brand_name, ext.product_name] if p]
-            if parts:
-                shopping_info = shopping_cache.get(" ".join(parts))
-
         results.append({
             "index":           i,
             "source":          item.get("_source", "블로그"),
@@ -410,10 +413,6 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "category":        ext.category        if ext else None,
             "purchase_source": ext.purchase_source if ext else None,
             "price_paid":      ext.price_paid      if ext else None,
-            "shopping_price":  shopping_info["shopping_price"]  if shopping_info else None,
-            "shopping_image":  shopping_info["shopping_image"]  if shopping_info else None,
-            "shopping_link":   shopping_info["shopping_link"]   if shopping_info else None,
-            "shopping_mall":   shopping_info["shopping_mall"]   if shopping_info else None,
         })
 
     return jsonify({

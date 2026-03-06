@@ -654,7 +654,6 @@
               <th>카테고리</th>
               <th>구매처</th>
               <th>후기 가격</th>
-              <th>네이버 최저가</th>
               <th>제목 / 내용</th>
               <th>날짜</th>
             </tr>
@@ -844,7 +843,6 @@
     const steps = [
       ['① 네이버 검색 중...', `${page}페이지 · 최신순 100개`],
       ['② Claude AI 분석 중...', '실제 직구 후기 필터링 + 상품 정보 추출'],
-      ['③ 네이버 쇼핑 조회 중...', '상품별 최저가 수집'],
     ];
 
     let si = 0;
@@ -919,23 +917,8 @@
     const needsOg = [];
 
     document.getElementById('resultsBody').innerHTML = results.map(r => {
-      let imgHtml;
-      if (r.shopping_image) {
-        imgHtml = `<img src="${escHtml(r.shopping_image)}" alt="상품"
-          onclick="openLightbox('${escHtml(r.shopping_image)}')"
-          onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
-      } else {
-        needsOg.push({ index: r.index, link: r.link });
-        imgHtml = '<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">로딩중</span>';
-      }
-
-      let shopHtml = '<span class="badge badge-null">-</span>';
-      if (r.shopping_price) {
-        shopHtml = `
-          <div class="shopping-price">${formatPrice(r.shopping_price)}</div>
-          ${r.shopping_mall ? `<div class="shopping-mall">${escHtml(r.shopping_mall)}</div>` : ''}
-          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">쇼핑 바로가기</a>` : ''}`;
-      }
+      needsOg.push({ index: r.index, link: r.link });
+      const imgHtml = '<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">로딩중</span>';
 
       return `<tr id="row-${r.index}">
         <td class="cb-cell">
@@ -951,7 +934,6 @@
         <td>${badge(r.category, 'category')}</td>
         <td>${badge(r.purchase_source, 'source')}</td>
         <td class="price-paid">${r.price_paid ? escHtml(r.price_paid) : '<span style="color:#a0aec0">-</span>'}</td>
-        <td>${shopHtml}</td>
         <td class="blog-title" style="min-width:180px">
           <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
           ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
@@ -1008,6 +990,11 @@
     const items = allResults.filter(r => selectedIdx.has(r.index));
     if (!items.length) return;
 
+    // 저장 중 로딩 표시
+    const btn = document.querySelector('.btn-next');
+    btn.disabled = true;
+    btn.textContent = '⏳ 쇼핑 조회 + 저장 중...';
+
     try {
       const resp = await fetch('/api/save-selected', {
         method: 'POST',
@@ -1021,7 +1008,7 @@
         return;
       }
 
-      showToast(`✓ ${data.saved}개 항목을 소싱 후보에 저장했습니다!`);
+      showToast(`✓ ${data.saved}개 항목 쇼핑 조회 완료 → 소싱 후보에 저장됨!`);
       selectedIdx.clear();
       document.querySelectorAll('#resultsBody input[type="checkbox"]').forEach(el => el.checked = false);
       document.querySelectorAll('#resultsBody tr.selected').forEach(el => el.classList.remove('selected'));
@@ -1031,6 +1018,9 @@
 
     } catch (err) {
       showToast('저장 실패: ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '선택한 항목 다음 단계로 →';
     }
   }
 
