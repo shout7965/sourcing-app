@@ -24,7 +24,7 @@
     header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
     header p { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
 
-    .container { max-width: 1280px; margin: 0 auto; padding: 32px 16px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 32px 16px; }
 
     .search-card {
       background: white;
@@ -39,11 +39,10 @@
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
-    }
-
-    .search-row + .search-row {
       margin-top: 10px;
     }
+
+    .search-row:first-child { margin-top: 0; }
 
     .search-input {
       flex: 1;
@@ -96,13 +95,22 @@
     .btn-search:active { transform: scale(0.98); }
     .btn-search:disabled { opacity: 0.6; cursor: not-allowed; }
 
+    .btn-reset {
+      padding: 9px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #718096;
+    }
+
     .search-hint {
       margin-top: 10px;
       font-size: 0.8rem;
       color: #718096;
     }
 
-    /* Source toggle */
     .source-toggle {
       display: flex;
       border: 2px solid #e2e8f0;
@@ -114,23 +122,16 @@
       padding: 9px 14px;
       font-size: 0.85rem;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.15s;
       white-space: nowrap;
       user-select: none;
     }
 
     .source-toggle input[type="radio"] { display: none; }
-
-    .source-toggle input[type="radio"]:checked + label {
-      background: #4a6cf7;
-      color: white;
-      font-weight: 600;
-    }
-
+    .source-toggle input[type="radio"]:checked + label { background: #4a6cf7; color: white; font-weight: 600; }
     .source-toggle label:hover { background: #f0f4ff; }
     .source-toggle input[type="radio"]:checked + label:hover { background: #4a6cf7; }
 
-    /* Status bar */
     .status-bar {
       display: none;
       align-items: center;
@@ -144,7 +145,6 @@
       color: #2b6cb0;
     }
 
-    /* Loading */
     .loading-overlay {
       display: none;
       flex-direction: column;
@@ -157,8 +157,7 @@
     }
 
     .spinner {
-      width: 44px;
-      height: 44px;
+      width: 44px; height: 44px;
       border: 4px solid #e2e8f0;
       border-top-color: #4a6cf7;
       border-radius: 50%;
@@ -169,9 +168,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .loading-overlay p { color: #718096; font-size: 0.9rem; }
-    .loading-overlay .loading-step { margin-top: 6px; font-size: 0.8rem; color: #a0aec0; }
+    .loading-step { margin-top: 6px; font-size: 0.8rem; color: #a0aec0; }
 
-    /* Error */
     .error-box {
       display: none;
       padding: 16px;
@@ -183,7 +181,6 @@
       margin-bottom: 16px;
     }
 
-    /* Results table */
     .results-wrapper {
       display: none;
       background: white;
@@ -205,16 +202,11 @@
 
     .table-scroll { overflow-x: auto; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.875rem;
-    }
-
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     thead { background: #f7fafc; }
 
     th {
-      padding: 11px 14px;
+      padding: 11px 12px;
       text-align: left;
       font-weight: 600;
       color: #4a5568;
@@ -226,9 +218,9 @@
     }
 
     td {
-      padding: 11px 14px;
+      padding: 10px 12px;
       border-bottom: 1px solid #f0f4f8;
-      vertical-align: top;
+      vertical-align: middle;
     }
 
     tr:last-child td { border-bottom: none; }
@@ -249,6 +241,54 @@
     .badge-blog     { background: #e6fffa; color: #234e52; }
     .badge-cafe     { background: #fffaf0; color: #7b341e; }
     .badge-null     { background: #f7fafc; color: #a0aec0; font-style: italic; }
+
+    /* 이미지 */
+    .img-cell { width: 72px; text-align: center; }
+    .img-cell img {
+      width: 64px; height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .img-cell img:hover { opacity: 0.8; }
+    .img-none { color: #cbd5e0; font-size: 0.75rem; }
+
+    /* 가격 */
+    .price-paid {
+      font-size: 0.85rem;
+      color: #2d3748;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .shopping-price {
+      font-weight: 700;
+      color: #e53e3e;
+      white-space: nowrap;
+    }
+
+    .shopping-mall {
+      font-size: 0.75rem;
+      color: #718096;
+      margin-top: 2px;
+    }
+
+    .btn-shop {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      background: #03c75a;
+      color: white;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-shop:hover { opacity: 0.85; }
 
     .blog-title a {
       color: #4a6cf7;
@@ -271,19 +311,7 @@
     .postdate { color: #a0aec0; font-size: 0.8rem; white-space: nowrap; }
     .num-cell { color: #a0aec0; font-size: 0.8rem; text-align: center; }
 
-    .img-cell { width: 130px; }
-    .img-cell .thumb-wrap { display: flex; gap: 4px; flex-wrap: wrap; }
-    .img-cell img {
-      width: 60px; height: 60px;
-      object-fit: cover;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      cursor: pointer;
-    }
-    .img-cell img:hover { opacity: 0.85; }
-    .img-placeholder { color: #cbd5e0; font-size: 0.75rem; }
-
-    /* 이미지 라이트박스 */
+    /* 라이트박스 */
     #lightbox {
       display: none;
       position: fixed; inset: 0;
@@ -292,17 +320,12 @@
       align-items: center;
       justify-content: center;
     }
+
     #lightbox.open { display: flex; }
     #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
     #lightbox-close {
       position: absolute; top: 16px; right: 24px;
       color: white; font-size: 2rem; cursor: pointer; line-height: 1;
-    }
-
-    .empty-state {
-      padding: 60px;
-      text-align: center;
-      color: #718096;
     }
 
     @media (max-width: 640px) {
@@ -315,21 +338,16 @@
 
 <header>
   <h1>직구 소싱 앱</h1>
-  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 상품 정보 추출</p>
+  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 상품 정보 · 가격 추출 + 네이버 쇼핑 최저가</p>
 </header>
 
 <div class="container">
 
   <div class="search-card">
-    <!-- 1행: 키워드 + 결과 수 + 검색 -->
-    <div class="search-row">
-      <input
-        type="text"
-        id="keyword"
-        class="search-input"
-        placeholder="검색 키워드 입력 (예: 나이키, 뉴발란스, 다이슨)"
-        maxlength="100"
-      />
+    <!-- 1행: 키워드 + 결과수 + 검색 -->
+    <div class="search-row" style="margin-top:0">
+      <input type="text" id="keyword" class="search-input"
+        placeholder="검색 키워드 입력 (예: 나이키, 뉴발란스, 다이슨)" maxlength="100" />
       <select id="display">
         <option value="5">5개</option>
         <option value="10" selected>10개</option>
@@ -340,19 +358,15 @@
     </div>
 
     <!-- 2행: 제외 키워드 -->
-    <div class="search-row" style="margin-top:10px;">
+    <div class="search-row">
       <span class="label-inline">제외 키워드</span>
-      <input
-        type="text"
-        id="excludeKeywords"
-        class="search-input"
-        placeholder="제외할 단어 입력 (쉼표로 구분, 예: 품절, 구매불가, 가품)"
-        style="font-size:0.875rem;"
-      />
+      <input type="text" id="excludeKeywords" class="search-input"
+        placeholder="제외할 단어 (쉼표로 구분, 예: 품절, 가품, 불량)"
+        style="font-size:0.875rem;" />
     </div>
 
-    <!-- 3행: 출처 + 날짜 범위 -->
-    <div class="search-row" style="margin-top:10px;">
+    <!-- 3행: 출처 + 날짜 -->
+    <div class="search-row">
       <div class="source-toggle">
         <input type="radio" name="source" id="src-blog" value="blog" checked />
         <label for="src-blog">블로그</label>
@@ -361,16 +375,15 @@
         <input type="radio" name="source" id="src-all" value="all" />
         <label for="src-all">전체</label>
       </div>
-
       <span class="label-inline">날짜 범위</span>
       <input type="date" id="startDate" />
       <span class="date-sep">~</span>
       <input type="date" id="endDate" />
-      <button onclick="clearDates()" style="padding:9px 12px;border:2px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;font-size:0.8rem;color:#718096;">초기화</button>
+      <button class="btn-reset" onclick="clearDates()">날짜 초기화</button>
     </div>
 
     <p class="search-hint">
-      키워드 + "직구 후기"로 검색하며, 날짜 범위를 지정하면 해당 기간 게시물만 표시됩니다.
+      키워드 + "직구 후기"로 검색 · Claude AI가 상품 정보와 구매 가격 추출 · 네이버 쇼핑에서 현재 최저가 조회
     </p>
   </div>
 
@@ -394,11 +407,13 @@
           <tr>
             <th style="width:36px">#</th>
             <th style="width:52px">출처</th>
-            <th>이미지</th>
-            <th>브랜드명</th>
+            <th style="width:72px">이미지</th>
+            <th>브랜드</th>
             <th>상품명</th>
             <th>카테고리</th>
             <th>구매처</th>
+            <th>후기 가격</th>
+            <th>네이버 최저가</th>
             <th>제목 / 내용</th>
             <th>날짜</th>
           </tr>
@@ -410,10 +425,10 @@
 
 </div>
 
-<!-- 이미지 라이트박스 -->
+<!-- 라이트박스 -->
 <div id="lightbox">
   <span id="lightbox-close">&times;</span>
-  <img id="lightbox-img" src="" alt="이미지 크게 보기" />
+  <img id="lightbox-img" src="" alt="크게 보기" />
 </div>
 
 <script>
@@ -421,40 +436,25 @@
     if (e.key === 'Enter') doSearch();
   });
 
-  // 이미지 라이트박스
+  // 라이트박스
   const lb = document.getElementById('lightbox');
-  const lbImg = document.getElementById('lightbox-img');
   document.getElementById('lightbox-close').onclick = () => lb.classList.remove('open');
   lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
 
   function openLightbox(src) {
-    lbImg.src = src;
+    document.getElementById('lightbox-img').src = src;
     lb.classList.add('open');
-  }
-
-  async function loadImages(index, url) {
-    const cell = document.getElementById(`img-${index}`);
-    if (!cell) return;
-    try {
-      const resp = await fetch(`/api/og-image?url=${encodeURIComponent(url)}`);
-      const data = await resp.json();
-      if (data.images && data.images.length > 0) {
-        cell.innerHTML = `<div class="thumb-wrap">${
-          data.images.map(src =>
-            `<img src="${escHtml(src)}" alt="이미지" onclick="openLightbox('${escHtml(src)}')" onerror="this.style.display='none'">`
-          ).join('')
-        }</div>`;
-      } else {
-        cell.innerHTML = '<span class="img-placeholder">-</span>';
-      }
-    } catch {
-      cell.innerHTML = '<span class="img-placeholder">-</span>';
-    }
   }
 
   function clearDates() {
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function badge(value, type) {
@@ -467,10 +467,9 @@
     return `<span class="badge ${cls}">${escHtml(src)}</span>`;
   }
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function formatPrice(price) {
+    if (!price) return null;
+    return parseInt(price).toLocaleString('ko-KR') + '원';
   }
 
   function setLoading(on) {
@@ -485,6 +484,25 @@
 
   function hideError() {
     document.getElementById('errorBox').style.display = 'none';
+  }
+
+  // OG 이미지 lazy load (쇼핑 이미지 없는 경우 폴백)
+  async function loadOgImage(index, url) {
+    const cell = document.getElementById(`img-${index}`);
+    if (!cell || cell.querySelector('img')) return;
+    try {
+      const resp = await fetch(`/api/og-image?url=${encodeURIComponent(url)}`);
+      const data = await resp.json();
+      if (data.images && data.images.length > 0) {
+        cell.innerHTML = `<img src="${escHtml(data.images[0])}" alt="이미지"
+          onclick="openLightbox('${escHtml(data.images[0])}')"
+          onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
+      } else {
+        cell.innerHTML = '<span class="img-none">-</span>';
+      }
+    } catch {
+      cell.innerHTML = '<span class="img-none">-</span>';
+    }
   }
 
   async function doSearch() {
@@ -502,21 +520,34 @@
     document.getElementById('resultsWrapper').style.display = 'none';
     document.getElementById('searchBtn').disabled = true;
 
-    const sourceLabel = { blog: '블로그', cafe: '카페', all: '블로그+카페' }[source];
-    document.getElementById('loadingMsg').textContent = `${sourceLabel} 검색 중...`;
-    document.getElementById('loadingStep').textContent = '① 네이버 검색 API 호출';
-    setLoading(true);
+    const steps = [
+      ['① 네이버 검색 중...', '블로그 · 카페 API 호출'],
+      ['② Claude AI 분석 중...', '브랜드명 / 상품명 / 구매 가격 추출'],
+      ['③ 네이버 쇼핑 조회 중...', '상품별 최저가 · 이미지 수집'],
+    ];
+    let stepIdx = 0;
 
-    setTimeout(() => {
-      document.getElementById('loadingMsg').textContent = 'Claude AI 분석 중...';
-      document.getElementById('loadingStep').textContent = '② 브랜드명 / 상품명 / 카테고리 추출';
-    }, 1500);
+    const updateStep = () => {
+      if (stepIdx < steps.length) {
+        document.getElementById('loadingMsg').textContent = steps[stepIdx][0];
+        document.getElementById('loadingStep').textContent = steps[stepIdx][1];
+        stepIdx++;
+      }
+    };
+
+    updateStep();
+    setLoading(true);
+    const stepTimer = setInterval(updateStep, 2000);
 
     try {
       const resp = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword, display, source, start_date: startDate, end_date: endDate, exclude_keywords: excludeKeywords }),
+        body: JSON.stringify({
+          keyword, display, source,
+          start_date: startDate, end_date: endDate,
+          exclude_keywords: excludeKeywords,
+        }),
       });
 
       const data = await resp.json();
@@ -526,6 +557,7 @@
     } catch (err) {
       showError('서버 연결 실패: ' + err.message);
     } finally {
+      clearInterval(stepTimer);
       setLoading(false);
       document.getElementById('searchBtn').disabled = false;
       document.getElementById('loadingMsg').textContent = '검색 중...';
@@ -536,50 +568,76 @@
   function renderResults(data, source) {
     const { results, total_blog, total_cafe, keyword } = data;
 
-    // 상태 바
     const statusBar = document.getElementById('statusBar');
     statusBar.style.display = 'flex';
     let totalInfo = '';
-    if (source === 'blog' || source === 'all') totalInfo += `블로그 <strong>${total_blog.toLocaleString()}건</strong>`;
+    if (source === 'blog' || source === 'all') totalInfo += `블로그 <strong>${(total_blog||0).toLocaleString()}건</strong>`;
     if (source === 'all') totalInfo += ' · ';
-    if (source === 'cafe' || source === 'all') totalInfo += `카페 <strong>${total_cafe.toLocaleString()}건</strong>`;
+    if (source === 'cafe' || source === 'all') totalInfo += `카페 <strong>${(total_cafe||0).toLocaleString()}건</strong>`;
     statusBar.innerHTML = `<strong>"${escHtml(keyword)} 직구 후기"</strong> &mdash; ${totalInfo} 검색, <strong>${results.length}건</strong> 표시`;
 
     if (results.length === 0) {
       document.getElementById('resultsWrapper').style.display = 'block';
-      document.getElementById('resultsBody').innerHTML = `
-        <tr><td colspan="8" style="padding:60px;text-align:center;color:#718096;">
-          검색 결과가 없습니다. 키워드나 날짜 범위를 조정해보세요.
-        </td></tr>`;
       document.getElementById('resultsTitle').textContent = '검색 결과';
       document.getElementById('resultsCount').textContent = '0건';
+      document.getElementById('resultsBody').innerHTML = `
+        <tr><td colspan="11" style="padding:60px;text-align:center;color:#718096;">
+          검색 결과가 없습니다. 키워드나 날짜 범위를 조정해보세요.
+        </td></tr>`;
       return;
     }
 
     document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" 검색 결과`;
-    document.getElementById('resultsCount').textContent = `${results.length}건 표시`;
+    document.getElementById('resultsCount').textContent = `${results.length}건`;
 
-    document.getElementById('resultsBody').innerHTML = results.map(r => `
-      <tr>
-        <td class="num-cell">${r.index}</td>
-        <td>${sourceBadge(r.source)}</td>
-        <td class="img-cell" id="img-${r.index}"><span class="img-placeholder">로딩중...</span></td>
-        <td>${badge(r.brand_name, 'brand')}</td>
-        <td style="font-weight:500;color:#2d3748;">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
-        <td>${badge(r.category, 'category')}</td>
-        <td>${badge(r.purchase_source, 'source')}</td>
-        <td class="blog-title">
-          <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
-          ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
-        </td>
-        <td class="postdate">${r.postdate || '-'}</td>
-      </tr>
-    `).join('');
+    const needsOg = [];
+
+    document.getElementById('resultsBody').innerHTML = results.map(r => {
+      // 이미지 셀
+      let imgHtml;
+      if (r.shopping_image) {
+        imgHtml = `<img src="${escHtml(r.shopping_image)}" alt="상품이미지"
+          onclick="openLightbox('${escHtml(r.shopping_image)}')"
+          onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
+      } else {
+        needsOg.push({ index: r.index, link: r.link });
+        imgHtml = '<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">로딩중</span>';
+      }
+
+      // 네이버 최저가 셀
+      let shoppingHtml = '<span class="badge badge-null">-</span>';
+      if (r.shopping_price) {
+        shoppingHtml = `
+          <div class="shopping-price">${formatPrice(r.shopping_price)}</div>
+          ${r.shopping_mall ? `<div class="shopping-mall">${escHtml(r.shopping_mall)}</div>` : ''}
+          ${r.shopping_link ? `<a class="btn-shop" href="${escHtml(r.shopping_link)}" target="_blank" rel="noopener">쇼핑 바로가기</a>` : ''}
+        `;
+      }
+
+      return `
+        <tr>
+          <td class="num-cell">${r.index}</td>
+          <td>${sourceBadge(r.source)}</td>
+          <td class="img-cell" id="img-${r.index}">${imgHtml}</td>
+          <td>${badge(r.brand_name, 'brand')}</td>
+          <td style="font-weight:500;color:#2d3748;min-width:100px">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+          <td>${badge(r.category, 'category')}</td>
+          <td>${badge(r.purchase_source, 'source')}</td>
+          <td class="price-paid">${r.price_paid ? escHtml(r.price_paid) : '<span style="color:#a0aec0">-</span>'}</td>
+          <td>${shoppingHtml}</td>
+          <td class="blog-title" style="min-width:200px">
+            <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
+            ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
+          </td>
+          <td class="postdate">${r.postdate || '-'}</td>
+        </tr>
+      `;
+    }).join('');
 
     document.getElementById('resultsWrapper').style.display = 'block';
 
-    // 이미지 비동기 로드 (병렬)
-    results.forEach(r => loadImages(r.index, r.link));
+    // 쇼핑 이미지 없는 항목만 OG 이미지 lazy load
+    needsOg.forEach(({ index, link }) => loadOgImage(index, link));
   }
 </script>
 

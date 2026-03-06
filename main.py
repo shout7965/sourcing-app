@@ -24,7 +24,6 @@ def strip_html(text: str) -> str:
 
 
 def parse_item_date(item: dict) -> Optional[date]:
-    """블로그(YYYYMMDD) 또는 카페(ISO) 날짜 파싱"""
     if 'postdate' in item:
         try:
             return datetime.strptime(item['postdate'], '%Y%m%d').date()
@@ -43,7 +42,6 @@ def format_date(d: Optional[date]) -> str:
 
 
 def naver_search(endpoint: str, query: str, display: int, headers: dict) -> tuple[list, int]:
-    """네이버 검색 API 호출. (items, total) 반환"""
     try:
         resp = requests.get(
             f"https://openapi.naver.com/v1/search/{endpoint}.json",
@@ -59,12 +57,42 @@ def naver_search(endpoint: str, query: str, display: int, headers: dict) -> tupl
         return [], 0
 
 
+def search_naver_shopping(query: str, headers: dict) -> Optional[dict]:
+    """네이버 쇼핑 검색. 최저가 결과 반환"""
+    if not query.strip():
+        return None
+    try:
+        resp = requests.get(
+            "https://openapi.naver.com/v1/search/shop.json",
+            headers=headers,
+            params={"query": query, "display": 5, "sort": "asc"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return None
+        items = resp.json().get("items", [])
+        if not items:
+            return None
+        item = items[0]
+        lprice = int(item.get("lprice", 0))
+        return {
+            "shopping_price": lprice,
+            "shopping_image": strip_html(item.get("image", "")),
+            "shopping_link": item.get("link", ""),
+            "shopping_mall": strip_html(item.get("mallName", "")),
+            "shopping_title": strip_html(item.get("title", "")),
+        }
+    except Exception:
+        return None
+
+
 class ReviewItem(BaseModel):
     index: int
     brand_name: Optional[str] = None
     product_name: Optional[str] = None
     category: Optional[str] = None
     purchase_source: Optional[str] = None
+    price_paid: Optional[str] = None   # 후기에서 언급된 구매 가격 (예: "$120", "15만원")
 
 
 class ExtractionResult(BaseModel):
@@ -76,15 +104,43 @@ def index():
     return send_file('src/index.html')
 
 
+@app.route("/api/og-image")
+def og_image():
+    url = request.args.get("url", "")
+    if not url or not url.startswith("http"):
+        return jsonify({"images": []})
+    try:
+        resp = requests.get(url, timeout=5, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+        })
+        images = []
+        for pattern in [
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+        ]:
+            for m in re.finditer(pattern, resp.text, re.IGNORECASE):
+                img = m.group(1).strip()
+                if img and img not in images:
+                    images.append(img)
+                if len(images) >= 2:
+                    break
+            if images:
+                break
+        return jsonify({"images": images})
+    except Exception:
+        return jsonify({"images": []})
+
+
 @app.route("/api/search", methods=["POST"])
 def search():
     data = request.get_json()
     keyword = data.get("keyword", "").strip()
     display = min(int(data.get("display", 10)), 30)
-    source = data.get("source", "blog")          # blog | cafe | all
-    start_date_str = data.get("start_date", "")  # YYYY-MM-DD
-    end_date_str = data.get("end_date", "")       # YYYY-MM-DD
-    exclude_raw = data.get("exclude_keywords", "") # 쉼표 구분 문자열
+    source = data.get("source", "blog")
+    start_date_str = data.get("start_date", "")
+    end_date_str = data.get("end_date", "")
+    exclude_raw = data.get("exclude_keywords", "")
 
     if not keyword:
         return jsonify({"error": "키워드를 입력해주세요."}), 400
@@ -92,7 +148,6 @@ def search():
     if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
         return jsonify({"error": "네이버 API 키가 설정되지 않았습니다."}), 500
 
-    # 날짜 범위 파싱
     start_date = None
     end_date = None
     try:
@@ -109,7 +164,6 @@ def search():
     }
     search_query = f"{keyword} 직구 후기"
 
-    # 검색 실행
     all_items = []
     total_blog = total_cafe = 0
 
@@ -125,12 +179,10 @@ def search():
             item["_source"] = "카페"
         all_items.extend(cafe_items)
 
-    # 제외 키워드 파싱
-    exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
-
-    # 날짜 파싱 및 필터링
     for item in all_items:
         item["_date"] = parse_item_date(item)
+
+    exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
 
     if start_date or end_date:
         def in_range(item):
@@ -144,14 +196,12 @@ def search():
             return True
         all_items = [i for i in all_items if in_range(i)]
 
-    # 제외 키워드 필터링
     if exclude_keywords:
         def not_excluded(item):
             text = (strip_html(item.get("title", "")) + " " + strip_html(item.get("description", ""))).lower()
             return not any(kw.lower() in text for kw in exclude_keywords)
         all_items = [i for i in all_items if not_excluded(i)]
 
-    # 날짜 내림차순 정렬
     all_items.sort(key=lambda x: x["_date"] or date.min, reverse=True)
 
     if not all_items:
@@ -162,14 +212,13 @@ def search():
             "keyword": keyword,
         })
 
-    # Claude에 보낼 텍스트 구성
+    # Claude 추출
     reviews_text = ""
     for i, item in enumerate(all_items, 1):
         title = strip_html(item.get("title", ""))
         description = strip_html(item.get("description", ""))
         reviews_text += f"[{i}] 제목: {title}\n설명: {description}\n\n"
 
-    # Claude API로 정보 추출
     try:
         response = claude.messages.parse(
             model="claude-opus-4-6",
@@ -179,10 +228,11 @@ def search():
                 "content": f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
 
 추출 항목:
-- brand_name: 브랜드명 (예: Nike, Apple, Zara, 뉴발란스 등, 없으면 null)
+- brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
 - product_name: 구체적인 상품명/모델명 (예: Air Max 90, iPhone 15 등, 없으면 null)
 - category: 카테고리 (신발/의류/전자제품/가방/화장품/식품/기타 중 하나, 파악 불가시 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
+- price_paid: 후기에서 언급된 구매 가격 (예: "$120", "15만원", "89달러" 등, 없으면 null)
 
 후기 목록:
 {reviews_text}
@@ -195,10 +245,30 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
 
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
+    # 네이버 쇼핑 검색 (상품명이 추출된 경우, 중복 방지)
+    shopping_cache = {}
+    for idx, item in enumerate(all_items, 1):
+        ext = extracted_map.get(idx)
+        if not ext:
+            continue
+        parts = [p for p in [ext.brand_name, ext.product_name] if p]
+        if not parts:
+            continue
+        cache_key = " ".join(parts)
+        if cache_key not in shopping_cache:
+            shopping_cache[cache_key] = search_naver_shopping(cache_key, headers)
+
     results = []
     for i, item in enumerate(all_items, 1):
         ext = extracted_map.get(i)
         src = item.get("_source", "블로그")
+
+        shopping_info = None
+        if ext:
+            parts = [p for p in [ext.brand_name, ext.product_name] if p]
+            if parts:
+                shopping_info = shopping_cache.get(" ".join(parts))
+
         results.append({
             "index": i,
             "source": src,
@@ -211,6 +281,12 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
             "product_name": ext.product_name if ext else None,
             "category": ext.category if ext else None,
             "purchase_source": ext.purchase_source if ext else None,
+            "price_paid": ext.price_paid if ext else None,
+            # 네이버 쇼핑
+            "shopping_price": shopping_info["shopping_price"] if shopping_info else None,
+            "shopping_image": shopping_info["shopping_image"] if shopping_info else None,
+            "shopping_link": shopping_info["shopping_link"] if shopping_info else None,
+            "shopping_mall": shopping_info["shopping_mall"] if shopping_info else None,
         })
 
     return jsonify({
@@ -219,35 +295,6 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
         "total_cafe": total_cafe,
         "keyword": keyword,
     })
-
-
-@app.route("/api/og-image")
-def og_image():
-    url = request.args.get("url", "")
-    if not url or not url.startswith("http"):
-        return jsonify({"images": []})
-    try:
-        resp = requests.get(url, timeout=5, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
-            "Accept-Language": "ko-KR,ko;q=0.9",
-        })
-        images = []
-        # og:image 두 가지 속성 순서 대응
-        for pattern in [
-            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
-            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-        ]:
-            for m in re.finditer(pattern, resp.text, re.IGNORECASE):
-                img = m.group(1).strip()
-                if img and img not in images:
-                    images.append(img)
-                if len(images) >= 2:
-                    break
-            if images:
-                break
-        return jsonify({"images": images})
-    except Exception:
-        return jsonify({"images": []})
 
 
 def main():
