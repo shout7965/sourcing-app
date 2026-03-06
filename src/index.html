@@ -544,20 +544,175 @@
       header, .usage-bar { padding-left: 16px; padding-right: 16px; }
       .container { padding: 12px; }
     }
+
+    /* ── 헤더 유저 영역 ── */
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .header-user { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+    .user-badge {
+      background: #2d3748; color: #63b3ed;
+      padding: 4px 10px; border-radius: 12px; font-size: 0.78rem;
+    }
+    .btn-login {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid #4a6cf7;
+      background: transparent; color: #63b3ed; font-size: 0.8rem; cursor: pointer;
+    }
+    .btn-login:hover { background: #1a2a4a; }
+    .btn-logout { border-color: #4a5568; color: #a0aec0; }
+    .btn-logout:hover { background: #2d3748; }
+
+    /* ── 로그인 모달 ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 500;
+    }
+    .modal-box {
+      background: white; border-radius: 12px; padding: 28px 32px;
+      width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .modal-box h3 { font-size: 1.1rem; margin-bottom: 18px; color: #1a1a2e; }
+    .modal-input {
+      width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0;
+      border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none;
+    }
+    .modal-input:focus { border-color: #4a6cf7; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .btn-modal-ok {
+      flex: 1; padding: 10px; background: #4a6cf7; color: white;
+      border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-modal-cancel {
+      padding: 10px 16px; border: 2px solid #e2e8f0; background: white;
+      border-radius: 8px; font-size: 0.9rem; cursor: pointer; color: #4a5568;
+    }
+    .modal-err { color: #e53e3e; font-size: 0.82rem; margin-top: 6px; min-height: 18px; }
+
+    /* ── 소싱 통계 바 ── */
+    .cand-stats {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      margin-bottom: 16px; padding: 12px 16px;
+      background: white; border-radius: 10px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+    .stat-chip {
+      padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500;
+    }
+    .stat-chip strong { margin-left: 4px; }
+    .stat-total   { background: #e2e8f0; color: #2d3748; }
+    .stat-pending { background: #fef3c7; color: #92400e; }
+    .stat-good    { background: #d1fae5; color: #065f46; }
+    .stat-pass    { background: #fee2e2; color: #991b1b; }
+    .stat-gonggu  { background: #e9d8fd; color: #553c9a; }
+    .stat-mine    { background: #bee3f8; color: #2c5282; }
+
+    /* ── 마진 계산기 행 ── */
+    .margin-row td { background: #f7faff; border-bottom: 2px solid #c3dafe; padding: 12px 16px; }
+    .margin-calc { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .margin-field { display: flex; flex-direction: column; gap: 3px; }
+    .margin-field label { font-size: 0.7rem; color: #718096; font-weight: 600; text-transform: uppercase; }
+    .margin-field input {
+      width: 100px; padding: 6px 8px; border: 2px solid #c3dafe;
+      border-radius: 6px; font-size: 0.85rem; outline: none;
+    }
+    .margin-field input:focus { border-color: #4a6cf7; }
+    .margin-field.wide input { width: 160px; }
+    .margin-result {
+      display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+      padding: 8px 12px; background: white; border-radius: 8px;
+      border: 1px solid #c3dafe; font-size: 0.82rem;
+    }
+    .margin-result .lbl { color: #718096; font-size: 0.72rem; }
+    .margin-result .val { font-weight: 700; color: #2d3748; }
+    .margin-result .val.pos { color: #276749; }
+    .margin-result .val.neg { color: #c53030; }
+    .btn-save-margin {
+      padding: 8px 16px; background: #4a6cf7; color: white; border: none;
+      border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-save-margin:hover { opacity: 0.9; }
+    .btn-copy-form {
+      padding: 8px 16px; background: #03c75a; color: white; border: none;
+      border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-copy-form:hover { opacity: 0.9; }
+    .btn-expand {
+      padding: 3px 8px; border-radius: 6px; border: 1px solid #c3dafe;
+      background: #ebf4ff; color: #2b6cb0; font-size: 0.72rem; cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-expand:hover { background: #bee3f8; }
+    .margin-saved-info { font-size: 0.72rem; color: #276749; padding: 2px 6px;
+      background: #f0fff4; border-radius: 4px; white-space: nowrap; }
+
+    /* ── 모드 토글 라벨 ── */
+    .mode-label { font-size: 0.72rem; font-weight: 700; color: #9f7aea;
+      background: #faf5ff; padding: 2px 8px; border-radius: 10px; }
   </style>
 </head>
 <body>
 
 <header>
   <div class="header-top">
-    <h1>직구 소싱 앱</h1>
-    <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 분석 + 네이버 쇼핑 최저가</p>
+    <div>
+      <h1>직구 소싱 앱</h1>
+      <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 분석 + 네이버 쇼핑 최저가</p>
+    </div>
+    <div class="header-user">
+      <span class="user-badge" id="userBadge" style="display:none"></span>
+      <button class="btn-login" id="loginBtn" onclick="openLoginModal()">로그인</button>
+      <button class="btn-login btn-logout" id="logoutBtn" style="display:none" onclick="doLogout()">로그아웃</button>
+    </div>
   </div>
   <nav class="tab-nav">
     <button class="tab-btn active" id="tab-search" onclick="switchTab('search')">검색</button>
     <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
   </nav>
 </header>
+
+<!-- 로그인/회원가입 모달 -->
+<div class="modal-backdrop" id="loginModal" style="display:none" onclick="if(event.target===this)closeLoginModal()">
+  <div class="modal-box">
+    <!-- 탭 -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #e2e8f0">
+      <button id="tabLogin" onclick="switchAuthTab('login')"
+        style="flex:1;padding:8px;border:none;background:none;font-size:0.9rem;font-weight:700;color:#4a6cf7;border-bottom:2px solid #4a6cf7;margin-bottom:-2px;cursor:pointer">
+        로그인
+      </button>
+      <button id="tabRegister" onclick="switchAuthTab('register')"
+        style="flex:1;padding:8px;border:none;background:none;font-size:0.9rem;font-weight:500;color:#a0aec0;cursor:pointer">
+        회원가입
+      </button>
+    </div>
+
+    <!-- 로그인 폼 -->
+    <div id="formLogin">
+      <input class="modal-input" id="loginUser" placeholder="사용자명" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()" />
+      <input class="modal-input" id="loginPass" type="password" placeholder="비밀번호" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()" />
+      <p class="modal-err" id="loginErr"></p>
+      <div class="modal-actions">
+        <button class="btn-modal-ok" onclick="doLogin()">로그인</button>
+        <button class="btn-modal-cancel" onclick="closeLoginModal()">취소</button>
+      </div>
+    </div>
+
+    <!-- 회원가입 폼 -->
+    <div id="formRegister" style="display:none">
+      <input class="modal-input" id="regUser" placeholder="사용자명 (2자 이상)" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('regPass').focus()" />
+      <input class="modal-input" id="regPass" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password"
+        onkeydown="if(event.key==='Enter')document.getElementById('regPass2').focus()" />
+      <input class="modal-input" id="regPass2" type="password" placeholder="비밀번호 확인" autocomplete="new-password"
+        onkeydown="if(event.key==='Enter')doRegister()" />
+      <p class="modal-err" id="regErr"></p>
+      <div class="modal-actions">
+        <button class="btn-modal-ok" onclick="doRegister()">가입하기</button>
+        <button class="btn-modal-cancel" onclick="closeLoginModal()">취소</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- API 사용량 -->
 <div class="usage-bar">
@@ -604,6 +759,17 @@
         <span class="date-sep">~</span>
         <input type="date" id="endDate" />
         <button class="btn-sm" onclick="clearDates()">날짜 초기화</button>
+      </div>
+
+      <div class="search-row">
+        <span class="label-inline">검색 모드</span>
+        <div class="source-toggle">
+          <input type="radio" name="search_mode" id="mode-review" value="review" checked onchange="onModeChange()" />
+          <label for="mode-review">직구 후기</label>
+          <input type="radio" name="search_mode" id="mode-gonggu" value="gonggu" onchange="onModeChange()" />
+          <label for="mode-gonggu">공구 탐색</label>
+        </div>
+        <span class="mode-label" id="modeLabel" style="display:none">카페 공구 모드 — 카페 소스 자동 선택</span>
       </div>
 
       <p class="search-hint">실제 해외직구 후기만 필터링 · 페이지당 최신순 100개 수집 · 완료(✓) 페이지는 Firestore에 저장</p>
@@ -677,6 +843,16 @@
       </div>
     </div>
 
+    <!-- 통계 -->
+    <div class="cand-stats" id="candStats" style="display:none">
+      <span class="stat-chip stat-total">전체 <strong id="statTotal">0</strong></span>
+      <span class="stat-chip stat-pending">검토중 <strong id="statPending">0</strong></span>
+      <span class="stat-chip stat-good">소싱예정 <strong id="statGood">0</strong></span>
+      <span class="stat-chip stat-pass">제외 <strong id="statPass">0</strong></span>
+      <span class="stat-chip stat-gonggu">공구 <strong id="statGonggu">0</strong></span>
+      <span class="stat-chip stat-mine" id="statMineChip" style="display:none">내가 저장 <strong id="statMine">0</strong></span>
+    </div>
+
     <div id="candLoading" style="display:none;text-align:center;padding:40px;background:white;border-radius:12px;">
       <div class="spinner" style="margin:0 auto 12px"></div>
       <p style="color:#718096">로딩 중...</p>
@@ -695,6 +871,7 @@
               <th>구매처</th>
               <th>후기가격</th>
               <th>최저가</th>
+              <th>마진율</th>
               <th>제목</th>
               <th>상태</th>
               <th>액션</th>
@@ -731,16 +908,20 @@
 
 <script>
   // ── 상태 ──
-  let curKeyword  = '';
-  let curSource   = 'blog';
-  let curPage     = 1;
-  let donePgs     = [];
-  let allResults  = [];
-  let selectedIdx = new Set();
+  let curKeyword    = '';
+  let curSource     = 'blog';
+  let curPage       = 1;
+  let curMode       = 'review';
+  let donePgs       = [];
+  let allResults    = [];
+  let selectedIdx   = new Set();
+  let currentUser   = null;
+  let candItemsCache = {};  // id → item (소싱 후보 폼 복사용)
 
   // ── 초기화 ──
   document.addEventListener('DOMContentLoaded', () => {
     loadUsage();
+    checkUser();
     document.getElementById('keyword').addEventListener('keydown', e => {
       if (e.key === 'Enter') goSearch(curPage || 1);
     });
@@ -750,6 +931,124 @@
       });
     });
   });
+
+  // ── 모드 전환 ──
+  function onModeChange() {
+    curMode = document.querySelector('input[name="search_mode"]:checked').value;
+    const lbl = document.getElementById('modeLabel');
+    lbl.style.display = curMode === 'gonggu' ? '' : 'none';
+    if (curMode === 'gonggu') {
+      document.getElementById('src-cafe').checked = true;
+    }
+  }
+
+  // ── 로그인 ──
+  async function checkUser() {
+    try {
+      const data = await (await fetch('/api/me')).json();
+      if (data.logged_in) setUserUI(data.user);
+    } catch {}
+  }
+
+  function setUserUI(username) {
+    currentUser = username;
+    document.getElementById('userBadge').textContent = username;
+    document.getElementById('userBadge').style.display = '';
+    document.getElementById('loginBtn').style.display = 'none';
+    document.getElementById('logoutBtn').style.display = '';
+  }
+
+  function clearUserUI() {
+    currentUser = null;
+    document.getElementById('userBadge').style.display = 'none';
+    document.getElementById('loginBtn').style.display = '';
+    document.getElementById('logoutBtn').style.display = 'none';
+  }
+
+  function openLoginModal() {
+    switchAuthTab('login');
+    document.getElementById('loginErr').textContent = '';
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('loginUser').focus(), 50);
+  }
+
+  function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+  }
+
+  function switchAuthTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('formLogin').style.display    = isLogin ? '' : 'none';
+    document.getElementById('formRegister').style.display = isLogin ? 'none' : '';
+    document.getElementById('tabLogin').style.color        = isLogin ? '#4a6cf7' : '#a0aec0';
+    document.getElementById('tabLogin').style.fontWeight   = isLogin ? '700' : '500';
+    document.getElementById('tabLogin').style.borderBottom = isLogin ? '2px solid #4a6cf7' : 'none';
+    document.getElementById('tabRegister').style.color        = isLogin ? '#a0aec0' : '#4a6cf7';
+    document.getElementById('tabRegister').style.fontWeight   = isLogin ? '500' : '700';
+    document.getElementById('tabRegister').style.borderBottom = isLogin ? 'none' : '2px solid #4a6cf7';
+    if (!isLogin) {
+      document.getElementById('regErr').textContent = '';
+      document.getElementById('regUser').value = '';
+      document.getElementById('regPass').value = '';
+      document.getElementById('regPass2').value = '';
+      setTimeout(() => document.getElementById('regUser').focus(), 50);
+    }
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    if (!username) { document.getElementById('loginErr').textContent = '사용자명을 입력해주세요.'; return; }
+    try {
+      const resp = await fetch('/api/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password}),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeLoginModal();
+        setUserUI(username);
+        showToast(`환영합니다, ${username}!`);
+      } else {
+        document.getElementById('loginErr').textContent = data.error || '로그인 실패';
+      }
+    } catch (err) {
+      document.getElementById('loginErr').textContent = '오류: ' + err.message;
+    }
+  }
+
+  async function doRegister() {
+    const username = document.getElementById('regUser').value.trim();
+    const password = document.getElementById('regPass').value;
+    const password2 = document.getElementById('regPass2').value;
+    const errEl = document.getElementById('regErr');
+    if (!username) { errEl.textContent = '사용자명을 입력해주세요.'; return; }
+    if (password !== password2) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; return; }
+    try {
+      const resp = await fetch('/api/register', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password}),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeLoginModal();
+        setUserUI(username);
+        showToast(`가입 완료! 환영합니다, ${username}!`);
+      } else {
+        errEl.textContent = data.error || '회원가입 실패';
+      }
+    } catch (err) {
+      errEl.textContent = '오류: ' + err.message;
+    }
+  }
+
+  async function doLogout() {
+    await fetch('/api/logout', {method: 'POST'});
+    clearUserUI();
+    showToast('로그아웃 되었습니다.');
+  }
 
   // 라이트박스
   const lb = document.getElementById('lightbox');
@@ -821,6 +1120,7 @@
   async function goSearch(page) {
     const keyword = document.getElementById('keyword').value.trim();
     const source  = document.querySelector('input[name="source"]:checked').value;
+    curMode = document.querySelector('input[name="search_mode"]:checked').value;
 
     if (!keyword) { showError('키워드를 입력해주세요.'); return; }
 
@@ -860,7 +1160,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword, source, page,
+          keyword, source, page, mode: curMode,
           start_date:       document.getElementById('startDate').value,
           end_date:         document.getElementById('endDate').value,
           exclude_keywords: document.getElementById('excludeKeywords').value.trim(),
@@ -1000,22 +1300,28 @@
       const resp = await fetch('/api/save-selected', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, keyword: curKeyword }),
+        body: JSON.stringify({ items, keyword: curKeyword, mode: curMode }),
       });
       const data = await resp.json();
 
       if (!resp.ok) {
-        showToast('저장 실패: ' + (data.error || ''), true);
+        // 토스트 + 에러박스 둘 다 표시 (놓치지 않도록)
+        const errMsg = data.error || '서버 오류';
+        showToast('저장 실패: ' + errMsg, true);
+        showError('저장 실패: ' + errMsg);
         return;
       }
 
-      showToast(`✓ ${data.saved}개 항목 쇼핑 조회 완료 → 소싱 후보에 저장됨!`);
       selectedIdx.clear();
       document.querySelectorAll('#resultsBody input[type="checkbox"]').forEach(el => el.checked = false);
       document.querySelectorAll('#resultsBody tr.selected').forEach(el => el.classList.remove('selected'));
       document.getElementById('selectAllChk').checked = false;
       document.getElementById('selectAllTop').checked = false;
       updateActionBar();
+
+      // 저장 완료 → 소싱 후보 탭으로 자동 이동
+      showToast(`✓ ${data.saved}개 항목 저장 완료`);
+      setTimeout(() => switchTab('candidates'), 800);
 
     } catch (err) {
       showToast('저장 실패: ' + err.message, true);
@@ -1035,8 +1341,20 @@
       const data = await (await fetch('/api/candidates')).json();
       document.getElementById('candLoading').style.display = 'none';
 
+      if (data.error) {
+        document.getElementById('candEmpty').style.display = 'block';
+        document.getElementById('candEmpty').innerHTML =
+          `<div style="color:#c53030;font-weight:600">오류: ${escHtml(data.error)}</div>` +
+          (!data.firebase ? '<div style="margin-top:8px;font-size:0.82rem">Railway Variables에 <strong>FIREBASE_SERVICE_ACCOUNT_JSON</strong>을 추가해야 저장 기능이 활성화됩니다.</div>' : '');
+        return;
+      }
+
       if (!data.items || data.items.length === 0) {
         document.getElementById('candEmpty').style.display = 'block';
+        document.getElementById('candEmpty').innerHTML =
+          data.firebase === false
+            ? '<div style="color:#c53030;font-weight:600">Firebase 미설정</div><div style="margin-top:8px;font-size:0.82rem">Railway Variables에 <strong>FIREBASE_SERVICE_ACCOUNT_JSON</strong>을 추가해야 저장 기능이 활성화됩니다.</div>'
+            : '저장된 소싱 후보가 없습니다.<br>검색 후 관심 항목을 체크박스로 선택해 저장하세요.';
         document.getElementById('candCount').textContent = '';
         return;
       }
@@ -1053,40 +1371,112 @@
   }
 
   function renderCandidates(items) {
-    const statusMap = {
-      pending:  ['검토중',   'status-pending'],
-      good:     ['소싱예정', 'status-good'],
-      pass:     ['제외',     'status-pass'],
-    };
+    // 통계 계산
+    const total   = items.length;
+    const pending = items.filter(i => !i.status || i.status === 'pending').length;
+    const good    = items.filter(i => i.status === 'good').length;
+    const pass    = items.filter(i => i.status === 'pass').length;
+    const gonggu  = items.filter(i => i.mode === 'gonggu').length;
+    const mine    = currentUser ? items.filter(i => i.saved_by === currentUser).length : 0;
+
+    document.getElementById('statTotal').textContent   = total;
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statGood').textContent    = good;
+    document.getElementById('statPass').textContent    = pass;
+    document.getElementById('statGonggu').textContent  = gonggu;
+    document.getElementById('statMine').textContent    = mine;
+    document.getElementById('candStats').style.display = 'flex';
+    document.getElementById('statMineChip').style.display = currentUser ? '' : 'none';
 
     document.getElementById('candBody').innerHTML = items.map(item => {
+      const id      = item.id;
       const savedAt = item.saved_at ? item.saved_at.slice(0, 10) : '-';
-      const [statusLabel, statusClass] = statusMap[item.status] || ['검토중', 'status-pending'];
+      const hasMrg  = item.margin_rate != null;
+      const mrgRate = hasMrg ? item.margin_rate : null;
+      const mrgColor = mrgRate >= 30 ? '#276749' : mrgRate >= 10 ? '#c05621' : '#c53030';
+      const navPrice = item.shopping_price || 0;
+      const modeTag  = item.mode === 'gonggu'
+        ? '<span style="font-size:0.68rem;background:#e9d8fd;color:#553c9a;padding:1px 5px;border-radius:10px">공구</span> '
+        : '';
 
-      return `<tr id="cand-${escHtml(item.id)}">
-        <td class="postdate">${savedAt}</td>
-        <td><span class="badge badge-brand">${escHtml(item.keyword || '-')}</span></td>
+      // 마진 계산기 사전 값
+      const eur  = item.price_eur || '';
+      const rate = item.exchange_rate || 1400;
+      const ship = item.shipping_fee || '';
+      const memo = item.memo || '';
+
+      return `
+      <tr id="cand-${escHtml(id)}">
+        <td class="postdate">${savedAt}<br><span style="font-size:0.68rem;color:#a0aec0">${escHtml(item.saved_by || '')}</span></td>
+        <td>${modeTag}<span class="badge badge-brand">${escHtml(item.keyword || '-')}</span></td>
         <td>${item.brand_name ? `<span class="badge badge-brand">${escHtml(item.brand_name)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
         <td style="font-weight:500;min-width:90px">${item.product_name ? escHtml(item.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
         <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
         <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
         <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
-        <td>${item.shopping_price ? `<span class="shopping-price">${formatPrice(item.shopping_price)}</span>` : '-'}</td>
+        <td>
+          ${navPrice ? `<span class="shopping-price">${formatPrice(navPrice)}</span>` : '-'}
+          ${item.shopping_link ? `<br><a class="btn-shop" href="${escHtml(item.shopping_link)}" target="_blank" rel="noopener">쇼핑</a>` : ''}
+        </td>
+        <td style="text-align:center">
+          ${hasMrg ? `<span style="font-weight:700;color:${mrgColor}">${mrgRate}%</span>` : '<span style="color:#a0aec0">-</span>'}
+        </td>
         <td class="blog-title" style="min-width:160px">
           ${item.link ? `<a href="${escHtml(item.link)}" target="_blank" rel="noopener">${escHtml(item.title || '-')}</a>` : escHtml(item.title || '-')}
         </td>
         <td>
-          <select class="btn-sm" onchange="updateStatus('${escHtml(item.id)}', this.value)" style="padding:4px 6px;font-size:0.75rem">
-            <option value="pending" ${item.status === 'pending' || !item.status ? 'selected' : ''}>검토중</option>
+          <select class="btn-sm" onchange="updateStatus('${escHtml(id)}', this.value)" style="padding:4px 6px;font-size:0.75rem">
+            <option value="pending" ${!item.status || item.status === 'pending' ? 'selected' : ''}>검토중</option>
             <option value="good"    ${item.status === 'good'    ? 'selected' : ''}>소싱예정</option>
             <option value="pass"    ${item.status === 'pass'    ? 'selected' : ''}>제외</option>
           </select>
         </td>
-        <td>
-          <button class="btn-icon del" onclick="deleteCandidate('${escHtml(item.id)}')">삭제</button>
+        <td style="white-space:nowrap">
+          <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">마진계산</button>
+          <button class="btn-icon del" onclick="deleteCandidate('${escHtml(id)}')">삭제</button>
+        </td>
+      </tr>
+      <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
+        <td colspan="12">
+          <div class="margin-calc">
+            <div class="margin-field">
+              <label>독일구매가 (EUR)</label>
+              <input type="number" id="eur-${escHtml(id)}" value="${eur}" placeholder="0"
+                oninput="calcMarginLive('${escHtml(id)}')" />
+            </div>
+            <div class="margin-field">
+              <label>환율 (원/EUR)</label>
+              <input type="number" id="rate-${escHtml(id)}" value="${rate}" placeholder="1400"
+                oninput="calcMarginLive('${escHtml(id)}')" />
+            </div>
+            <div class="margin-field">
+              <label>배송비 (원)</label>
+              <input type="number" id="ship-${escHtml(id)}" value="${ship}" placeholder="0"
+                oninput="calcMarginLive('${escHtml(id)}')" />
+            </div>
+            <div class="margin-result" id="mresult-${escHtml(id)}">
+              <span><span class="lbl">원가</span><br><span class="val" id="cost-${escHtml(id)}">-</span></span>
+              <span><span class="lbl">네이버최저가</span><br><span class="val">${navPrice ? formatPrice(navPrice) : '-'}</span></span>
+              <span><span class="lbl">마진</span><br><span class="val" id="mval-${escHtml(id)}">-</span></span>
+              <span><span class="lbl">마진율</span><br><span class="val" id="mrate-${escHtml(id)}">-</span></span>
+            </div>
+            <div class="margin-field wide">
+              <label>메모</label>
+              <input type="text" id="memo-${escHtml(id)}" value="${escHtml(memo)}" placeholder="메모" />
+            </div>
+            <button class="btn-save-margin" onclick="saveMarginData('${escHtml(id)}', ${navPrice})">저장</button>
+            <button class="btn-copy-form" onclick="copyNaverForm('${escHtml(id)}')">네이버폼 복사</button>
+          </div>
         </td>
       </tr>`;
     }).join('');
+
+    // 캐시 저장 + 저장된 마진 있는 항목 미리 계산 표시
+    candItemsCache = {};
+    items.forEach(item => {
+      candItemsCache[item.id] = item;
+      if (item.price_eur) calcMarginLive(item.id);
+    });
   }
 
   async function updateStatus(docId, status) {
@@ -1182,6 +1572,113 @@
     t.style.background = isErr ? '#e53e3e' : '#276749';
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // ── 마진 계산기 ──
+  function toggleMarginRow(id) {
+    const row = document.getElementById(`mrow-${id}`);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+    if (row.style.display !== 'none') calcMarginLive(id);
+  }
+
+  function calcMarginLive(id) {
+    const eur  = parseFloat(document.getElementById(`eur-${id}`)?.value)  || 0;
+    const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 1400;
+    const ship = parseFloat(document.getElementById(`ship-${id}`)?.value) || 0;
+    const cost = Math.round(eur * rate + ship);
+
+    // nav price from DOM
+    const mresult = document.getElementById(`mresult-${id}`);
+    if (!mresult) return;
+    const navText = mresult.querySelectorAll('.val')[1]?.textContent?.replace(/[^0-9]/g, '');
+    const nav = parseInt(navText) || 0;
+    const margin = nav - cost;
+    const mrate  = nav > 0 ? (margin / nav * 100).toFixed(1) : null;
+
+    const costEl  = document.getElementById(`cost-${id}`);
+    const mvalEl  = document.getElementById(`mval-${id}`);
+    const mrateEl = document.getElementById(`mrate-${id}`);
+    if (!costEl) return;
+
+    costEl.textContent  = cost > 0 ? cost.toLocaleString('ko-KR') + '원' : '-';
+    mvalEl.textContent  = nav && cost > 0 ? margin.toLocaleString('ko-KR') + '원' : '-';
+    mrateEl.textContent = mrate != null && cost > 0 ? mrate + '%' : '-';
+
+    if (mrate != null && cost > 0) {
+      const color = parseFloat(mrate) >= 30 ? '#276749' : parseFloat(mrate) >= 10 ? '#c05621' : '#c53030';
+      mrateEl.style.color = color;
+      mvalEl.style.color  = parseFloat(mrate) > 0 ? '#276749' : '#c53030';
+    }
+  }
+
+  async function saveMarginData(id, navPrice) {
+    const eur  = parseFloat(document.getElementById(`eur-${id}`)?.value)  || 0;
+    const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 1400;
+    const ship = parseFloat(document.getElementById(`ship-${id}`)?.value) || 0;
+    const memo = document.getElementById(`memo-${id}`)?.value || '';
+    const cost = Math.round(eur * rate + ship);
+    const margin = navPrice > 0 ? navPrice - cost : null;
+    const marginRate = navPrice > 0 && cost > 0 ? parseFloat((margin / navPrice * 100).toFixed(1)) : null;
+
+    try {
+      const resp = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          price_eur: eur || null,
+          exchange_rate: rate,
+          shipping_fee: ship || null,
+          cost_price: cost || null,
+          margin: margin,
+          margin_rate: marginRate,
+          memo,
+          completed_by: currentUser || 'anonymous',
+        }),
+      });
+      if (!resp.ok) throw new Error('저장 실패');
+      showToast('마진 정보 저장 완료');
+
+      // 테이블 마진율 셀 업데이트
+      const row = document.getElementById(`cand-${id}`);
+      if (row && marginRate != null) {
+        const cells = row.querySelectorAll('td');
+        const color = marginRate >= 30 ? '#276749' : marginRate >= 10 ? '#c05621' : '#c53030';
+        cells[8].innerHTML = `<span style="font-weight:700;color:${color}">${marginRate}%</span>`;
+      }
+    } catch (err) {
+      showToast('저장 실패: ' + err.message, true);
+    }
+  }
+
+  function copyNaverForm(id) {
+    const item = candItemsCache[id];
+    if (!item) { showToast('항목 정보 없음', true); return; }
+
+    const eur  = parseFloat(document.getElementById(`eur-${item.id}`)?.value)  || item.price_eur || 0;
+    const rate = parseFloat(document.getElementById(`rate-${item.id}`)?.value) || item.exchange_rate || 1400;
+    const ship = parseFloat(document.getElementById(`ship-${item.id}`)?.value) || item.shipping_fee || 0;
+    const cost = Math.round(eur * rate + ship);
+    const nav  = item.shopping_price || 0;
+    const margin = nav && cost ? nav - cost : null;
+    const mrate  = nav && cost ? (margin / nav * 100).toFixed(1) : null;
+    const memo = document.getElementById(`memo-${item.id}`)?.value || item.memo || '';
+
+    const lines = [
+      `[상품명] ${[item.brand_name, item.product_name].filter(Boolean).join(' ') || '-'}`,
+      `[카테고리] ${item.category || '-'}`,
+      `[구매처] ${item.purchase_source || '-'}`,
+      `[구매가격] ${item.price_paid || '-'}`,
+      nav ? `[네이버 최저가] ${nav.toLocaleString('ko-KR')}원` : '',
+      eur ? `[독일 구매가] €${eur} × ${rate} + 배송 ${ship.toLocaleString('ko-KR')}원 = ${cost.toLocaleString('ko-KR')}원` : '',
+      margin != null ? `[예상 마진] ${margin.toLocaleString('ko-KR')}원 (${mrate}%)` : '',
+      memo ? `[메모] ${memo}` : '',
+      item.link ? `[원문] ${item.link}` : '',
+    ].filter(Boolean).join('\n');
+
+    navigator.clipboard.writeText(lines)
+      .then(() => showToast('네이버 폼 클립보드에 복사됨'))
+      .catch(() => showToast('복사 실패 — 브라우저 권한 확인', true));
   }
 </script>
 

@@ -6,7 +6,8 @@ import anthropic
 import firebase_admin
 from firebase_admin import credentials, firestore as fb_fs
 from datetime import datetime, date
-from flask import Flask, send_file, request, jsonify
+from flask import Flask, send_file, request, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
 from pydantic import BaseModel
 from typing import List, Optional
 from dotenv import load_dotenv
@@ -14,11 +15,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'sourcing-dev-key')
 
 NAVER_CLIENT_ID     = os.environ.get('NAVER_CLIENT_ID')
 NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET')
 ANTHROPIC_API_KEY   = os.environ.get('ANTHROPIC_API_KEY')
 DAILY_LIMIT         = 25_000
+
+# 사용자 목록: APP_USERS_JSON = {"alice": "pass1", "bob": "pass2"}
+try:
+    APP_USERS = json.loads(os.environ.get('APP_USERS_JSON', '{}'))
+except Exception:
+    APP_USERS = {}
 
 claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -162,6 +170,72 @@ class ExtractionResult(BaseModel):
 def index():
     return send_file('src/index.html')
 
+# 로그인
+@app.route("/api/me")
+def api_me():
+    user = session.get('user')
+    return jsonify({"user": user, "logged_in": bool(user)})
+
+@app.route("/api/register", methods=["POST"])
+def api_register():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정 — 회원가입 불가"}), 503
+    data     = request.get_json()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify({"error": "사용자명과 비밀번호를 입력해주세요."}), 400
+    if len(username) < 2:
+        return jsonify({"error": "사용자명은 2자 이상이어야 합니다."}), 400
+    if len(password) < 6:
+        return jsonify({"error": "비밀번호는 6자 이상이어야 합니다."}), 400
+    try:
+        ref = db.collection('users').document(username)
+        if ref.get().exists:
+            return jsonify({"error": "이미 사용 중인 사용자명입니다."}), 409
+        ref.set({
+            'username':      username,
+            'password_hash': generate_password_hash(password),
+            'created_at':    fb_fs.SERVER_TIMESTAMP,
+        })
+        session['user'] = username
+        return jsonify({"success": True, "user": username})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data     = request.get_json()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify({"error": "사용자명과 비밀번호를 입력해주세요."}), 400
+
+    # 1) Firestore 사용자 우선 확인
+    if FIREBASE_ENABLED:
+        try:
+            doc = db.collection('users').document(username).get()
+            if doc.exists:
+                user_data = doc.to_dict()
+                if check_password_hash(user_data.get('password_hash', ''), password):
+                    session['user'] = username
+                    return jsonify({"success": True, "user": username})
+                return jsonify({"error": "비밀번호가 틀렸습니다."}), 401
+        except Exception as e:
+            return jsonify({"error": f"DB 오류: {e}"}), 500
+
+    # 2) 환경변수 APP_USERS_JSON 폴백
+    if APP_USERS.get(username) == password:
+        session['user'] = username
+        return jsonify({"success": True, "user": username})
+
+    return jsonify({"error": "아이디 또는 비밀번호가 틀렸습니다."}), 401
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    session.pop('user', None)
+    return jsonify({"success": True})
+
 # API 사용량 조회
 @app.route("/api/usage")
 def get_usage():
@@ -199,6 +273,7 @@ def save_selected():
     data    = request.get_json()
     items   = data.get('items', [])
     keyword = data.get('keyword', '')
+    mode    = data.get('mode', 'review')
     if not items:
         return jsonify({"error": "선택된 항목이 없습니다."}), 400
 
@@ -230,6 +305,8 @@ def save_selected():
                 'keyword':        keyword,
                 'saved_at':       fb_fs.SERVER_TIMESTAMP,
                 'status':         'pending',
+                'saved_by':       session.get('user', 'anonymous'),
+                'mode':           mode,
                 'shopping_price': shopping_info['shopping_price'] if shopping_info else None,
                 'shopping_image': shopping_info['shopping_image'] if shopping_info else None,
                 'shopping_link':  shopping_info['shopping_link']  if shopping_info else None,
@@ -275,6 +352,7 @@ def search():
     keyword         = data.get("keyword", "").strip()
     page            = max(1, min(10, int(data.get("page", 1))))
     source          = data.get("source", "blog")
+    mode            = data.get("mode", "review")   # "review" | "gonggu"
     start_date_str  = data.get("start_date", "")
     end_date_str    = data.get("end_date", "")
     exclude_raw     = data.get("exclude_keywords", "")
@@ -295,7 +373,11 @@ def search():
         "X-Naver-Client-Id":     NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
-    search_query = f"{keyword} 직구 후기"
+    if mode == "gonggu":
+        search_query = f"{keyword} 직구 공구"
+        source = source if source != "blog" else "cafe"  # 공구는 기본 카페
+    else:
+        search_query = f"{keyword} 직구 후기"
 
     # 페이지별 start 계산 (소스별 100개 or "all"이면 각 50개)
     if source == "all":
@@ -363,13 +445,22 @@ def search():
         description = strip_html(item.get("description", ""))
         reviews_text += f"[{i}] 제목: {title}\n설명: {description}\n\n"
 
-    try:
-        response = claude.messages.parse(
-            model="claude-opus-4-6",
-            max_tokens=16000,
-            messages=[{
-                "role": "user",
-                "content": f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
+    if mode == "gonggu":
+        claude_content = f"""다음은 카페 해외 직구 공구 관련 게시물 목록입니다. 각 게시물에서 정보를 추출해주세요.
+
+추출 항목:
+- brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
+- product_name: 구체적인 상품명/모델명 (없으면 null)
+- category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나 (없으면 null)
+- purchase_source: 공구 진행 카페명 또는 구매처 (없으면 null)
+- price_paid: 공구 가격 또는 구매 가격 (예: "$120", "15만원", 없으면 null)
+- is_direct_purchase_review: 실제 공구 모집/진행 게시물이면 true, 단순 언급이나 후기이면 false
+
+게시물 목록:
+{reviews_text}
+index는 게시물 번호 숫자를 그대로 사용하세요."""
+    else:
+        claude_content = f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
 
 추출 항목:
 - brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
@@ -382,7 +473,12 @@ def search():
 후기 목록:
 {reviews_text}
 index는 후기 번호 숫자를 그대로 사용하세요."""
-            }],
+
+    try:
+        response = claude.messages.parse(
+            model="claude-opus-4-6",
+            max_tokens=16000,
+            messages=[{"role": "user", "content": claude_content}],
             output_format=ExtractionResult,
         )
     except anthropic.APIError as e:
@@ -418,6 +514,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
         "total_cafe":  total_cafe,
         "keyword":     keyword,
         "page":        page,
+        "mode":        mode,
     })
 
 
@@ -425,33 +522,39 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
 @app.route("/api/candidates")
 def get_candidates():
     if not FIREBASE_ENABLED:
-        return jsonify({"items": [], "firebase": False})
+        return jsonify({"items": [], "firebase": False,
+                        "error": "Firebase 미설정 — FIREBASE_SERVICE_ACCOUNT_JSON 환경변수를 확인해주세요."})
     try:
-        docs = (db.collection('sourcing_candidates')
-                .order_by('saved_at', direction=fb_fs.Query.DESCENDING)
-                .limit(500)
-                .stream())
+        # order_by 없이 전체 조회 후 Python에서 정렬 (Firestore 인덱스 불필요)
+        docs = db.collection('sourcing_candidates').limit(500).stream()
         items = []
         for doc in docs:
             d = doc.to_dict()
             d['id'] = doc.id
+            # saved_at 직렬화 (Firestore timestamp → ISO string)
             if 'saved_at' in d and hasattr(d['saved_at'], 'isoformat'):
                 d['saved_at'] = d['saved_at'].isoformat()
             items.append(d)
-        return jsonify({"items": items, "count": len(items)})
+        # 최신순 정렬
+        items.sort(key=lambda x: x.get('saved_at') or '', reverse=True)
+        return jsonify({"items": items, "count": len(items), "firebase": True})
     except Exception as e:
-        return jsonify({"items": [], "error": str(e)})
+        return jsonify({"items": [], "error": str(e), "firebase": True})
 
 
 # 소싱 후보 상태 업데이트
+ALLOWED_UPDATE_FIELDS = {
+    'status', 'price_eur', 'exchange_rate', 'shipping_fee',
+    'cost_price', 'margin', 'margin_rate', 'memo',
+    'completed_by', 'completed_at',
+}
+
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])
 def update_candidate(doc_id):
     if not FIREBASE_ENABLED:
         return jsonify({"error": "Firebase 미설정"}), 503
     data = request.get_json()
-    update_data = {}
-    if 'status' in data:
-        update_data['status'] = data['status']
+    update_data = {k: v for k, v in data.items() if k in ALLOWED_UPDATE_FIELDS}
     if not update_data:
         return jsonify({"error": "변경할 데이터 없음"}), 400
     try:
