@@ -221,6 +221,35 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
     })
 
 
+@app.route("/api/og-image")
+def og_image():
+    url = request.args.get("url", "")
+    if not url or not url.startswith("http"):
+        return jsonify({"images": []})
+    try:
+        resp = requests.get(url, timeout=5, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+        })
+        images = []
+        # og:image 두 가지 속성 순서 대응
+        for pattern in [
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+        ]:
+            for m in re.finditer(pattern, resp.text, re.IGNORECASE):
+                img = m.group(1).strip()
+                if img and img not in images:
+                    images.append(img)
+                if len(images) >= 2:
+                    break
+            if images:
+                break
+        return jsonify({"images": images})
+    except Exception:
+        return jsonify({"images": []})
+
+
 def main():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 80)))
 

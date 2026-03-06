@@ -271,6 +271,34 @@
     .postdate { color: #a0aec0; font-size: 0.8rem; white-space: nowrap; }
     .num-cell { color: #a0aec0; font-size: 0.8rem; text-align: center; }
 
+    .img-cell { width: 130px; }
+    .img-cell .thumb-wrap { display: flex; gap: 4px; flex-wrap: wrap; }
+    .img-cell img {
+      width: 60px; height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+    }
+    .img-cell img:hover { opacity: 0.85; }
+    .img-placeholder { color: #cbd5e0; font-size: 0.75rem; }
+
+    /* 이미지 라이트박스 */
+    #lightbox {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+    #lightbox-close {
+      position: absolute; top: 16px; right: 24px;
+      color: white; font-size: 2rem; cursor: pointer; line-height: 1;
+    }
+
     .empty-state {
       padding: 60px;
       text-align: center;
@@ -366,6 +394,7 @@
           <tr>
             <th style="width:36px">#</th>
             <th style="width:52px">출처</th>
+            <th>이미지</th>
             <th>브랜드명</th>
             <th>상품명</th>
             <th>카테고리</th>
@@ -381,10 +410,47 @@
 
 </div>
 
+<!-- 이미지 라이트박스 -->
+<div id="lightbox">
+  <span id="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="이미지 크게 보기" />
+</div>
+
 <script>
   document.getElementById('keyword').addEventListener('keydown', e => {
     if (e.key === 'Enter') doSearch();
   });
+
+  // 이미지 라이트박스
+  const lb = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lightbox-img');
+  document.getElementById('lightbox-close').onclick = () => lb.classList.remove('open');
+  lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+
+  function openLightbox(src) {
+    lbImg.src = src;
+    lb.classList.add('open');
+  }
+
+  async function loadImages(index, url) {
+    const cell = document.getElementById(`img-${index}`);
+    if (!cell) return;
+    try {
+      const resp = await fetch(`/api/og-image?url=${encodeURIComponent(url)}`);
+      const data = await resp.json();
+      if (data.images && data.images.length > 0) {
+        cell.innerHTML = `<div class="thumb-wrap">${
+          data.images.map(src =>
+            `<img src="${escHtml(src)}" alt="이미지" onclick="openLightbox('${escHtml(src)}')" onerror="this.style.display='none'">`
+          ).join('')
+        }</div>`;
+      } else {
+        cell.innerHTML = '<span class="img-placeholder">-</span>';
+      }
+    } catch {
+      cell.innerHTML = '<span class="img-placeholder">-</span>';
+    }
+  }
 
   function clearDates() {
     document.getElementById('startDate').value = '';
@@ -497,6 +563,7 @@
       <tr>
         <td class="num-cell">${r.index}</td>
         <td>${sourceBadge(r.source)}</td>
+        <td class="img-cell" id="img-${r.index}"><span class="img-placeholder">로딩중...</span></td>
         <td>${badge(r.brand_name, 'brand')}</td>
         <td style="font-weight:500;color:#2d3748;">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
         <td>${badge(r.category, 'category')}</td>
@@ -510,6 +577,9 @@
     `).join('');
 
     document.getElementById('resultsWrapper').style.display = 'block';
+
+    // 이미지 비동기 로드 (병렬)
+    results.forEach(r => loadImages(r.index, r.link));
   }
 </script>
 
