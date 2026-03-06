@@ -146,7 +146,7 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
 
 
 def main():
-    app.run(port=int(os.environ.get('PORT', 80)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 80)))
 
 
 if __name__ == "__main__":
