@@ -311,7 +311,19 @@
       <button id="searchBtn" class="btn-search" onclick="doSearch()">검색</button>
     </div>
 
-    <!-- 2행: 출처 + 날짜 범위 -->
+    <!-- 2행: 제외 키워드 -->
+    <div class="search-row" style="margin-top:10px;">
+      <span class="label-inline">제외 키워드</span>
+      <input
+        type="text"
+        id="excludeKeywords"
+        class="search-input"
+        placeholder="제외할 단어 입력 (쉼표로 구분, 예: 품절, 구매불가, 가품)"
+        style="font-size:0.875rem;"
+      />
+    </div>
+
+    <!-- 3행: 출처 + 날짜 범위 -->
     <div class="search-row" style="margin-top:10px;">
       <div class="source-toggle">
         <input type="radio" name="source" id="src-blog" value="blog" checked />
@@ -415,6 +427,7 @@
     const source   = document.querySelector('input[name="source"]:checked').value;
     const startDate = document.getElementById('startDate').value;
     const endDate   = document.getElementById('endDate').value;
+    const excludeKeywords = document.getElementById('excludeKeywords').value.trim();
 
     if (!keyword) { showError('키워드를 입력해주세요.'); return; }
 
@@ -437,7 +450,7 @@
       const resp = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword, display, source, start_date: startDate, end_date: endDate }),
+        body: JSON.stringify({ keyword, display, source, start_date: startDate, end_date: endDate, exclude_keywords: excludeKeywords }),
       });
 
       const data = await resp.json();

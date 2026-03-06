@@ -84,6 +84,7 @@ def search():
     source = data.get("source", "blog")          # blog | cafe | all
     start_date_str = data.get("start_date", "")  # YYYY-MM-DD
     end_date_str = data.get("end_date", "")       # YYYY-MM-DD
+    exclude_raw = data.get("exclude_keywords", "") # 쉼표 구분 문자열
 
     if not keyword:
         return jsonify({"error": "키워드를 입력해주세요."}), 400
@@ -124,6 +125,9 @@ def search():
             item["_source"] = "카페"
         all_items.extend(cafe_items)
 
+    # 제외 키워드 파싱
+    exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
+
     # 날짜 파싱 및 필터링
     for item in all_items:
         item["_date"] = parse_item_date(item)
@@ -139,6 +143,13 @@ def search():
                 return False
             return True
         all_items = [i for i in all_items if in_range(i)]
+
+    # 제외 키워드 필터링
+    if exclude_keywords:
+        def not_excluded(item):
+            text = (strip_html(item.get("title", "")) + " " + strip_html(item.get("description", ""))).lower()
+            return not any(kw.lower() in text for kw in exclude_keywords)
+        all_items = [i for i in all_items if not_excluded(i)]
 
     # 날짜 내림차순 정렬
     all_items.sort(key=lambda x: x["_date"] or date.min, reverse=True)
