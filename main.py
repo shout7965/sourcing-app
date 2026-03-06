@@ -152,7 +152,7 @@ class ReviewItem(BaseModel):
     category:                  Optional[str] = None
     purchase_source:           Optional[str] = None
     price_paid:                Optional[str] = None   # 후기에서 언급된 구매 가격
-    is_direct_purchase_review: bool = True            # 실제 해외직구 후기 여부
+    is_direct_purchase_review: Optional[bool] = None  # 실제 해외직구 후기 여부
 
 class ExtractionResult(BaseModel):
     items: List[ReviewItem]
@@ -387,6 +387,8 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
         )
     except anthropic.APIError as e:
         return jsonify({"error": f"Claude API 오류: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"분석 처리 오류: {str(e)}"}), 500
 
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
