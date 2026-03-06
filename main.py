@@ -366,7 +366,7 @@ def search():
     try:
         response = claude.messages.parse(
             model="claude-opus-4-6",
-            max_tokens=4096,
+            max_tokens=16000,
             messages=[{
                 "role": "user",
                 "content": f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
