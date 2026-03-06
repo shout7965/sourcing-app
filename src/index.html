@@ -24,7 +24,7 @@
     header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
     header p { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
 
-    .container { max-width: 1200px; margin: 0 auto; padding: 32px 16px; }
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 16px; }
 
     .search-card {
       background: white;
@@ -36,15 +36,19 @@
 
     .search-row {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
       flex-wrap: wrap;
+    }
+
+    .search-row + .search-row {
+      margin-top: 10px;
     }
 
     .search-input {
       flex: 1;
       min-width: 200px;
-      padding: 12px 16px;
+      padding: 11px 16px;
       border: 2px solid #e2e8f0;
       border-radius: 8px;
       font-size: 1rem;
@@ -54,18 +58,29 @@
 
     .search-input:focus { border-color: #4a6cf7; }
 
-    .select-count {
-      padding: 12px 14px;
+    select, input[type="date"] {
+      padding: 11px 12px;
       border: 2px solid #e2e8f0;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       outline: none;
       background: white;
       cursor: pointer;
+      color: #2d3748;
     }
 
+    select:focus, input[type="date"]:focus { border-color: #4a6cf7; }
+
+    .label-inline {
+      font-size: 0.8rem;
+      color: #718096;
+      white-space: nowrap;
+    }
+
+    .date-sep { color: #a0aec0; font-size: 0.85rem; }
+
     .btn-search {
-      padding: 12px 28px;
+      padding: 11px 28px;
       background: linear-gradient(135deg, #4a6cf7, #3a56d4);
       color: white;
       border: none;
@@ -87,6 +102,34 @@
       color: #718096;
     }
 
+    /* Source toggle */
+    .source-toggle {
+      display: flex;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .source-toggle label {
+      padding: 9px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .source-toggle input[type="radio"] { display: none; }
+
+    .source-toggle input[type="radio"]:checked + label {
+      background: #4a6cf7;
+      color: white;
+      font-weight: 600;
+    }
+
+    .source-toggle label:hover { background: #f0f4ff; }
+    .source-toggle input[type="radio"]:checked + label:hover { background: #4a6cf7; }
+
     /* Status bar */
     .status-bar {
       display: none;
@@ -97,7 +140,7 @@
       background: #ebf8ff;
       border-radius: 8px;
       border-left: 4px solid #4a6cf7;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       color: #2b6cb0;
     }
 
@@ -168,16 +211,14 @@
       font-size: 0.875rem;
     }
 
-    thead {
-      background: #f7fafc;
-    }
+    thead { background: #f7fafc; }
 
     th {
-      padding: 12px 14px;
+      padding: 11px 14px;
       text-align: left;
       font-weight: 600;
       color: #4a5568;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       border-bottom: 2px solid #e2e8f0;
@@ -185,13 +226,12 @@
     }
 
     td {
-      padding: 12px 14px;
+      padding: 11px 14px;
       border-bottom: 1px solid #f0f4f8;
       vertical-align: top;
     }
 
     tr:last-child td { border-bottom: none; }
-
     tr:hover td { background: #f7fafc; }
 
     .badge {
@@ -203,12 +243,12 @@
       white-space: nowrap;
     }
 
-    .badge-brand { background: #ebf8ff; color: #2b6cb0; }
+    .badge-brand    { background: #ebf8ff; color: #2b6cb0; }
     .badge-category { background: #f0fff4; color: #276749; }
-    .badge-source { background: #faf5ff; color: #6b46c1; }
-    .badge-null { background: #f7fafc; color: #a0aec0; font-style: italic; }
-
-    .product-name { font-weight: 500; color: #2d3748; }
+    .badge-source   { background: #faf5ff; color: #6b46c1; }
+    .badge-blog     { background: #e6fffa; color: #234e52; }
+    .badge-cafe     { background: #fffaf0; color: #7b341e; }
+    .badge-null     { background: #f7fafc; color: #a0aec0; font-style: italic; }
 
     .blog-title a {
       color: #4a6cf7;
@@ -221,7 +261,7 @@
     .description {
       font-size: 0.8rem;
       color: #718096;
-      margin-top: 4px;
+      margin-top: 3px;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -229,17 +269,13 @@
     }
 
     .postdate { color: #a0aec0; font-size: 0.8rem; white-space: nowrap; }
-
     .num-cell { color: #a0aec0; font-size: 0.8rem; text-align: center; }
 
-    /* Empty state */
     .empty-state {
       padding: 60px;
       text-align: center;
       color: #718096;
     }
-
-    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
 
     @media (max-width: 640px) {
       header { padding: 16px; }
@@ -251,12 +287,13 @@
 
 <header>
   <h1>직구 소싱 앱</h1>
-  <p>네이버 블로그 직구 후기 수집 + Claude AI 상품 정보 추출</p>
+  <p>네이버 블로그 · 카페 직구 후기 수집 + Claude AI 상품 정보 추출</p>
 </header>
 
 <div class="container">
 
   <div class="search-card">
+    <!-- 1행: 키워드 + 결과 수 + 검색 -->
     <div class="search-row">
       <input
         type="text"
@@ -265,7 +302,7 @@
         placeholder="검색 키워드 입력 (예: 나이키, 뉴발란스, 다이슨)"
         maxlength="100"
       />
-      <select id="display" class="select-count">
+      <select id="display">
         <option value="5">5개</option>
         <option value="10" selected>10개</option>
         <option value="20">20개</option>
@@ -273,8 +310,27 @@
       </select>
       <button id="searchBtn" class="btn-search" onclick="doSearch()">검색</button>
     </div>
+
+    <!-- 2행: 출처 + 날짜 범위 -->
+    <div class="search-row" style="margin-top:10px;">
+      <div class="source-toggle">
+        <input type="radio" name="source" id="src-blog" value="blog" checked />
+        <label for="src-blog">블로그</label>
+        <input type="radio" name="source" id="src-cafe" value="cafe" />
+        <label for="src-cafe">카페</label>
+        <input type="radio" name="source" id="src-all" value="all" />
+        <label for="src-all">전체</label>
+      </div>
+
+      <span class="label-inline">날짜 범위</span>
+      <input type="date" id="startDate" />
+      <span class="date-sep">~</span>
+      <input type="date" id="endDate" />
+      <button onclick="clearDates()" style="padding:9px 12px;border:2px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;font-size:0.8rem;color:#718096;">초기화</button>
+    </div>
+
     <p class="search-hint">
-      입력한 키워드 + "직구 후기"로 네이버 블로그를 검색하고, Claude AI가 상품명·브랜드명을 자동 추출합니다.
+      키워드 + "직구 후기"로 검색하며, 날짜 범위를 지정하면 해당 기간 게시물만 표시됩니다.
     </p>
   </div>
 
@@ -296,12 +352,13 @@
       <table>
         <thead>
           <tr>
-            <th style="width:40px">#</th>
+            <th style="width:36px">#</th>
+            <th style="width:52px">출처</th>
             <th>브랜드명</th>
             <th>상품명</th>
             <th>카테고리</th>
             <th>구매처</th>
-            <th>블로그 제목 / 내용</th>
+            <th>제목 / 내용</th>
             <th>날짜</th>
           </tr>
         </thead>
@@ -313,28 +370,33 @@
 </div>
 
 <script>
-  const keywordInput = document.getElementById('keyword');
-
-  keywordInput.addEventListener('keydown', (e) => {
+  document.getElementById('keyword').addEventListener('keydown', e => {
     if (e.key === 'Enter') doSearch();
   });
+
+  function clearDates() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+  }
 
   function badge(value, type) {
     if (!value) return '<span class="badge badge-null">-</span>';
     return `<span class="badge badge-${type}">${escHtml(value)}</span>`;
   }
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  function sourceBadge(src) {
+    const cls = src === '카페' ? 'badge-cafe' : 'badge-blog';
+    return `<span class="badge ${cls}">${escHtml(src)}</span>`;
   }
 
-  function setLoading(on, step) {
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function setLoading(on) {
     document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
-    document.getElementById('loadingStep').textContent = step || '';
   }
 
   function showError(msg) {
@@ -348,41 +410,39 @@
   }
 
   async function doSearch() {
-    const keyword = keywordInput.value.trim();
-    const display = document.getElementById('display').value;
+    const keyword = document.getElementById('keyword').value.trim();
+    const display  = parseInt(document.getElementById('display').value);
+    const source   = document.querySelector('input[name="source"]:checked').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate   = document.getElementById('endDate').value;
 
-    if (!keyword) {
-      showError('키워드를 입력해주세요.');
-      return;
-    }
+    if (!keyword) { showError('키워드를 입력해주세요.'); return; }
 
     hideError();
     document.getElementById('statusBar').style.display = 'none';
     document.getElementById('resultsWrapper').style.display = 'none';
     document.getElementById('searchBtn').disabled = true;
-    setLoading(true, '① 네이버 블로그 검색 중...');
+
+    const sourceLabel = { blog: '블로그', cafe: '카페', all: '블로그+카페' }[source];
+    document.getElementById('loadingMsg').textContent = `${sourceLabel} 검색 중...`;
+    document.getElementById('loadingStep').textContent = '① 네이버 검색 API 호출';
+    setLoading(true);
+
+    setTimeout(() => {
+      document.getElementById('loadingMsg').textContent = 'Claude AI 분석 중...';
+      document.getElementById('loadingStep').textContent = '② 브랜드명 / 상품명 / 카테고리 추출';
+    }, 1500);
 
     try {
-      // Simulate step message change
-      setTimeout(() => {
-        document.getElementById('loadingMsg').textContent = 'Claude AI가 상품 정보를 추출하는 중...';
-        document.getElementById('loadingStep').textContent = '② 브랜드명 / 상품명 / 카테고리 분석';
-      }, 1500);
-
       const resp = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword, display: parseInt(display) }),
+        body: JSON.stringify({ keyword, display, source, start_date: startDate, end_date: endDate }),
       });
 
       const data = await resp.json();
-
-      if (!resp.ok) {
-        showError(data.error || '오류가 발생했습니다.');
-        return;
-      }
-
-      renderResults(data);
+      if (!resp.ok) { showError(data.error || '오류가 발생했습니다.'); return; }
+      renderResults(data, source);
 
     } catch (err) {
       showError('서버 연결 실패: ' + err.message);
@@ -390,41 +450,42 @@
       setLoading(false);
       document.getElementById('searchBtn').disabled = false;
       document.getElementById('loadingMsg').textContent = '검색 중...';
+      document.getElementById('loadingStep').textContent = '';
     }
   }
 
-  function renderResults(data) {
-    const { results, total, keyword } = data;
+  function renderResults(data, source) {
+    const { results, total_blog, total_cafe, keyword } = data;
 
-    // Status bar
+    // 상태 바
     const statusBar = document.getElementById('statusBar');
     statusBar.style.display = 'flex';
-    statusBar.innerHTML = `
-      <strong>"${escHtml(keyword)} 직구 후기"</strong> 검색 결과 &mdash;
-      네이버 블로그 전체 <strong>${total.toLocaleString()}건</strong> 중 ${results.length}건 표시
-    `;
+    let totalInfo = '';
+    if (source === 'blog' || source === 'all') totalInfo += `블로그 <strong>${total_blog.toLocaleString()}건</strong>`;
+    if (source === 'all') totalInfo += ' · ';
+    if (source === 'cafe' || source === 'all') totalInfo += `카페 <strong>${total_cafe.toLocaleString()}건</strong>`;
+    statusBar.innerHTML = `<strong>"${escHtml(keyword)} 직구 후기"</strong> &mdash; ${totalInfo} 검색, <strong>${results.length}건</strong> 표시`;
 
     if (results.length === 0) {
       document.getElementById('resultsWrapper').style.display = 'block';
       document.getElementById('resultsBody').innerHTML = `
-        <tr><td colspan="7">
-          <div class="empty-state">
-            <div class="icon">🔍</div>
-            <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
-          </div>
+        <tr><td colspan="8" style="padding:60px;text-align:center;color:#718096;">
+          검색 결과가 없습니다. 키워드나 날짜 범위를 조정해보세요.
         </td></tr>`;
+      document.getElementById('resultsTitle').textContent = '검색 결과';
+      document.getElementById('resultsCount').textContent = '0건';
       return;
     }
 
     document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" 검색 결과`;
     document.getElementById('resultsCount').textContent = `${results.length}건 표시`;
 
-    const tbody = document.getElementById('resultsBody');
-    tbody.innerHTML = results.map(r => `
+    document.getElementById('resultsBody').innerHTML = results.map(r => `
       <tr>
         <td class="num-cell">${r.index}</td>
+        <td>${sourceBadge(r.source)}</td>
         <td>${badge(r.brand_name, 'brand')}</td>
-        <td class="product-name">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+        <td style="font-weight:500;color:#2d3748;">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
         <td>${badge(r.category, 'category')}</td>
         <td>${badge(r.purchase_source, 'source')}</td>
         <td class="blog-title">

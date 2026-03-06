@@ -2,6 +2,7 @@ import os
 import re
 import requests
 import anthropic
+from datetime import datetime, date
 from flask import Flask, send_file, request, jsonify
 from pydantic import BaseModel
 from typing import List, Optional
@@ -22,11 +23,40 @@ def strip_html(text: str) -> str:
     return re.sub(r'<[^>]+>', '', text)
 
 
-def format_date(date_str: str) -> str:
-    """YYYYMMDD → YYYY-MM-DD"""
-    if len(date_str) == 8:
-        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-    return date_str
+def parse_item_date(item: dict) -> Optional[date]:
+    """블로그(YYYYMMDD) 또는 카페(ISO) 날짜 파싱"""
+    if 'postdate' in item:
+        try:
+            return datetime.strptime(item['postdate'], '%Y%m%d').date()
+        except Exception:
+            return None
+    if 'datetime' in item:
+        try:
+            return datetime.fromisoformat(item['datetime']).date()
+        except Exception:
+            return None
+    return None
+
+
+def format_date(d: Optional[date]) -> str:
+    return d.strftime('%Y-%m-%d') if d else ''
+
+
+def naver_search(endpoint: str, query: str, display: int, headers: dict) -> tuple[list, int]:
+    """네이버 검색 API 호출. (items, total) 반환"""
+    try:
+        resp = requests.get(
+            f"https://openapi.naver.com/v1/search/{endpoint}.json",
+            headers=headers,
+            params={"query": query, "display": display, "sort": "date"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return [], 0
+        data = resp.json()
+        return data.get("items", []), int(data.get("total", 0))
+    except requests.RequestException:
+        return [], 0
 
 
 class ReviewItem(BaseModel):
@@ -51,47 +81,79 @@ def search():
     data = request.get_json()
     keyword = data.get("keyword", "").strip()
     display = min(int(data.get("display", 10)), 30)
+    source = data.get("source", "blog")          # blog | cafe | all
+    start_date_str = data.get("start_date", "")  # YYYY-MM-DD
+    end_date_str = data.get("end_date", "")       # YYYY-MM-DD
 
     if not keyword:
         return jsonify({"error": "키워드를 입력해주세요."}), 400
 
     if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
-        return jsonify({"error": "네이버 API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."}), 500
+        return jsonify({"error": "네이버 API 키가 설정되지 않았습니다."}), 500
 
-    # 네이버 블로그 검색
-    search_query = f"{keyword} 직구 후기"
+    # 날짜 범위 파싱
+    start_date = None
+    end_date = None
+    try:
+        if start_date_str:
+            start_date = date.fromisoformat(start_date_str)
+        if end_date_str:
+            end_date = date.fromisoformat(end_date_str)
+    except ValueError:
+        return jsonify({"error": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"}), 400
+
     headers = {
         "X-Naver-Client-Id": NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
-    params = {
-        "query": search_query,
-        "display": display,
-        "sort": "sim",
-    }
+    search_query = f"{keyword} 직구 후기"
 
-    try:
-        naver_resp = requests.get(
-            "https://openapi.naver.com/v1/search/blog.json",
-            headers=headers,
-            params=params,
-            timeout=10,
-        )
-    except requests.RequestException as e:
-        return jsonify({"error": f"네이버 API 연결 실패: {str(e)}"}), 500
+    # 검색 실행
+    all_items = []
+    total_blog = total_cafe = 0
 
-    if naver_resp.status_code != 200:
-        return jsonify({"error": f"네이버 API 오류 ({naver_resp.status_code}): {naver_resp.text}"}), 500
+    if source in ("blog", "all"):
+        blog_items, total_blog = naver_search("blog", search_query, display, headers)
+        for item in blog_items:
+            item["_source"] = "블로그"
+        all_items.extend(blog_items)
 
-    naver_data = naver_resp.json()
-    items = naver_data.get("items", [])
+    if source in ("cafe", "all"):
+        cafe_items, total_cafe = naver_search("cafearticle", search_query, display, headers)
+        for item in cafe_items:
+            item["_source"] = "카페"
+        all_items.extend(cafe_items)
 
-    if not items:
-        return jsonify({"results": [], "total": 0, "keyword": keyword})
+    # 날짜 파싱 및 필터링
+    for item in all_items:
+        item["_date"] = parse_item_date(item)
+
+    if start_date or end_date:
+        def in_range(item):
+            d = item["_date"]
+            if d is None:
+                return False
+            if start_date and d < start_date:
+                return False
+            if end_date and d > end_date:
+                return False
+            return True
+        all_items = [i for i in all_items if in_range(i)]
+
+    # 날짜 내림차순 정렬
+    all_items.sort(key=lambda x: x["_date"] or date.min, reverse=True)
+
+    if not all_items:
+        return jsonify({
+            "results": [],
+            "total_blog": total_blog,
+            "total_cafe": total_cafe,
+            "keyword": keyword,
+        })
 
     # Claude에 보낼 텍스트 구성
     reviews_text = ""
-    for i, item in enumerate(items, 1):
+    for i, item in enumerate(all_items, 1):
         title = strip_html(item.get("title", ""))
         description = strip_html(item.get("description", ""))
         reviews_text += f"[{i}] 제목: {title}\n설명: {description}\n\n"
@@ -103,11 +165,11 @@ def search():
             max_tokens=2048,
             messages=[{
                 "role": "user",
-                "content": f"""다음은 해외 직구 관련 블로그 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
+                "content": f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
 
 추출 항목:
 - brand_name: 브랜드명 (예: Nike, Apple, Zara, 뉴발란스 등, 없으면 null)
-- product_name: 구체적인 상품명/모델명 (예: Air Max 90, iPhone 15, M34 등, 없으면 null)
+- product_name: 구체적인 상품명/모델명 (예: Air Max 90, iPhone 15 등, 없으면 null)
 - category: 카테고리 (신발/의류/전자제품/가방/화장품/식품/기타 중 하나, 파악 불가시 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
 
@@ -123,15 +185,17 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
     results = []
-    for i, item in enumerate(items, 1):
+    for i, item in enumerate(all_items, 1):
         ext = extracted_map.get(i)
+        src = item.get("_source", "블로그")
         results.append({
             "index": i,
+            "source": src,
             "title": strip_html(item.get("title", "")),
             "description": strip_html(item.get("description", "")),
             "link": item.get("link", ""),
-            "blogger_name": item.get("bloggerName", ""),
-            "postdate": format_date(item.get("postdate", "")),
+            "author": item.get("bloggerName") or item.get("cafename") or "",
+            "postdate": format_date(item["_date"]),
             "brand_name": ext.brand_name if ext else None,
             "product_name": ext.product_name if ext else None,
             "category": ext.category if ext else None,
@@ -140,7 +204,8 @@ index는 후기 번호 [1], [2] 등 숫자를 그대로 사용하세요."""
 
     return jsonify({
         "results": results,
-        "total": naver_data.get("total", 0),
+        "total_blog": total_blog,
+        "total_cafe": total_cafe,
         "keyword": keyword,
     })
 
