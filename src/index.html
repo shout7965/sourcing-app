@@ -937,6 +937,7 @@
         <td class="blog-title" style="min-width:180px">
           <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
           ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
+          ${r.is_direct_purchase_review ? '<span style="font-size:0.68rem;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block">직구후기</span>' : '<span style="font-size:0.68rem;background:#f3f4f6;color:#9ca3af;padding:1px 6px;border-radius:10px;margin-top:3px;display:inline-block">관련글</span>'}
         </td>
         <td class="postdate">${r.postdate || '-'}</td>
       </tr>`;

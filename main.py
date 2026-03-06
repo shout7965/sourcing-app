@@ -390,29 +390,24 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
 
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
-    # 직구 후기가 아닌 항목 필터링 (is_direct_purchase_review=False 제거)
-    relevant_pairs = []
-    for i, item in enumerate(all_items, 1):
-        ext = extracted_map.get(i)
-        if ext is None or getattr(ext, 'is_direct_purchase_review', True):
-            relevant_pairs.append((ext, item))
-
     # 쇼핑 조회는 "다음 단계로" 버튼 클릭 시 선택 항목만 조회 (save-selected 엔드포인트)
     results = []
-    for i, (ext, item) in enumerate(relevant_pairs, 1):
+    for i, item in enumerate(all_items, 1):
+        ext = extracted_map.get(i)
         results.append({
-            "index":           i,
-            "source":          item.get("_source", "블로그"),
-            "title":           strip_html(item.get("title", "")),
-            "description":     strip_html(item.get("description", "")),
-            "link":            item.get("link", ""),
-            "author":          item.get("bloggerName") or item.get("cafename") or "",
-            "postdate":        format_date(item["_date"]),
-            "brand_name":      ext.brand_name      if ext else None,
-            "product_name":    ext.product_name    if ext else None,
-            "category":        ext.category        if ext else None,
-            "purchase_source": ext.purchase_source if ext else None,
-            "price_paid":      ext.price_paid      if ext else None,
+            "index":                    i,
+            "source":                   item.get("_source", "블로그"),
+            "title":                    strip_html(item.get("title", "")),
+            "description":              strip_html(item.get("description", "")),
+            "link":                     item.get("link", ""),
+            "author":                   item.get("bloggerName") or item.get("cafename") or "",
+            "postdate":                 format_date(item["_date"]),
+            "brand_name":               ext.brand_name                if ext else None,
+            "product_name":             ext.product_name              if ext else None,
+            "category":                 ext.category                  if ext else None,
+            "purchase_source":          ext.purchase_source           if ext else None,
+            "price_paid":               ext.price_paid                if ext else None,
+            "is_direct_purchase_review": getattr(ext, 'is_direct_purchase_review', True) if ext else True,
         })
 
     return jsonify({
