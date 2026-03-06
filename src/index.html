@@ -1,12 +1,443 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World</title>
-  </head>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>직구 소싱 앱</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <body>
-    <h1>Hello World</h1>
-  </body>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 24px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 16px; }
+
+    .search-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus { border-color: #4a6cf7; }
+
+    .select-count {
+      padding: 12px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      background: white;
+      cursor: pointer;
+    }
+
+    .btn-search {
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #4a6cf7, #3a56d4);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-search:hover { opacity: 0.9; }
+    .btn-search:active { transform: scale(0.98); }
+    .btn-search:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .search-hint {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #718096;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      background: #ebf8ff;
+      border-radius: 8px;
+      border-left: 4px solid #4a6cf7;
+      font-size: 0.9rem;
+      color: #2b6cb0;
+    }
+
+    /* Loading */
+    .loading-overlay {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #4a6cf7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-overlay p { color: #718096; font-size: 0.9rem; }
+    .loading-overlay .loading-step { margin-top: 6px; font-size: 0.8rem; color: #a0aec0; }
+
+    /* Error */
+    .error-box {
+      display: none;
+      padding: 16px;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-radius: 8px;
+      color: #c53030;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    /* Results table */
+    .results-wrapper {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .results-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .results-header h2 { font-size: 1rem; font-weight: 600; color: #2d3748; }
+    .results-count { font-size: 0.85rem; color: #718096; }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead {
+      background: #f7fafc;
+    }
+
+    th {
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #4a5568;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f4f8;
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: #f7fafc; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .badge-brand { background: #ebf8ff; color: #2b6cb0; }
+    .badge-category { background: #f0fff4; color: #276749; }
+    .badge-source { background: #faf5ff; color: #6b46c1; }
+    .badge-null { background: #f7fafc; color: #a0aec0; font-style: italic; }
+
+    .product-name { font-weight: 500; color: #2d3748; }
+
+    .blog-title a {
+      color: #4a6cf7;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .blog-title a:hover { text-decoration: underline; }
+
+    .description {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-top: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .postdate { color: #a0aec0; font-size: 0.8rem; white-space: nowrap; }
+
+    .num-cell { color: #a0aec0; font-size: 0.8rem; text-align: center; }
+
+    /* Empty state */
+    .empty-state {
+      padding: 60px;
+      text-align: center;
+      color: #718096;
+    }
+
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    @media (max-width: 640px) {
+      header { padding: 16px; }
+      .container { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>직구 소싱 앱</h1>
+  <p>네이버 블로그 직구 후기 수집 + Claude AI 상품 정보 추출</p>
+</header>
+
+<div class="container">
+
+  <div class="search-card">
+    <div class="search-row">
+      <input
+        type="text"
+        id="keyword"
+        class="search-input"
+        placeholder="검색 키워드 입력 (예: 나이키, 뉴발란스, 다이슨)"
+        maxlength="100"
+      />
+      <select id="display" class="select-count">
+        <option value="5">5개</option>
+        <option value="10" selected>10개</option>
+        <option value="20">20개</option>
+        <option value="30">30개</option>
+      </select>
+      <button id="searchBtn" class="btn-search" onclick="doSearch()">검색</button>
+    </div>
+    <p class="search-hint">
+      입력한 키워드 + "직구 후기"로 네이버 블로그를 검색하고, Claude AI가 상품명·브랜드명을 자동 추출합니다.
+    </p>
+  </div>
+
+  <div id="statusBar" class="status-bar"></div>
+  <div id="errorBox" class="error-box"></div>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loadingMsg">검색 중...</p>
+    <p class="loading-step" id="loadingStep"></p>
+  </div>
+
+  <div id="resultsWrapper" class="results-wrapper">
+    <div class="results-header">
+      <h2 id="resultsTitle">검색 결과</h2>
+      <span id="resultsCount" class="results-count"></span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">#</th>
+            <th>브랜드명</th>
+            <th>상품명</th>
+            <th>카테고리</th>
+            <th>구매처</th>
+            <th>블로그 제목 / 내용</th>
+            <th>날짜</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const keywordInput = document.getElementById('keyword');
+
+  keywordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  function badge(value, type) {
+    if (!value) return '<span class="badge badge-null">-</span>';
+    return `<span class="badge badge-${type}">${escHtml(value)}</span>`;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function setLoading(on, step) {
+    document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+    document.getElementById('loadingStep').textContent = step || '';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  async function doSearch() {
+    const keyword = keywordInput.value.trim();
+    const display = document.getElementById('display').value;
+
+    if (!keyword) {
+      showError('키워드를 입력해주세요.');
+      return;
+    }
+
+    hideError();
+    document.getElementById('statusBar').style.display = 'none';
+    document.getElementById('resultsWrapper').style.display = 'none';
+    document.getElementById('searchBtn').disabled = true;
+    setLoading(true, '① 네이버 블로그 검색 중...');
+
+    try {
+      // Simulate step message change
+      setTimeout(() => {
+        document.getElementById('loadingMsg').textContent = 'Claude AI가 상품 정보를 추출하는 중...';
+        document.getElementById('loadingStep').textContent = '② 브랜드명 / 상품명 / 카테고리 분석';
+      }, 1500);
+
+      const resp = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, display: parseInt(display) }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        showError(data.error || '오류가 발생했습니다.');
+        return;
+      }
+
+      renderResults(data);
+
+    } catch (err) {
+      showError('서버 연결 실패: ' + err.message);
+    } finally {
+      setLoading(false);
+      document.getElementById('searchBtn').disabled = false;
+      document.getElementById('loadingMsg').textContent = '검색 중...';
+    }
+  }
+
+  function renderResults(data) {
+    const { results, total, keyword } = data;
+
+    // Status bar
+    const statusBar = document.getElementById('statusBar');
+    statusBar.style.display = 'flex';
+    statusBar.innerHTML = `
+      <strong>"${escHtml(keyword)} 직구 후기"</strong> 검색 결과 &mdash;
+      네이버 블로그 전체 <strong>${total.toLocaleString()}건</strong> 중 ${results.length}건 표시
+    `;
+
+    if (results.length === 0) {
+      document.getElementById('resultsWrapper').style.display = 'block';
+      document.getElementById('resultsBody').innerHTML = `
+        <tr><td colspan="7">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    document.getElementById('resultsTitle').textContent = `"${keyword} 직구 후기" 검색 결과`;
+    document.getElementById('resultsCount').textContent = `${results.length}건 표시`;
+
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = results.map(r => `
+      <tr>
+        <td class="num-cell">${r.index}</td>
+        <td>${badge(r.brand_name, 'brand')}</td>
+        <td class="product-name">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+        <td>${badge(r.category, 'category')}</td>
+        <td>${badge(r.purchase_source, 'source')}</td>
+        <td class="blog-title">
+          <a href="${escHtml(r.link)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
+          ${r.description ? `<div class="description">${escHtml(r.description)}</div>` : ''}
+        </td>
+        <td class="postdate">${r.postdate || '-'}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('resultsWrapper').style.display = 'block';
+  }
+</script>
+
+</body>
 </html>
