@@ -928,7 +928,7 @@ function buildProjectCard(p) {
         ${years.map((y,i) => {
           // 이 연도에서 활성화할 월 범위
           const minMonth = (oldest && y === oldestYear) ? oldest.month : 1;
-          const maxMonth = (y === newestYear) ? newest.month : 12;
+          const maxMonth = (newest && y === newestYear) ? newest.month : 12;
           return `
           <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
             <div class="month-quick">
