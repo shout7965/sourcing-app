@@ -305,16 +305,25 @@ def create_project():
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
 
-    blog_items, total_blog = naver_search("blog",        search_query, 5, 1, naver_headers)
-    cafe_items, total_cafe = naver_search("cafearticle", search_query, 5, 1, naver_headers)
-    increment_usage(2)
+    # 첫 페이지: 최신 게시물 + 총 갯수
+    blog_first, total_blog = naver_search("blog",        search_query, 5, 1, naver_headers)
+    cafe_first, total_cafe = naver_search("cafearticle", search_query, 5, 1, naver_headers)
+    # 마지막 접근 가능 구간(start=901): Naver 최대 1000개 중 가장 오래된 날짜 파악
+    blog_last, _ = naver_search("blog",        search_query, 100, 901, naver_headers)
+    cafe_last, _ = naver_search("cafearticle", search_query, 100, 901, naver_headers)
+    increment_usage(4)
 
     def get_newest_date(items):
         for item in items:
             d = parse_item_date(item)
-            if d:
-                return d.isoformat()
+            if d: return d.isoformat()
         return None
+
+    def get_oldest_date(items_last, items_first):
+        pool = items_last if items_last else items_first
+        dates = [parse_item_date(i) for i in pool]
+        dates = [d for d in dates if d]
+        return min(dates).isoformat() if dates else None
 
     try:
         ref = db.collection('projects').document()
@@ -324,8 +333,10 @@ def create_project():
             'user_id':           user,
             'total_blog':        total_blog,
             'total_cafe':        total_cafe,
-            'newest_date_blog':  get_newest_date(blog_items),
-            'newest_date_cafe':  get_newest_date(cafe_items),
+            'newest_date_blog':  get_newest_date(blog_first),
+            'newest_date_cafe':  get_newest_date(cafe_first),
+            'oldest_date_blog':  get_oldest_date(blog_last, blog_first),
+            'oldest_date_cafe':  get_oldest_date(cafe_last, cafe_first),
             'created_at':        fb_fs.SERVER_TIMESTAMP,
         })
         doc = ref.get()
@@ -475,10 +486,9 @@ def search():
     else:
         search_query = f"{keyword} 직구 후기"
 
-    MAX_NAVER_PAGE    = 10
-    DISPLAY           = 100
-    TARGET            = 30   # 한 번 응답에 담을 최소 filtered 항목 수
-    MAX_PAGES_PER_CALL = 4   # 한 번 API 호출에서 내부적으로 최대 fetch 페이지 수
+    MAX_NAVER_PAGE = 10
+    DISPLAY        = 100
+    TARGET         = 50   # 한 번 응답에 담을 최대 filtered 항목 수
 
     all_items  = []
     total_blog = total_cafe = 0
@@ -487,10 +497,10 @@ def search():
     hit_too_old = False
     api_calls   = 0
 
+    # MAX_PAGES_PER_CALL 없음 → 한 번 서버 호출로 10페이지 전부 스캔 (클라이언트 재호출 최소화)
     while (len(all_items) < TARGET
            and not hit_too_old
-           and next_cursor <= MAX_NAVER_PAGE
-           and next_cursor < cursor + MAX_PAGES_PER_CALL):
+           and next_cursor <= MAX_NAVER_PAGE):
 
         start_pos  = (next_cursor - 1) * DISPLAY + 1
         page_items = []

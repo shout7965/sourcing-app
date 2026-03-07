@@ -888,15 +888,28 @@ function renderProjectList() {
 }
 
 function buildProjectCard(p) {
-  const nowYear = new Date().getFullYear();
-  const newestBlog = p.newest_date_blog ? parseInt(p.newest_date_blog.split('-')[0]) : nowYear;
-  const newestCafe = p.newest_date_cafe ? parseInt(p.newest_date_cafe.split('-')[0]) : nowYear;
+  function parseYM(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    return { year: parseInt(parts[0]), month: parseInt(parts[1]) };
+  }
 
-  function buildSource(source, label, total, newestYear) {
+  function buildSource(source, label, total, newestStr, oldestStr) {
     if (!total) return '';
+    const newest = parseYM(newestStr);
+    const oldest = parseYM(oldestStr);
+    if (!newest) return '';
+
+    const newestYear = newest.year;
+    const oldestYear = oldest ? oldest.year : newestYear - 3;
+
+    // 접근 가능 연도 목록 (최신→오래된 순)
     const years = [];
-    for (let y = newestYear; y >= newestYear - 3 && y >= 2020; y--) years.push(y);
-    const firstYear = years[0];
+    for (let y = newestYear; y >= oldestYear && y >= 2020; y--) years.push(y);
+
+    const rangeLabel = oldest
+      ? `${oldest.year}.${String(oldest.month).padStart(2,'0')} ~ ${newest.year}.${String(newest.month).padStart(2,'0')}`
+      : '';
 
     return `
     <div class="source-section" id="src-${p.id}-${source}">
@@ -905,28 +918,36 @@ function buildProjectCard(p) {
           <span class="source-chevron">▶</span>
           ${label} <span class="source-count">${(total||0).toLocaleString()}개</span>
         </span>
+        ${rangeLabel ? `<span style="font-size:0.65rem;color:#4a5568">${rangeLabel}</span>` : ''}
       </div>
       <div class="source-body">
         <div class="year-tabs" id="ytabs-${p.id}-${source}">
           ${years.map((y,i) => `<button class="year-tab ${i===0?'active':''}" data-year="${y}"
             onclick="selectYear('${p.id}','${source}',${y},this)">${y}</button>`).join('')}
         </div>
-        ${years.map((y,i) => `
-        <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
-          <div class="month-quick">
-            <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},true)">전체</button>
-            <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},false)">해제</button>
-          </div>
-          <div class="month-grid">
-            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m =>
-              `<label class="month-label" id="ml-${p.id}-${source}-${y}-${m}">
-                <input type="checkbox" data-pid="${p.id}" data-source="${source}" data-year="${y}" data-month="${m}"
-                  onchange="onMonthCheck(this)" />
-                ${m}월
-              </label>`
-            ).join('')}
-          </div>
-        </div>`).join('')}
+        ${years.map((y,i) => {
+          // 이 연도에서 활성화할 월 범위
+          const minMonth = (oldest && y === oldestYear) ? oldest.month : 1;
+          const maxMonth = (y === newestYear) ? newest.month : 12;
+          return `
+          <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
+            <div class="month-quick">
+              <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},true)">전체</button>
+              <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},false)">해제</button>
+            </div>
+            <div class="month-grid">
+              ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+                const disabled = m < minMonth || m > maxMonth;
+                return `<label class="month-label${disabled?' disabled':''}" id="ml-${p.id}-${source}-${y}-${m}"
+                  style="${disabled?'opacity:0.3;cursor:not-allowed':''}">
+                  <input type="checkbox" data-pid="${p.id}" data-source="${source}" data-year="${y}" data-month="${m}"
+                    onchange="onMonthCheck(this)" ${disabled?'disabled':''} />
+                  ${m}월
+                </label>`;
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   }
@@ -942,8 +963,8 @@ function buildProjectCard(p) {
         onclick="event.stopPropagation();deleteProject('${p.id}','${escHtml(p.name)}')">×</button>
     </div>
     <div class="project-body">
-      ${buildSource('blog', '📰 블로그', p.total_blog, newestBlog)}
-      ${buildSource('cafe', '☕ 카페',   p.total_cafe, newestCafe)}
+      ${buildSource('blog', '📰 블로그', p.total_blog, p.newest_date_blog, p.oldest_date_blog)}
+      ${buildSource('cafe', '☕ 카페',   p.total_cafe, p.newest_date_cafe, p.oldest_date_cafe)}
     </div>
   </div>`;
 }
