@@ -912,10 +912,10 @@ function buildProjectCard(p) {
         </span>
       </div>
       <div class="source-body">
-        <div class="year-tabs" id="ytabs-${p.id}-${source}">
+        <div class="year-tabs" id="ytabs-${p.id}-${source}" data-keyword="${escHtml(p.keyword)}">
           ${years.map((y,i) => `<button class="year-tab ${i===0?'active':''}" data-year="${y}"
             id="ytab-${p.id}-${source}-${y}"
-            onclick="selectYear('${p.id}','${source}',${y},this,${JSON.stringify(p.keyword)})">${y}</button>`).join('')}
+            onclick="selectYear('${p.id}','${source}',${y},this)">${y}</button>`).join('')}
         </div>
         ${years.map((y,i) => `
         <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
@@ -967,8 +967,7 @@ function toggleSource(pid, source) {
     const firstTab = sec.querySelector('.year-tab.active');
     if (firstTab) {
       const year = parseInt(firstTab.dataset.year);
-      const proj = projects.find(p => p.id === pid);
-      if (proj) selectYear(pid, source, year, firstTab, proj.keyword);
+      selectYear(pid, source, year, firstTab);
     }
   }
 }
@@ -976,7 +975,8 @@ function toggleSource(pid, source) {
 // 연도 probe 캐시: "pid__source__year" → total
 const yearProbeCache = {};
 
-async function selectYear(pid, source, year, btn, keyword) {
+async function selectYear(pid, source, year, btn) {
+  const keyword = btn.closest('.year-tabs').dataset.keyword;
   // year tab 활성화
   document.querySelectorAll(`#ytabs-${pid}-${source} .year-tab`).forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
