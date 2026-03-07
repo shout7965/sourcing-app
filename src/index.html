@@ -374,6 +374,31 @@
       line-height: 1.6; background: white; border-radius: 10px;
     }
 
+    /* 이미지 비교 */
+    .img-compare {
+      display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start;
+    }
+    .img-compare-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .img-compare-item label {
+      font-size: 0.68rem; color: #718096; font-weight: 600; text-transform: uppercase;
+    }
+    .img-compare-item img {
+      width: 120px; height: 120px; object-fit: contain; border-radius: 6px;
+      border: 1px solid #c3dafe; background: #f7faff; cursor: pointer;
+    }
+    .img-compare-item img:hover { border-color: #4a6cf7; }
+    .img-compare-none {
+      width: 120px; height: 120px; border-radius: 6px; border: 1px dashed #c3dafe;
+      background: #f7faff; display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; color: #a0aec0;
+    }
+    .shopping-match-title {
+      font-size: 0.7rem; color: #4a5568; max-width: 120px; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
     /* 마진 계산기 */
     .margin-row td { background: #f7faff; border-bottom: 2px solid #c3dafe; padding: 10px 14px; }
     .margin-calc { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
@@ -1501,6 +1526,21 @@ function renderCandidates(items) {
     </tr>
     <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
       <td colspan="12">
+        <div class="img-compare">
+          <div class="img-compare-item">
+            <label>블로그 이미지</label>
+            ${item.blog_image
+              ? `<img src="${escHtml(item.blog_image)}" alt="블로그" onclick="openLightbox('${escHtml(item.blog_image)}')" onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'" />`
+              : `<div class="img-compare-none" id="blogimg-${escHtml(id)}">로딩중...</div>`}
+          </div>
+          <div class="img-compare-item">
+            <label>쇼핑 검색 이미지</label>
+            ${item.shopping_image
+              ? `<img src="${escHtml(item.shopping_image)}" alt="쇼핑" onclick="openLightbox('${escHtml(item.shopping_image)}')" onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'" />`
+              : `<div class="img-compare-none">-</div>`}
+            ${item.shopping_title ? `<div class="shopping-match-title" title="${escHtml(item.shopping_title)}">${escHtml(item.shopping_title)}</div>` : ''}
+          </div>
+        </div>
         <div class="margin-calc">
           <div class="margin-field">
             <label>독일구매가 (EUR)</label>
@@ -1566,7 +1606,31 @@ function toggleMarginRow(id) {
   const row = document.getElementById(`mrow-${id}`);
   if (!row) return;
   row.style.display = row.style.display === 'none' ? '' : 'none';
-  if (row.style.display !== 'none') calcMarginLive(id);
+  if (row.style.display !== 'none') {
+    calcMarginLive(id);
+    // blog_image 없는 경우 OG 이미지 lazy load
+    const blogImgEl = document.getElementById(`blogimg-${id}`);
+    if (blogImgEl) {
+      const item = candItemsCache[id];
+      if (item?.link) {
+        fetch(`/api/og-image?url=${encodeURIComponent(item.link)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.images?.[0]) {
+              const src = data.images[0];
+              blogImgEl.outerHTML = `<img src="${escHtml(src)}" alt="블로그"
+                onclick="openLightbox('${escHtml(src)}')"
+                onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'"
+                style="width:120px;height:120px;object-fit:contain;border-radius:6px;border:1px solid #c3dafe;background:#f7faff;cursor:pointer" />`;
+            } else {
+              blogImgEl.textContent = '이미지 없음';
+            }
+          }).catch(() => { blogImgEl.textContent = '이미지 없음'; });
+      } else {
+        blogImgEl.textContent = '이미지 없음';
+      }
+    }
+  }
 }
 
 function calcMarginLive(id) {

@@ -127,7 +127,7 @@ def naver_search(endpoint: str, query: str, display: int, start: int, headers: d
     except requests.RequestException:
         return [], 0
 
-def search_naver_shopping(query: str, headers: dict) -> Optional[dict]:
+def search_naver_shopping(query: str, headers: dict, brand_name: str = None) -> Optional[dict]:
     if not query.strip():
         return None
     try:
@@ -142,12 +142,27 @@ def search_naver_shopping(query: str, headers: dict) -> Optional[dict]:
         items = resp.json().get("items", [])
         if not items:
             return None
-        item = items[0]
+
+        # 브랜드명이 있으면 결과 중 브랜드명이 제목에 포함된 항목만 사용
+        selected = None
+        if brand_name:
+            brand_lower = brand_name.lower()
+            for it in items:
+                title = strip_html(it.get("title", "")).lower()
+                if brand_lower in title:
+                    selected = it
+                    break
+            if selected is None:
+                return None  # 브랜드 불일치 → 엉뚱한 제품 반환 방지
+        else:
+            selected = items[0]
+
         return {
-            "shopping_price": int(item.get("lprice", 0)),
-            "shopping_image": strip_html(item.get("image", "")),
-            "shopping_link":  item.get("link", ""),
-            "shopping_mall":  strip_html(item.get("mallName", "")),
+            "shopping_price": int(selected.get("lprice", 0)),
+            "shopping_image": strip_html(selected.get("image", "")),
+            "shopping_link":  selected.get("link", ""),
+            "shopping_mall":  strip_html(selected.get("mallName", "")),
+            "shopping_title": strip_html(selected.get("title", "")),
         }
     except Exception:
         return None
@@ -352,6 +367,37 @@ def create_project():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/projects/<project_id>/history", methods=["PATCH"])
+def update_project_history(project_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"ok": False})
+    user = session.get('user')
+    if not user:
+        return jsonify({"error": "로그인 필요"}), 401
+    data = request.get_json()
+    # data: {source: "blog", year: 2023, months: [10, 11, 12]}
+    source = data.get('source')
+    year   = str(data.get('year'))
+    months = data.get('months', [])
+    if not source or not year or not months:
+        return jsonify({"ok": False}), 400
+    try:
+        ref = db.collection('projects').document(project_id)
+        doc = ref.get()
+        if not doc.exists or doc.to_dict().get('user_id') != user:
+            return jsonify({"error": "권한 없음"}), 403
+        history = doc.to_dict().get('history', {})
+        src_hist = history.get(source, {})
+        existing = set(src_hist.get(year, []))
+        existing.update(months)
+        src_hist[year] = sorted(existing)
+        history[source] = src_hist
+        ref.update({'history': history})
+        return jsonify({"ok": True, "history": history})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/projects/<project_id>", methods=["DELETE"])
 def delete_project(project_id):
     if not FIREBASE_ENABLED:
@@ -399,7 +445,7 @@ def save_selected():
             continue
         key = " ".join(parts)
         if key not in shopping_cache:
-            shopping_cache[key] = search_naver_shopping(key, naver_headers)
+            shopping_cache[key] = search_naver_shopping(key, naver_headers, brand_name=item.get('brand_name'))
             shopping_calls += 1
     increment_usage(shopping_calls)
 
@@ -416,10 +462,12 @@ def save_selected():
                 'status':         'pending',
                 'saved_by':       session.get('user', 'anonymous'),
                 'mode':           mode,
+                'blog_image':     item.get('thumbnail') or None,
                 'shopping_price': shopping_info['shopping_price'] if shopping_info else None,
                 'shopping_image': shopping_info['shopping_image'] if shopping_info else None,
                 'shopping_link':  shopping_info['shopping_link']  if shopping_info else None,
                 'shopping_mall':  shopping_info['shopping_mall']  if shopping_info else None,
+                'shopping_title': shopping_info['shopping_title'] if shopping_info else None,
             })
         batch.commit()
         return jsonify({"saved": len(items), "success": True})
@@ -627,6 +675,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "title":                     strip_html(item.get("title", "")),
             "description":               strip_html(item.get("description", "")),
             "link":                      item.get("link", ""),
+            "thumbnail":                 item.get("thumbnail", "") or "",
             "author":                    item.get("bloggerName") or item.get("cafename") or "",
             "postdate":                  format_date(item["_date"]),
             "brand_name":                ext.brand_name               if ext else None,
