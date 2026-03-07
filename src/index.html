@@ -179,6 +179,8 @@
     .month-label:hover { background: #1e2d45; color: #a0aec0; }
     .month-label input { width: 12px; height: 12px; accent-color: #4a6cf7; cursor: pointer; }
     .month-label.checked { color: #63b3ed; }
+    .month-label.done { color: #4a5568; }
+    .month-label.done span { text-decoration: line-through; color: #718096; }
     .month-quick { display: flex; gap: 4px; padding-bottom: 6px; }
     .btn-month-quick {
       padding: 2px 8px; font-size: 0.68rem;
@@ -924,13 +926,14 @@ function buildProjectCard(p) {
             <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},false)">해제</button>
           </div>
           <div class="month-grid">
-            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m =>
-              `<label class="month-label" id="ml-${p.id}-${source}-${y}-${m}">
+            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+              const done = (p.history?.[source]?.[String(y)] || []).includes(m);
+              return `<label class="month-label${done?' done':''}" id="ml-${p.id}-${source}-${y}-${m}">
                 <input type="checkbox" data-pid="${p.id}" data-source="${source}" data-year="${y}" data-month="${m}"
                   onchange="onMonthCheck(this)" />
-                ${m}월
-              </label>`
-            ).join('')}
+                <span>${m}월</span>
+              </label>`;
+            }).join('')}
           </div>
         </div>`).join('')}
       </div>
@@ -1138,9 +1141,11 @@ function buildSearchJobs() {
     const maxMonth = g.months[g.months.length - 1];
     const lastDay  = new Date(g.year, maxMonth, 0).getDate();
     jobs.push({
+      pid:        g.pid,
       keyword:    proj.keyword,
       source:     g.source,
       year_hint:  g.year,   // 검색쿼리: "{keyword} 직구후기 {year}년"
+      months:     g.months,
       start_date: `${g.year}-${String(minMonth).padStart(2,'0')}-01`,
       end_date:   `${g.year}-${String(maxMonth).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
       cursor:     1,
@@ -1218,7 +1223,32 @@ async function loadMore() {
     if (!resp.ok) throw new Error(data.error || '서버 오류');
 
     job.cursor = data.next_cursor;
-    if (!data.has_more) job.done = true;
+    if (!data.has_more) {
+      job.done = true;
+      // 검색 완료된 월 기록
+      if (job.pid && job.months && currentUser) {
+        try {
+          const hResp = await fetch(`/api/projects/${job.pid}/history`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ source: job.source, year: job.year_hint, months: job.months }),
+          });
+          if (hResp.ok) {
+            const hData = await hResp.json();
+            // 로컬 projects 배열에 history 반영
+            const proj = projects.find(p => p.id === job.pid);
+            if (proj) {
+              proj.history = hData.history;
+              // 해당 월 라벨에 strikethrough 적용
+              job.months.forEach(m => {
+                const lbl = document.getElementById(`ml-${job.pid}-${job.source}-${job.year_hint}-${m}`);
+                if (lbl) lbl.classList.add('done');
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    }
 
     if (data.results && data.results.length > 0) {
       appendResults(data.results);
