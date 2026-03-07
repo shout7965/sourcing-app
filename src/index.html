@@ -1306,7 +1306,9 @@ async function loadMore() {
 
 function appendResults(results) {
   const tbody = document.getElementById('resultsBody');
-  results.forEach(r => {
+  // 브랜드명 + 상품명 + 이미지(thumbnail) 세 가지 모두 있는 항목만 표시
+  const filtered = results.filter(r => r.brand_name && r.product_name && r.thumbnail);
+  filtered.forEach(r => {
     const gid = allResults.length;
     r._gid = gid;
     allResults.push(r);
