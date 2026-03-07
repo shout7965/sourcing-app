@@ -305,39 +305,20 @@ def create_project():
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
 
-    # 첫 페이지: 최신 게시물 + 총 갯수
+    # 연도별 검색 방식이므로 총 갯수 확인만 (2 calls)
     blog_first, total_blog = naver_search("blog",        search_query, 5, 1, naver_headers)
     cafe_first, total_cafe = naver_search("cafearticle", search_query, 5, 1, naver_headers)
-    # 마지막 접근 가능 구간(start=901): Naver 최대 1000개 중 가장 오래된 날짜 파악
-    blog_last, _ = naver_search("blog",        search_query, 100, 901, naver_headers)
-    cafe_last, _ = naver_search("cafearticle", search_query, 100, 901, naver_headers)
-    increment_usage(4)
-
-    def get_newest_date(items):
-        for item in items:
-            d = parse_item_date(item)
-            if d: return d.isoformat()
-        return None
-
-    def get_oldest_date(items_last, items_first):
-        pool = items_last if items_last else items_first
-        dates = [parse_item_date(i) for i in pool]
-        dates = [d for d in dates if d]
-        return min(dates).isoformat() if dates else None
+    increment_usage(2)
 
     try:
         ref = db.collection('projects').document()
         ref.set({
-            'name':              name,
-            'keyword':           keyword,
-            'user_id':           user,
-            'total_blog':        total_blog,
-            'total_cafe':        total_cafe,
-            'newest_date_blog':  get_newest_date(blog_first),
-            'newest_date_cafe':  get_newest_date(cafe_first),
-            'oldest_date_blog':  get_oldest_date(blog_last, blog_first),
-            'oldest_date_cafe':  get_oldest_date(cafe_last, cafe_first),
-            'created_at':        fb_fs.SERVER_TIMESTAMP,
+            'name':       name,
+            'keyword':    keyword,
+            'user_id':    user,
+            'total_blog': total_blog,
+            'total_cafe': total_cafe,
+            'created_at': fb_fs.SERVER_TIMESTAMP,
         })
         doc = ref.get()
         d = doc.to_dict()
@@ -458,6 +439,7 @@ def search():
     keyword        = data.get("keyword", "").strip()
     source         = data.get("source", "blog")
     mode           = data.get("mode", "review")
+    year_hint      = data.get("year_hint")        # 연도 (int or None)
     start_date_str = data.get("start_date", "")
     end_date_str   = data.get("end_date", "")
     exclude_raw    = data.get("exclude_keywords", "")
@@ -484,7 +466,11 @@ def search():
         if source == "blog":
             source = "cafe"
     else:
-        search_query = f"{keyword} 직구 후기"
+        # year_hint가 있으면 연도를 쿼리에 포함 → 연도별 독립적인 1000개 풀
+        if year_hint:
+            search_query = f"{keyword} 직구 후기 {year_hint}년"
+        else:
+            search_query = f"{keyword} 직구 후기"
 
     MAX_NAVER_PAGE = 10
     DISPLAY        = 100

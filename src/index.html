@@ -888,66 +888,41 @@ function renderProjectList() {
 }
 
 function buildProjectCard(p) {
-  function parseYM(dateStr) {
-    if (!dateStr) return null;
-    const parts = dateStr.split('-');
-    return { year: parseInt(parts[0]), month: parseInt(parts[1]) };
-  }
+  const currentYear = new Date().getFullYear();
+  // 2020년부터 현재 연도까지 — 각 연도는 독립 검색 풀 (연도가 쿼리에 포함됨)
+  const years = [];
+  for (let y = currentYear; y >= 2020; y--) years.push(y);
 
-  function buildSource(source, label, total, newestStr, oldestStr) {
-    if (!total) return '';
-    const newest = parseYM(newestStr);
-    const oldest = parseYM(oldestStr);
-
-    const nowYear = new Date().getFullYear();
-    const newestYear = newest ? newest.year : nowYear;
-    const oldestYear = oldest ? oldest.year : newestYear - 3;
-
-    // 접근 가능 연도 목록 (최신→오래된 순)
-    const years = [];
-    for (let y = newestYear; y >= oldestYear && y >= 2020; y--) years.push(y);
-
-    const rangeLabel = oldest
-      ? `${oldest.year}.${String(oldest.month).padStart(2,'0')} ~ ${newest.year}.${String(newest.month).padStart(2,'0')}`
-      : '';
-
+  function buildSource(source, label, total) {
     return `
     <div class="source-section" id="src-${p.id}-${source}">
       <div class="source-header" onclick="toggleSource('${p.id}','${source}')">
         <span class="source-title">
           <span class="source-chevron">▶</span>
-          ${label} <span class="source-count">${(total||0).toLocaleString()}개</span>
+          ${label} <span class="source-count">${total ? (total).toLocaleString()+'개 (최신기준)' : '미확인'}</span>
         </span>
-        ${rangeLabel ? `<span style="font-size:0.65rem;color:#4a5568">${rangeLabel}</span>` : ''}
       </div>
       <div class="source-body">
         <div class="year-tabs" id="ytabs-${p.id}-${source}">
           ${years.map((y,i) => `<button class="year-tab ${i===0?'active':''}" data-year="${y}"
             onclick="selectYear('${p.id}','${source}',${y},this)">${y}</button>`).join('')}
         </div>
-        ${years.map((y,i) => {
-          // 이 연도에서 활성화할 월 범위
-          const minMonth = (oldest && y === oldestYear) ? oldest.month : 1;
-          const maxMonth = (newest && y === newestYear) ? newest.month : 12;
-          return `
-          <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
-            <div class="month-quick">
-              <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},true)">전체</button>
-              <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},false)">해제</button>
-            </div>
-            <div class="month-grid">
-              ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-                const disabled = m < minMonth || m > maxMonth;
-                return `<label class="month-label${disabled?' disabled':''}" id="ml-${p.id}-${source}-${y}-${m}"
-                  style="${disabled?'opacity:0.3;cursor:not-allowed':''}">
-                  <input type="checkbox" data-pid="${p.id}" data-source="${source}" data-year="${y}" data-month="${m}"
-                    onchange="onMonthCheck(this)" ${disabled?'disabled':''} />
-                  ${m}월
-                </label>`;
-              }).join('')}
-            </div>
-          </div>`;
-        }).join('')}
+        ${years.map((y,i) => `
+        <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
+          <div class="month-quick">
+            <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},true)">전체</button>
+            <button class="btn-month-quick" onclick="checkAllMonths('${p.id}','${source}',${y},false)">해제</button>
+          </div>
+          <div class="month-grid">
+            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m =>
+              `<label class="month-label" id="ml-${p.id}-${source}-${y}-${m}">
+                <input type="checkbox" data-pid="${p.id}" data-source="${source}" data-year="${y}" data-month="${m}"
+                  onchange="onMonthCheck(this)" />
+                ${m}월
+              </label>`
+            ).join('')}
+          </div>
+        </div>`).join('')}
       </div>
     </div>`;
   }
@@ -963,8 +938,8 @@ function buildProjectCard(p) {
         onclick="event.stopPropagation();deleteProject('${p.id}','${escHtml(p.name)}')">×</button>
     </div>
     <div class="project-body">
-      ${buildSource('blog', '📰 블로그', p.total_blog, p.newest_date_blog, p.oldest_date_blog)}
-      ${buildSource('cafe', '☕ 카페',   p.total_cafe, p.newest_date_cafe, p.oldest_date_cafe)}
+      ${buildSource('blog', '📰 블로그', p.total_blog)}
+      ${buildSource('cafe', '☕ 카페',   p.total_cafe)}
     </div>
   </div>`;
 }
@@ -1099,26 +1074,30 @@ function buildSearchJobs() {
   const checked = document.querySelectorAll('.project-list input[type="checkbox"]:checked');
   if (checked.length === 0) return jobs;
 
-  // source + project 별로 그룹화
+  // project + source + year 별로 그룹화 → 연도마다 독립적인 검색 풀
   const groups = {};
   checked.forEach(cb => {
-    const key = `${cb.dataset.pid}__${cb.dataset.source}`;
-    if (!groups[key]) groups[key] = { pid: cb.dataset.pid, source: cb.dataset.source, months: [] };
-    groups[key].months.push({ year: parseInt(cb.dataset.year), month: parseInt(cb.dataset.month) });
+    const key = `${cb.dataset.pid}__${cb.dataset.source}__${cb.dataset.year}`;
+    if (!groups[key]) groups[key] = {
+      pid: cb.dataset.pid, source: cb.dataset.source,
+      year: parseInt(cb.dataset.year), months: []
+    };
+    groups[key].months.push(parseInt(cb.dataset.month));
   });
 
   Object.values(groups).forEach(g => {
     const proj = projects.find(p => p.id === g.pid);
     if (!proj) return;
-    g.months.sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
-    const first = g.months[0];
-    const last  = g.months[g.months.length - 1];
-    const lastDay = new Date(last.year, last.month, 0).getDate();
+    g.months.sort((a, b) => a - b);
+    const minMonth = g.months[0];
+    const maxMonth = g.months[g.months.length - 1];
+    const lastDay  = new Date(g.year, maxMonth, 0).getDate();
     jobs.push({
       keyword:    proj.keyword,
       source:     g.source,
-      start_date: `${first.year}-${String(first.month).padStart(2,'0')}-01`,
-      end_date:   `${last.year}-${String(last.month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
+      year_hint:  g.year,   // 검색쿼리: "{keyword} 직구후기 {year}년"
+      start_date: `${g.year}-${String(minMonth).padStart(2,'0')}-01`,
+      end_date:   `${g.year}-${String(maxMonth).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
       cursor:     1,
       done:       false,
     });
@@ -1175,7 +1154,7 @@ async function loadMore() {
   isLoadingMore = true;
   document.getElementById('loadMoreWrap').style.display = 'flex';
   document.getElementById('loadMoreMsg').textContent =
-    `"${job.keyword}" ${job.source === 'blog' ? '블로그' : '카페'} ${job.start_date?.slice(0,7)} ~ ${job.end_date?.slice(0,7)} 불러오는 중...`;
+    `"${job.keyword} ${job.year_hint ? job.year_hint+'년' : ''}" ${job.source === 'blog' ? '블로그' : '카페'} ${job.start_date?.slice(0,7) ?? ''} ~ ${job.end_date?.slice(0,7) ?? ''} 불러오는 중...`;
 
   try {
     const resp = await fetch('/api/search', {
@@ -1183,6 +1162,7 @@ async function loadMore() {
       body: JSON.stringify({
         keyword:    job.keyword,
         source:     job.source,
+        year_hint:  job.year_hint,
         start_date: job.start_date,
         end_date:   job.end_date,
         cursor:     job.cursor,
