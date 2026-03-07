@@ -397,6 +397,15 @@
     .shopping-price { font-weight: 700; color: #276749; }
     .btn-shop { font-size: 0.7rem; color: #4a6cf7; text-decoration: none; border: 1px solid #bee3f8; padding: 1px 5px; border-radius: 4px; }
     .btn-shop:hover { background: #ebf8ff; }
+    .btn-de {
+      font-size: 0.68rem; font-weight: 600; text-decoration: none;
+      padding: 2px 6px; border-radius: 4px;
+      background: #fff3e0; color: #e65100; border: 1px solid #ffcc80;
+      white-space: nowrap;
+    }
+    .btn-de:hover { background: #ffe0b2; }
+    .btn-de.idealo { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+    .btn-de.idealo:hover { background: #c8e6c9; }
     .btn-sm { padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-size: 0.78rem; }
     .btn-sm:hover { background: #f7fafc; }
     .btn-search { padding: 8px 16px; background: #4a6cf7; color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
@@ -1445,9 +1454,19 @@ function renderCandidates(items) {
           <option value="pass"    ${item.status==='pass'?'selected':''}>제외</option>
         </select>
       </td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap;min-width:130px">
         <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">마진계산</button>
-        <button class="btn-icon del" onclick="deleteCandidate('${escHtml(id)}')">삭제</button>
+        ${(() => {
+          const q = encodeURIComponent([item.brand_name, item.product_name].filter(Boolean).join(' '));
+          return q ? `
+            <div style="display:flex;gap:3px;margin-top:4px">
+              <a class="btn-de" href="https://www.amazon.de/s?k=${q}&language=de_DE" target="_blank" rel="noopener">Amazon.de</a>
+              <a class="btn-de idealo" href="https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=${q}" target="_blank" rel="noopener">Idealo</a>
+            </div>` : '';
+        })()}
+        <div style="margin-top:4px">
+          <button class="btn-icon del" onclick="deleteCandidate('${escHtml(id)}')">삭제</button>
+        </div>
       </td>
     </tr>
     <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
