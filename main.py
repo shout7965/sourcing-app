@@ -263,6 +263,101 @@ def get_progress():
     except Exception as e:
         return jsonify({"completed_pages": [], "error": str(e)})
 
+# ── 프로젝트 CRUD ─────────────────────────────────────────────────────────
+@app.route("/api/projects", methods=["GET"])
+def get_projects():
+    if not FIREBASE_ENABLED:
+        return jsonify({"items": [], "firebase": False})
+    user = session.get('user')
+    if not user:
+        return jsonify({"error": "로그인 필요"}), 401
+    try:
+        docs = db.collection('projects').where('user_id', '==', user).stream()
+        items = []
+        for doc in docs:
+            d = doc.to_dict()
+            d['id'] = doc.id
+            if 'created_at' in d and hasattr(d['created_at'], 'isoformat'):
+                d['created_at'] = d['created_at'].isoformat()
+            items.append(d)
+        items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+        return jsonify({"items": items})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/projects", methods=["POST"])
+def create_project():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    user = session.get('user')
+    if not user:
+        return jsonify({"error": "로그인 필요"}), 401
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({"error": "프로젝트 이름을 입력해주세요."}), 400
+
+    keyword = name
+    search_query = f"{keyword} 직구 후기"
+    naver_headers = {
+        "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+    }
+
+    blog_items, total_blog = naver_search("blog",        search_query, 5, 1, naver_headers)
+    cafe_items, total_cafe = naver_search("cafearticle", search_query, 5, 1, naver_headers)
+    increment_usage(2)
+
+    def get_newest_date(items):
+        for item in items:
+            d = parse_item_date(item)
+            if d:
+                return d.isoformat()
+        return None
+
+    try:
+        ref = db.collection('projects').document()
+        ref.set({
+            'name':              name,
+            'keyword':           keyword,
+            'user_id':           user,
+            'total_blog':        total_blog,
+            'total_cafe':        total_cafe,
+            'newest_date_blog':  get_newest_date(blog_items),
+            'newest_date_cafe':  get_newest_date(cafe_items),
+            'created_at':        fb_fs.SERVER_TIMESTAMP,
+        })
+        doc = ref.get()
+        d = doc.to_dict()
+        d['id'] = doc.id
+        if 'created_at' in d and hasattr(d['created_at'], 'isoformat'):
+            d['created_at'] = d['created_at'].isoformat()
+        return jsonify({"project": d})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/projects/<project_id>", methods=["DELETE"])
+def delete_project(project_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    user = session.get('user')
+    if not user:
+        return jsonify({"error": "로그인 필요"}), 401
+    try:
+        ref = db.collection('projects').document(project_id)
+        doc = ref.get()
+        if not doc.exists:
+            return jsonify({"error": "프로젝트 없음"}), 404
+        if doc.to_dict().get('user_id') != user:
+            return jsonify({"error": "권한 없음"}), 403
+        ref.delete()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # 선택 항목 저장 (네이버 쇼핑 조회 포함)
 @app.route("/api/save-selected", methods=["POST"])
 def save_selected():
@@ -345,17 +440,17 @@ def og_image():
     except Exception:
         return jsonify({"images": []})
 
-# 메인 검색
+# 메인 검색 (cursor 기반 무한스크롤)
 @app.route("/api/search", methods=["POST"])
 def search():
-    data            = request.get_json()
-    keyword         = data.get("keyword", "").strip()
-    page            = max(1, min(10, int(data.get("page", 1))))
-    source          = data.get("source", "blog")
-    mode            = data.get("mode", "review")   # "review" | "gonggu"
-    start_date_str  = data.get("start_date", "")
-    end_date_str    = data.get("end_date", "")
-    exclude_raw     = data.get("exclude_keywords", "")
+    data           = request.get_json()
+    keyword        = data.get("keyword", "").strip()
+    source         = data.get("source", "blog")
+    mode           = data.get("mode", "review")
+    start_date_str = data.get("start_date", "")
+    end_date_str   = data.get("end_date", "")
+    exclude_raw    = data.get("exclude_keywords", "")
+    cursor         = max(1, int(data.get("cursor", 1)))
 
     if not keyword:
         return jsonify({"error": "키워드를 입력해주세요."}), 400
@@ -375,52 +470,72 @@ def search():
     }
     if mode == "gonggu":
         search_query = f"{keyword} 직구 공구"
-        source = source if source != "blog" else "cafe"  # 공구는 기본 카페
+        if source == "blog":
+            source = "cafe"
     else:
         search_query = f"{keyword} 직구 후기"
 
-    # 페이지별 start 계산 (소스별 100개 or "all"이면 각 50개)
-    if source == "all":
-        display_per = 50
-    else:
-        display_per = 100
-    start_pos = (page - 1) * display_per + 1
+    MAX_NAVER_PAGE    = 10
+    DISPLAY           = 100
+    TARGET            = 30   # 한 번 응답에 담을 최소 filtered 항목 수
+    MAX_PAGES_PER_CALL = 4   # 한 번 API 호출에서 내부적으로 최대 fetch 페이지 수
 
-    all_items   = []
-    total_blog  = total_cafe = 0
+    all_items  = []
+    total_blog = total_cafe = 0
+    next_cursor = cursor
+    has_more    = False
+    hit_too_old = False
     api_calls   = 0
 
-    if source in ("blog", "all"):
-        blog_items, total_blog = naver_search("blog", search_query, display_per, start_pos, naver_headers)
-        for item in blog_items:
-            item["_source"] = "블로그"
-        all_items.extend(blog_items)
-        api_calls += 1
+    while (len(all_items) < TARGET
+           and not hit_too_old
+           and next_cursor <= MAX_NAVER_PAGE
+           and next_cursor < cursor + MAX_PAGES_PER_CALL):
 
-    if source in ("cafe", "all"):
-        cafe_items, total_cafe = naver_search("cafearticle", search_query, display_per, start_pos, naver_headers)
-        for item in cafe_items:
-            item["_source"] = "카페"
-        all_items.extend(cafe_items)
-        api_calls += 1
+        start_pos  = (next_cursor - 1) * DISPLAY + 1
+        page_items = []
+
+        if source in ("blog", "all"):
+            items, tb = naver_search("blog", search_query, DISPLAY, start_pos, naver_headers)
+            for i in items: i["_source"] = "블로그"
+            page_items.extend(items)
+            if tb: total_blog = tb
+            api_calls += 1
+
+        if source in ("cafe", "all"):
+            items, tc = naver_search("cafearticle", search_query, DISPLAY, start_pos, naver_headers)
+            for i in items: i["_source"] = "카페"
+            page_items.extend(items)
+            if tc: total_cafe = tc
+            api_calls += 1
+
+        if not page_items:
+            break
+
+        for item in page_items:
+            item["_date"] = parse_item_date(item)
+        page_items.sort(key=lambda x: x["_date"] or date.min, reverse=True)
+
+        for item in page_items:
+            d = item["_date"]
+            if end_date and d and d > end_date:
+                continue          # 너무 최신 → skip
+            if start_date and d and d < start_date:
+                hit_too_old = True
+                break             # 범위 이전 → 중단
+            all_items.append(item)
+
+        next_cursor += 1
 
     increment_usage(api_calls)
 
-    # 날짜 파싱 & 필터링
-    for item in all_items:
-        item["_date"] = parse_item_date(item)
+    if not hit_too_old:
+        total = (total_blog if source == "blog"
+                 else total_cafe if source == "cafe"
+                 else total_blog + total_cafe)
+        has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
-
-    if start_date or end_date:
-        def in_range(item):
-            d = item["_date"]
-            if d is None: return False
-            if start_date and d < start_date: return False
-            if end_date   and d > end_date:   return False
-            return True
-        all_items = [i for i in all_items if in_range(i)]
-
     if exclude_keywords:
         def not_excluded(item):
             text = (strip_html(item.get("title", "")) + " " + strip_html(item.get("description", ""))).lower()
@@ -429,13 +544,10 @@ def search():
 
     all_items.sort(key=lambda x: x["_date"] or date.min, reverse=True)
 
-    # 진행상황 저장 (결과 없어도 방문한 것으로 저장)
-    save_page_progress(keyword, source, page)
-
     if not all_items:
         return jsonify({
             "results": [], "total_blog": total_blog, "total_cafe": total_cafe,
-            "keyword": keyword, "page": page,
+            "next_cursor": next_cursor, "has_more": has_more, "keyword": keyword,
         })
 
     # Claude 추출
@@ -488,23 +600,22 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
 
     extracted_map = {item.index: item for item in response.parsed_output.items}
 
-    # 쇼핑 조회는 "다음 단계로" 버튼 클릭 시 선택 항목만 조회 (save-selected 엔드포인트)
     results = []
     for i, item in enumerate(all_items, 1):
         ext = extracted_map.get(i)
         results.append({
-            "index":                    i,
-            "source":                   item.get("_source", "블로그"),
-            "title":                    strip_html(item.get("title", "")),
-            "description":              strip_html(item.get("description", "")),
-            "link":                     item.get("link", ""),
-            "author":                   item.get("bloggerName") or item.get("cafename") or "",
-            "postdate":                 format_date(item["_date"]),
-            "brand_name":               ext.brand_name                if ext else None,
-            "product_name":             ext.product_name              if ext else None,
-            "category":                 ext.category                  if ext else None,
-            "purchase_source":          ext.purchase_source           if ext else None,
-            "price_paid":               ext.price_paid                if ext else None,
+            "index":                     i,
+            "source":                    item.get("_source", "블로그"),
+            "title":                     strip_html(item.get("title", "")),
+            "description":               strip_html(item.get("description", "")),
+            "link":                      item.get("link", ""),
+            "author":                    item.get("bloggerName") or item.get("cafename") or "",
+            "postdate":                  format_date(item["_date"]),
+            "brand_name":                ext.brand_name               if ext else None,
+            "product_name":              ext.product_name             if ext else None,
+            "category":                  ext.category                 if ext else None,
+            "purchase_source":           ext.purchase_source          if ext else None,
+            "price_paid":                ext.price_paid               if ext else None,
             "is_direct_purchase_review": getattr(ext, 'is_direct_purchase_review', True) if ext else True,
         })
 
@@ -512,8 +623,9 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
         "results":     results,
         "total_blog":  total_blog,
         "total_cafe":  total_cafe,
+        "next_cursor": next_cursor,
+        "has_more":    has_more,
         "keyword":     keyword,
-        "page":        page,
         "mode":        mode,
     })
 
