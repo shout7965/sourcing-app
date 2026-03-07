@@ -606,7 +606,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
 
     try:
         response = claude.messages.parse(
-            model="claude-opus-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=16000,
             messages=[{"role": "user", "content": claude_content}],
             output_format=ExtractionResult,
