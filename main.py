@@ -263,6 +263,28 @@ def get_progress():
     except Exception as e:
         return jsonify({"completed_pages": [], "error": str(e)})
 
+# ── 연도 probe (display=1, 총 갯수만) ────────────────────────────────────
+@app.route("/api/probe-year")
+def probe_year():
+    keyword = request.args.get('keyword', '').strip()
+    source  = request.args.get('source', 'blog')
+    year    = request.args.get('year', '')
+    if not keyword or not year:
+        return jsonify({"total": 0}), 400
+    if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        return jsonify({"total": 0}), 500
+
+    naver_headers = {
+        "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+    }
+    query    = f"{keyword} 직구 후기 {year}년"
+    endpoint = "blog" if source == "blog" else "cafearticle"
+    _, total = naver_search(endpoint, query, 1, 1, naver_headers)
+    increment_usage(1)
+    return jsonify({"total": total})
+
+
 # ── 프로젝트 CRUD ─────────────────────────────────────────────────────────
 @app.route("/api/projects", methods=["GET"])
 def get_projects():

@@ -905,7 +905,8 @@ function buildProjectCard(p) {
       <div class="source-body">
         <div class="year-tabs" id="ytabs-${p.id}-${source}">
           ${years.map((y,i) => `<button class="year-tab ${i===0?'active':''}" data-year="${y}"
-            onclick="selectYear('${p.id}','${source}',${y},this)">${y}</button>`).join('')}
+            id="ytab-${p.id}-${source}-${y}"
+            onclick="selectYear('${p.id}','${source}',${y},this,${JSON.stringify(p.keyword)})">${y}</button>`).join('')}
         </div>
         ${years.map((y,i) => `
         <div id="months-${p.id}-${source}-${y}" style="display:${i===0?'':'none'}">
@@ -952,20 +953,55 @@ function toggleProject(pid) {
 function toggleSource(pid, source) {
   const sec = document.getElementById(`src-${pid}-${source}`);
   sec.classList.toggle('open');
+  // 처음 열 때 현재 연도(첫 탭) 자동 probe
+  if (sec.classList.contains('open')) {
+    const firstTab = sec.querySelector('.year-tab.active');
+    if (firstTab) {
+      const year = parseInt(firstTab.dataset.year);
+      const proj = projects.find(p => p.id === pid);
+      if (proj) selectYear(pid, source, year, firstTab, proj.keyword);
+    }
+  }
 }
 
-function selectYear(pid, source, year, btn) {
+// 연도 probe 캐시: "pid__source__year" → total
+const yearProbeCache = {};
+
+async function selectYear(pid, source, year, btn, keyword) {
   // year tab 활성화
   document.querySelectorAll(`#ytabs-${pid}-${source} .year-tab`).forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  // month grid 표시
-  const p = projects.find(p => p.id === pid);
-  const newestYear = source === 'blog'
-    ? (p.newest_date_blog ? parseInt(p.newest_date_blog.split('-')[0]) : new Date().getFullYear())
-    : (p.newest_date_cafe ? parseInt(p.newest_date_cafe.split('-')[0]) : new Date().getFullYear());
-  for (let y = newestYear; y >= newestYear - 3 && y >= 2020; y--) {
+
+  // month grid 표시 (2020~현재 순회)
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= 2020; y--) {
     const el = document.getElementById(`months-${pid}-${source}-${y}`);
     if (el) el.style.display = (y === year) ? '' : 'none';
+  }
+
+  // lazy probe: 아직 확인 안 한 연도만 API 호출
+  const cacheKey = `${pid}__${source}__${year}`;
+  if (yearProbeCache[cacheKey] !== undefined) return;
+  yearProbeCache[cacheKey] = null; // 요청 중 표시 (중복 호출 방지)
+
+  btn.textContent = `${year} ...`;
+  try {
+    const resp = await fetch(
+      `/api/probe-year?keyword=${encodeURIComponent(keyword)}&source=${encodeURIComponent(source)}&year=${year}`
+    );
+    const data = await resp.json();
+    const total = data.total || 0;
+    yearProbeCache[cacheKey] = total;
+
+    if (total === 0) {
+      btn.textContent = `${year} -`;
+      btn.style.opacity = '0.35';
+    } else {
+      btn.textContent = `${year} (${total >= 1000 ? '1000+' : total})`;
+      btn.style.opacity = '1';
+    }
+  } catch {
+    btn.textContent = `${year}`;
   }
 }
 
