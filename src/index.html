@@ -898,9 +898,9 @@ function buildProjectCard(p) {
     if (!total) return '';
     const newest = parseYM(newestStr);
     const oldest = parseYM(oldestStr);
-    if (!newest) return '';
 
-    const newestYear = newest.year;
+    const nowYear = new Date().getFullYear();
+    const newestYear = newest ? newest.year : nowYear;
     const oldestYear = oldest ? oldest.year : newestYear - 3;
 
     // 접근 가능 연도 목록 (최신→오래된 순)
