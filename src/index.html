@@ -1306,8 +1306,8 @@ async function loadMore() {
 
 function appendResults(results) {
   const tbody = document.getElementById('resultsBody');
-  // 브랜드명 + 상품명 + 이미지(thumbnail) 세 가지 모두 있는 항목만 표시
-  const filtered = results.filter(r => r.brand_name && r.product_name && r.thumbnail);
+  // 브랜드명 + 상품명 있는 항목만 표시 (이미지 없어도 허용)
+  const filtered = results.filter(r => r.brand_name && r.product_name);
   filtered.forEach(r => {
     const gid = allResults.length;
     r._gid = gid;
@@ -1316,8 +1316,15 @@ function appendResults(results) {
     tr.id = `row-${gid}`;
     tr.innerHTML = buildRowHtml(r, gid);
     tbody.appendChild(tr);
-    // OG 이미지 lazy load
-    loadOgImage(gid, r.link);
+    // 썸네일 있으면 바로 표시, 없으면 OG 이미지 lazy load
+    if (r.thumbnail) {
+      const cell = document.getElementById(`img-${gid}`);
+      if (cell) cell.innerHTML = `<img src="${escHtml(r.thumbnail)}" alt="이미지"
+        onclick="openLightbox('${escHtml(r.thumbnail)}')"
+        onerror="this.parentElement.innerHTML='<span class=\\'img-none\\'>-</span>'" />`;
+    } else {
+      loadOgImage(gid, r.link);
+    }
   });
 }
 
