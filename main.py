@@ -806,7 +806,7 @@ ALLOWED_UPDATE_FIELDS = {
     'status', 'price_eur', 'exchange_rate', 'shipping_fee',
     'cost_price', 'margin', 'margin_rate', 'memo',
     'completed_by', 'completed_at',
-    'weight_kg', 'vat_type', 'product_url',
+    'weight_kg', 'vat_type', 'product_url', 'product_title_url',
 }
 
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])
@@ -851,31 +851,31 @@ def exchange_rate():
 @app.route("/api/generate-product-name", methods=["POST"])
 def generate_product_name():
     """SEO 최적화 등록상품명 생성"""
-    data           = request.get_json()
-    brand          = data.get('brand_name', '')
-    product        = data.get('product_name', '')
-    product_en     = data.get('product_name_en', '')
-    category       = data.get('category', '')
-    country        = data.get('country', '')
-    product_url    = data.get('product_url', '')
-    review_title   = data.get('review_title', '')      # 블로그/카페 후기 제목
-    review_desc    = data.get('review_description', '') # 후기 본문 발췌
+    data              = request.get_json()
+    brand             = data.get('brand_name', '')
+    product           = data.get('product_name', '')
+    product_en        = data.get('product_name_en', '')
+    category          = data.get('category', '')
+    country           = data.get('country', '')
+    product_url       = data.get('product_url', '')
+    product_title_url = data.get('product_title_url', '')  # Amazon/idealo에서 추출한 실제 제품 타이틀 (PRIMARY)
+    review_title      = data.get('review_title', '')       # 블로그/카페 후기 제목 (SEO 키워드 보조)
+    review_desc       = data.get('review_description', '') # 후기 본문 발췌 (SEO 키워드 보조)
 
     prompt = f"""다음 제품의 네이버 스마트스토어/쿠팡 SEO 최적화 상품명을 50byte 버전과 100byte 버전으로 각각 작성해주세요.
 
-제품 정보:
+━━ [PRIMARY] 소싱처 실제 제품 정보 (가장 우선) ━━
+- 소싱처 페이지 제품 타이틀: {product_title_url or '(미추출)'}
+- 소싱처 URL: {product_url}
 - 브랜드/제조사: {brand}
-- 제품명(한국어): {product}
-- 제품명(영문): {product_en}
 - 카테고리: {category}
 - 소싱국가: {country}
-- 소싱처 URL: {product_url}
 
-실제 구매 후기 제목 (소비자 검색 키워드 참고):
-{review_title}
-
-후기 본문 발췌 (소비자 표현/키워드 참고):
-{review_desc[:300] if review_desc else '없음'}
+━━ [SECONDARY] 블로그 후기 SEO 키워드 (보조 참고용) ━━
+- 후기 제목: {review_title}
+- 후기 본문: {review_desc[:300] if review_desc else '없음'}
+- 후기에서 추출된 영문 제품명: {product_en}
+- 후기에서 추출된 한국어 제품명: {product}
 
 상품명 구성 순서 (해당 정보가 있을 때만 포함):
 브랜드/제조사 → 시리즈 → 모델명 → 상품유형 → 색상 → 소재 → 수량(갯수묶음) → 사이즈 → 성별 → 속성(Spec/용량/무게/연식/호수 등)
@@ -883,9 +883,12 @@ def generate_product_name():
 바이트 계산: 한글 1자=3byte, 영문·숫자·공백 1자=1byte
 
 작성 규칙:
-- URL·제품명에서 추출 가능한 스펙(색상, 용량ml/g, 사이즈, 갯수, 소재, 모델번호, 빈티지연도 등) 최대한 포함
-- 후기 제목의 소비자 검색 키워드를 자연스럽게 포함
-- 특수문자 최소화 (네이버/쿠팡 등록 허용 문자만)
+1. 소싱처 제품 타이틀이 있으면 그 정보(브랜드·모델명·스펙)를 최우선으로 상품명에 반영
+2. 소싱처 URL에서 추출 가능한 스펙(색상, 용량ml/g, 사이즈, 갯수, 소재, 모델번호 등) 포함
+3. 블로그 후기 제목의 소비자 검색 키워드를 SEO 보조용으로 자연스럽게 추가
+4. 상품명은 반드시 한글 위주로 작성 (소비자가 한국어로 검색하므로)
+5. 정확히 100바이트에 최대한 가깝게 꽉 채울 것
+6. 특수문자 최소화 (네이버/쿠팡 등록 허용 문자만)
 
 반드시 아래 형식으로만 반환 (설명·이유 없이):
 50byte: [50바이트 이하 상품명]
@@ -1030,8 +1033,27 @@ def fetch_weight():
                 found_price = round(float(pm.group(1).replace(',', '.')), 2)
                 break
 
+        # 제품 타이틀 추출 (HTML에서)
+        product_title = None
+        # Amazon 제품명: <span id="productTitle">
+        tm = re.search(r'id=["\']productTitle["\'][^>]*>\s*(.*?)\s*</span>', resp.text, re.IGNORECASE | re.DOTALL)
+        if tm:
+            product_title = re.sub(r'\s+', ' ', strip_html(tm.group(1))).strip()
+        if not product_title:
+            # <title> 태그 fallback (Amazon: "제품명 : Amazon.de: ..." / idealo: "제품명 - idealo")
+            title_m = re.search(r'<title[^>]*>(.*?)</title>', resp.text, re.IGNORECASE | re.DOTALL)
+            if title_m:
+                raw_title = strip_html(title_m.group(1)).strip()
+                # Amazon/idealo 사이트명 제거
+                for suffix in [': Amazon.de', ': Amazon.com', ' | Amazon', ' - idealo', ' | idealo', ' - Amazon']:
+                    if suffix.lower() in raw_title.lower():
+                        raw_title = raw_title[:raw_title.lower().index(suffix.lower())].strip()
+                if len(raw_title) > 5:
+                    product_title = raw_title
+
         if found_weight is not None and found_price is not None:
-            return jsonify({"weight": found_weight, "price_eur": found_price, "unit": "kg", "source": "regex"})
+            return jsonify({"weight": found_weight, "price_eur": found_price, "unit": "kg",
+                            "source": "regex", "product_title": product_title})
         if found_weight is not None:
             pass  # 가격은 Claude로 보완 시도
 
@@ -1069,8 +1091,12 @@ def fetch_weight():
             out['price_eur'] = round(float(result['price_eur']), 2)
         if out:
             out['source'] = 'claude'
+            out['product_title'] = product_title
             return jsonify(out)
 
+        if product_title:
+            return jsonify({"weight": None, "product_title": product_title,
+                            "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
         return jsonify({"weight": None, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
     except Exception as e:
         return jsonify({"weight": None, "error": str(e)}), 500
