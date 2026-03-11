@@ -836,6 +836,121 @@ def delete_candidate(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/exchange-rate")
+def exchange_rate():
+    """EUR/KRW 최신 환율 조회"""
+    try:
+        resp = requests.get("https://api.frankfurter.app/latest?base=EUR&symbols=KRW", timeout=5)
+        data = resp.json()
+        rate = round(data['rates']['KRW'])
+        return jsonify({"rate": rate, "base": "EUR", "target": "KRW"})
+    except Exception as e:
+        return jsonify({"rate": 1450, "error": str(e)})
+
+
+@app.route("/api/generate-product-name", methods=["POST"])
+def generate_product_name():
+    """SEO 최적화 등록상품명 생성"""
+    data        = request.get_json()
+    brand       = data.get('brand_name', '')
+    product     = data.get('product_name', '')
+    product_en  = data.get('product_name_en', '')
+    category    = data.get('category', '')
+    country     = data.get('country', '')
+
+    prompt = f"""다음 제품의 네이버 스마트스토어/쿠팡 SEO 최적화 상품명을 작성해주세요.
+
+제품 정보:
+- 브랜드: {brand}
+- 제품명(한국어): {product}
+- 제품명(영문): {product_en}
+- 카테고리: {category}
+- 소싱국가: {country}
+
+규칙:
+1. [브랜드] [모델/시리즈] [핵심 키워드] [주요 속성] 순서
+2. 모델번호, 색상, 용량, 사이즈, 소재 등 속성 최대한 포함 (검색 최적화)
+3. 100바이트 이내 (한글 약 33자, 영문 50자)
+4. 특수문자 최소화, 쇼핑몰 검색어 최적화
+5. 상품명만 한 줄로 반환 (설명 없이)"""
+    try:
+        response = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return jsonify({"product_name": response.content[0].text.strip()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+ALLOWED_REG_FIELDS = {
+    'product_name_display', 'naver_price', 'coupang_price',
+    'customs_rate', 'fta', 'status', 'memo', 'country',
+}
+
+@app.route("/api/product-registrations", methods=["GET"])
+def get_product_registrations():
+    if not FIREBASE_ENABLED:
+        return jsonify({"items": [], "firebase": False})
+    try:
+        docs = db.collection('product_registrations').limit(500).stream()
+        items = []
+        for doc in docs:
+            d = doc.to_dict(); d['id'] = doc.id
+            if 'created_at' in d and hasattr(d['created_at'], 'isoformat'):
+                d['created_at'] = d['created_at'].isoformat()
+            items.append(d)
+        items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+        return jsonify({"items": items})
+    except Exception as e:
+        return jsonify({"items": [], "error": str(e)})
+
+
+@app.route("/api/product-registrations", methods=["POST"])
+def create_product_registration():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    items = request.get_json().get('items', [])
+    if not items:
+        return jsonify({"error": "항목 없음"}), 400
+    try:
+        batch = db.batch()
+        for item in items:
+            ref = db.collection('product_registrations').document()
+            batch.set(ref, {**item, 'created_at': fb_fs.SERVER_TIMESTAMP,
+                            'created_by': session.get('user', 'anonymous'), 'status': 'draft'})
+        batch.commit()
+        return jsonify({"created": len(items)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/product-registrations/<doc_id>", methods=["PATCH"])
+def update_product_registration(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    data = {k: v for k, v in request.get_json().items() if k in ALLOWED_REG_FIELDS}
+    if not data:
+        return jsonify({"error": "변경할 데이터 없음"}), 400
+    try:
+        db.collection('product_registrations').document(doc_id).update(data)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/product-registrations/<doc_id>", methods=["DELETE"])
+def delete_product_registration(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    try:
+        db.collection('product_registrations').document(doc_id).delete()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/fetch-weight", methods=["POST"])
 def fetch_weight():
     """Amazon.de / idealo 제품 페이지에서 무게 추출"""

@@ -522,6 +522,7 @@
   <nav class="tab-nav">
     <button class="tab-btn active" id="tab-projects" onclick="switchTab('projects')">프로젝트</button>
     <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
+    <button class="tab-btn" id="tab-register" onclick="switchTab('register')">상품등록대장</button>
   </nav>
 </header>
 
@@ -638,8 +639,12 @@
   <div class="container">
     <div class="cand-header">
       <h2>소싱 후보 목록</h2>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
+        <span id="rateDisplay" style="font-size:0.78rem;color:#63b3ed;background:#1a2a4a;padding:3px 8px;border-radius:6px">환율 -</span>
+        <button class="btn-sm" onclick="refreshExchangeRate()" style="background:#2d3748;color:#a0aec0">환율 최신화</button>
+        <button class="btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCandidates()" style="background:#c53030;color:white;display:none">선택 삭제</button>
+        <button class="btn-sm" id="btnMoveToRegister" onclick="moveToRegister()" style="background:#276749;color:white;display:none">→ 상품등록대장</button>
         <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
     </div>
@@ -660,6 +665,7 @@
         <table>
           <thead>
             <tr>
+              <th class="cb-cell"><input type="checkbox" id="candSelectAll" onchange="toggleCandAll(this)"></th>
               <th>저장일</th><th>키워드</th><th>브랜드</th><th>상품명 / 영문명</th>
               <th>카테고리</th><th>구매처</th><th>후기가격</th><th>최저가</th>
               <th>마진율</th><th>제목</th><th>상태</th><th>액션</th>
@@ -671,6 +677,55 @@
     </div>
     <div class="cand-empty" id="candEmpty" style="display:none">
       저장된 소싱 후보가 없습니다.<br>검색 후 관심 항목을 체크박스로 선택해 저장하세요.
+    </div>
+  </div>
+</div>
+
+<!-- ══ 상품등록대장 탭 ══ -->
+<div id="registerTab" class="tab-content" style="flex-direction:column;overflow-y:auto">
+  <div class="container">
+    <div class="cand-header">
+      <h2>상품등록대장</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span id="regCount" style="font-size:0.82rem;color:#718096"></span>
+        <span id="regRateDisplay" style="font-size:0.78rem;color:#63b3ed;background:#1a2a4a;padding:3px 8px;border-radius:6px">환율 -</span>
+        <button class="btn-sm" onclick="refreshExchangeRate()" style="background:#2d3748;color:#a0aec0">환율 최신화</button>
+        <button class="btn-sm" id="btnDeleteReg" onclick="deleteSelectedRegs()" style="background:#c53030;color:white;display:none">선택 삭제</button>
+        <button class="btn-search" onclick="loadRegistrations()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
+      </div>
+    </div>
+    <div id="regLoading" style="display:none;text-align:center;padding:40px;background:white;border-radius:12px">
+      <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px"></div>
+      <p style="color:#718096">로딩 중...</p>
+    </div>
+    <div class="cand-card" id="regCard" style="display:none">
+      <div class="table-scroll">
+        <table id="regTable">
+          <thead>
+            <tr>
+              <th class="cb-cell"><input type="checkbox" id="regSelectAll" onchange="toggleRegAll(this)"></th>
+              <th>소싱국가</th>
+              <th>카테고리</th>
+              <th style="min-width:120px">소싱처</th>
+              <th style="min-width:200px">등록상품명 <span style="font-size:0.65rem;color:#63b3ed;font-weight:400">AI생성</span></th>
+              <th>N스토어가</th>
+              <th>쿠팡가</th>
+              <th>소싱처가격</th>
+              <th>최종면세가</th>
+              <th>배대지배송비</th>
+              <th>FTA</th>
+              <th>관세+부가세</th>
+              <th>순마진</th>
+              <th>수익률</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody id="regBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="cand-empty" id="regEmpty" style="display:none">
+      소싱 후보에서 항목을 선택 후 "→ 상품등록대장" 버튼을 눌러주세요.
     </div>
   </div>
 </div>
@@ -781,10 +836,232 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById(tab === 'projects' ? 'projectsTab' : 'candidatesTab').classList.add('active');
+  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab'};
+  document.getElementById(tabMap[tab] || 'projectsTab').classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'candidates') loadCandidates();
+  if (tab === 'register')   loadRegistrations();
 }
+
+// ── 환율 ──────────────────────────────────────────────────────────────────
+let currentRate = 1450;
+async function refreshExchangeRate() {
+  try {
+    const data = await (await fetch('/api/exchange-rate')).json();
+    currentRate = data.rate || 1450;
+    const txt = `환율 ${currentRate.toLocaleString()}원/EUR`;
+    document.getElementById('rateDisplay')    && (document.getElementById('rateDisplay').textContent    = txt);
+    document.getElementById('regRateDisplay') && (document.getElementById('regRateDisplay').textContent = txt);
+    showToast(`환율 최신화: ${currentRate.toLocaleString()}원/EUR`);
+  } catch { showToast('환율 조회 실패', true); }
+}
+
+// ── 소싱후보 체크박스 ──────────────────────────────────────────────────────
+function onCandCheck() {
+  const checked = document.querySelectorAll('.cand-cb:checked');
+  document.getElementById('btnDeleteSelected').style.display  = checked.length ? '' : 'none';
+  document.getElementById('btnMoveToRegister').style.display  = checked.length ? '' : 'none';
+}
+function toggleCandAll(master) {
+  document.querySelectorAll('.cand-cb').forEach(cb => { cb.checked = master.checked; });
+  onCandCheck();
+}
+async function deleteSelectedCandidates() {
+  const ids = [...document.querySelectorAll('.cand-cb:checked')].map(cb => cb.dataset.id);
+  if (!ids.length) return;
+  if (!confirm(`${ids.length}개 항목을 삭제하시겠습니까?`)) return;
+  for (const id of ids) {
+    await fetch(`/api/candidates/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    const row = document.getElementById(`cand-${id}`);
+    if (row) { row.nextElementSibling?.remove(); row.remove(); }
+  }
+  onCandCheck();
+  document.getElementById('candSelectAll').checked = false;
+  const remaining = document.querySelectorAll('#candBody tr:not(.margin-row)').length;
+  document.getElementById('candCount').textContent = `총 ${remaining}개`;
+  showToast(`${ids.length}개 삭제 완료`);
+}
+
+// ── 소싱국가 추출 ─────────────────────────────────────────────────────────
+function extractCountry(url) {
+  if (!url) return '-';
+  if (/amazon\.de|idealo\.de|eurolife|\.de[/?#]|\.de$/.test(url)) return '🇩🇪 독일';
+  if (/amazon\.com[/?#]/.test(url)) return '🇺🇸 미국';
+  if (/amazon\.co\.uk/.test(url))   return '🇬🇧 영국';
+  if (/amazon\.fr/.test(url))       return '🇫🇷 프랑스';
+  if (/amazon\.it/.test(url))       return '🇮🇹 이탈리아';
+  if (/amazon\.es/.test(url))       return '🇪🇸 스페인';
+  if (/amazon\.co\.jp/.test(url))   return '🇯🇵 일본';
+  return '-';
+}
+
+// ── 소싱후보 → 상품등록대장 이동 ─────────────────────────────────────────
+async function moveToRegister() {
+  const ids = [...document.querySelectorAll('.cand-cb:checked')].map(cb => cb.dataset.id);
+  if (!ids.length) { showToast('항목을 선택해주세요.', true); return; }
+  const items = ids.map(id => {
+    const item = candItemsCache[id];
+    if (!item) return null;
+    const country = extractCountry(item.product_url || '');
+    // 관세+부가세 기본 계산
+    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * currentRate) : 0;
+    const shipFee     = item.shipping_fee || 0;
+    const cifKrw      = vatPriceKrw + shipFee;
+    const customsRate = country.includes('독일') ? 0 : 8; // EU-한국 FTA 기본 0%
+    const customs     = Math.round(cifKrw * customsRate / 100);
+    const vat10       = Math.round((cifKrw + customs) * 0.1);
+    return {
+      ...item,
+      country,
+      cif_krw:      cifKrw,
+      customs_rate: customsRate,
+      customs_amt:  customs,
+      vat10_amt:    vat10,
+      fta:          country.includes('독일') || country.includes('프랑스') || country.includes('이탈리아') || country.includes('스페인'),
+    };
+  }).filter(Boolean);
+
+  try {
+    const resp = await fetch('/api/product-registrations', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({items}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { showToast('이동 실패: ' + (data.error || ''), true); return; }
+    showToast(`${data.created}개 상품등록대장으로 이동 완료`);
+    setTimeout(() => switchTab('register'), 600);
+  } catch (e) { showToast('실패: ' + e.message, true); }
+}
+
+// ── 상품등록대장 로드 ─────────────────────────────────────────────────────
+async function loadRegistrations() {
+  document.getElementById('regLoading').style.display = 'block';
+  document.getElementById('regCard').style.display    = 'none';
+  document.getElementById('regEmpty').style.display   = 'none';
+  try {
+    const data = await (await fetch('/api/product-registrations')).json();
+    document.getElementById('regLoading').style.display = 'none';
+    if (!data.items || !data.items.length) {
+      document.getElementById('regEmpty').style.display = 'block'; return;
+    }
+    document.getElementById('regCount').textContent = `총 ${data.items.length}개`;
+    document.getElementById('regCard').style.display = 'block';
+    renderRegistrations(data.items);
+  } catch (e) {
+    document.getElementById('regLoading').style.display = 'none';
+    document.getElementById('regEmpty').style.display   = 'block';
+    document.getElementById('regEmpty').textContent = '로딩 실패: ' + e.message;
+  }
+}
+
+function renderRegistrations(items) {
+  items.forEach(item => { if (item.id) regItemsCache[item.id] = item; });
+  document.getElementById('regBody').innerHTML = items.map(item => {
+    const id         = item.id;
+    const country    = item.country || extractCountry(item.product_url || '');
+    const productUrl = item.product_url || '';
+    const nameDisplay = item.product_name_display || [item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' ');
+    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * currentRate) : (item.cost_price || 0);
+    const shipFee    = item.shipping_fee || 0;
+    const sourcePriceKrw = item.price_eur ? Math.round(item.price_eur * currentRate) : '-';
+    const customs    = item.customs_amt  || 0;
+    const vat10      = item.vat10_amt    || 0;
+    const fta        = item.fta;
+    const naverPrice = item.naver_price  || item.shopping_price || '-';
+    const coupangPrice = item.coupang_price || '-';
+    const totalCost  = vatPriceKrw + shipFee + customs + vat10;
+    const netMargin  = (typeof naverPrice === 'number') ? naverPrice - totalCost : '-';
+    const returnRate = (typeof netMargin === 'number' && naverPrice) ? (netMargin / naverPrice * 100).toFixed(1) : '-';
+    return `
+    <tr id="reg-${escHtml(id)}">
+      <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}" onchange="onRegCheck()"></td>
+      <td style="white-space:nowrap">${country}</td>
+      <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
+      <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
+      <td style="min-width:200px">
+        <div id="regname-${escHtml(id)}" style="font-size:0.8rem;color:#2d3748;line-height:1.4">${escHtml(nameDisplay)}</div>
+        <button class="btn-sm" style="margin-top:3px;background:#4a6cf7;color:white;font-size:0.68rem" onclick="generateProductName('${escHtml(id)}')">AI 상품명</button>
+      </td>
+      <td style="text-align:right">${typeof naverPrice === 'number' ? `<input type="number" value="${naverPrice}" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','naver',this.value)">` : `<input type="number" placeholder="입력" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','naver',this.value)">`}</td>
+      <td style="text-align:right"><input type="number" value="${typeof coupangPrice === 'number' ? coupangPrice : ''}" placeholder="입력" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','coupang',this.value)"></td>
+      <td style="text-align:right">${typeof sourcePriceKrw === 'number' ? formatPrice(sourcePriceKrw) : '-'}</td>
+      <td style="text-align:right">${vatPriceKrw ? formatPrice(vatPriceKrw) : '-'}</td>
+      <td style="text-align:right">${shipFee ? formatPrice(shipFee) : '-'}</td>
+      <td style="text-align:center">${fta ? '<span style="color:#276749;font-weight:600">FTA✓</span>' : '<span style="color:#718096">-</span>'}</td>
+      <td style="text-align:right;color:#c05621">${customs + vat10 ? formatPrice(customs + vat10) : '-'}</td>
+      <td style="text-align:right;font-weight:600;color:${typeof netMargin==='number'&&netMargin>0?'#276749':'#c53030'}">${typeof netMargin === 'number' ? formatPrice(netMargin) : '-'}</td>
+      <td style="text-align:right">${returnRate !== '-' ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
+      <td><button class="btn-icon del" onclick="deleteReg('${escHtml(id)}')">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function onRegCheck() {
+  const checked = document.querySelectorAll('.reg-cb:checked');
+  document.getElementById('btnDeleteReg').style.display = checked.length ? '' : 'none';
+}
+function toggleRegAll(master) {
+  document.querySelectorAll('.reg-cb').forEach(cb => { cb.checked = master.checked; });
+  onRegCheck();
+}
+async function deleteReg(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {method: 'DELETE'});
+  const row = document.getElementById(`reg-${id}`);
+  if (row) row.remove();
+  showToast('삭제 완료');
+}
+async function deleteSelectedRegs() {
+  const ids = [...document.querySelectorAll('.reg-cb:checked')].map(cb => cb.dataset.id);
+  if (!ids.length) return;
+  if (!confirm(`${ids.length}개 삭제하시겠습니까?`)) return;
+  for (const id of ids) {
+    await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    document.getElementById(`reg-${id}`)?.remove();
+  }
+  document.getElementById('btnDeleteReg').style.display = 'none';
+  showToast(`${ids.length}개 삭제 완료`);
+}
+async function generateProductName(id) {
+  const row = document.getElementById(`reg-${id}`);
+  if (!row) return;
+  const item = {}; // Firestore에서 가져온 원본 데이터 필요
+  const nameEl = document.getElementById(`regname-${id}`);
+  nameEl.textContent = 'AI 생성중...';
+  // candItemsCache에서 찾기 (이동 시 캐시됨)
+  const src = regItemsCache[id] || {};
+  try {
+    const resp = await fetch('/api/generate-product-name', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        brand_name: src.brand_name, product_name: src.product_name,
+        product_name_en: src.product_name_en, category: src.category,
+        country: src.country,
+      }),
+    });
+    const data = await resp.json();
+    if (data.product_name) {
+      nameEl.textContent = data.product_name;
+      await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({product_name_display: data.product_name}),
+      });
+      showToast('AI 상품명 생성 완료');
+    } else {
+      nameEl.textContent = src.product_name || '-';
+      showToast('생성 실패', true);
+    }
+  } catch (e) { nameEl.textContent = src.product_name || '-'; showToast('실패: ' + e.message, true); }
+}
+async function updateRegPrice(id, type, val) {
+  const price = parseInt(val) || null;
+  const field = type === 'naver' ? 'naver_price' : 'coupang_price';
+  await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({[field]: price}),
+  });
+}
+let regItemsCache = {};
 
 // ── 로그인 ────────────────────────────────────────────────────────────────
 async function checkUser() {
@@ -1521,6 +1798,7 @@ function renderCandidates(items) {
     const productUrl = item.product_url   || '';
     return `
     <tr id="cand-${escHtml(id)}">
+      <td class="cb-cell"><input type="checkbox" class="cand-cb" data-id="${escHtml(id)}" onchange="onCandCheck()"></td>
       <td class="postdate">${savedAt}<br><span style="font-size:0.68rem;color:#a0aec0">${escHtml(item.saved_by||'')}</span></td>
       <td>${modeTag}<span class="badge badge-brand">${escHtml(item.keyword||'-')}</span></td>
       <td>${item.brand_name ? `<span class="badge badge-brand">${escHtml(item.brand_name)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
@@ -1624,8 +1902,8 @@ function renderCandidates(items) {
             <div style="font-size:0.72rem;color:#718096;font-weight:600;margin-bottom:6px">📦 스마트스토어 판매가</div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
               <div class="margin-field" style="min-width:110px">
-                <label>목표 마진율 (%)</label>
-                <input type="number" id="tmargin-${escHtml(id)}" value="30" min="1" max="89" oninput="calcSellPrice('${escHtml(id)}')" />
+                <label>목표 마진 (원)</label>
+                <input type="number" id="tmargin-${escHtml(id)}" value="10000" min="0" step="1000" oninput="calcSellPrice('${escHtml(id)}')" />
               </div>
               <div class="margin-field" style="min-width:130px">
                 <label>스마트스토어 수수료 (%)</label>
@@ -1755,21 +2033,20 @@ function calcMarginLive(id) {
 }
 
 function calcSellPrice(id) {
-  const costEl = document.getElementById(`cost-${id}`);
-  const cost = parseInt(costEl?.textContent?.replace(/[^0-9]/g, '')) || 0;
-  const targetMargin = parseFloat(document.getElementById(`tmargin-${id}`)?.value) || 30;
-  const ssFee        = parseFloat(document.getElementById(`ssfee-${id}`)?.value)   || 3.5;
-  const sellPriceEl  = document.getElementById(`sell-price-${id}`);
-  const ssFeeAmtEl   = document.getElementById(`ss-fee-amt-${id}`);
-  const netMarginEl  = document.getElementById(`net-margin-${id}`);
+  const costEl      = document.getElementById(`cost-${id}`);
+  const cost        = parseInt(costEl?.textContent?.replace(/[^0-9]/g, '')) || 0;
+  const targetAmt   = parseFloat(document.getElementById(`tmargin-${id}`)?.value) || 10000; // 금액
+  const ssFee       = parseFloat(document.getElementById(`ssfee-${id}`)?.value)   || 3.5;
+  const sellPriceEl = document.getElementById(`sell-price-${id}`);
+  const ssFeeAmtEl  = document.getElementById(`ss-fee-amt-${id}`);
+  const netMarginEl = document.getElementById(`net-margin-${id}`);
   if (!sellPriceEl) return;
   if (cost <= 0) { [sellPriceEl, ssFeeAmtEl, netMarginEl].forEach(el => el && (el.textContent = '-')); return; }
-  const divisor = 1 - (targetMargin / 100) - (ssFee / 100);
-  if (divisor <= 0) { sellPriceEl.textContent = '마진율 오류'; return; }
-  const sellPrice  = Math.ceil(cost / divisor / 100) * 100;  // 100원 단위 올림
-  const ssFeeAmt   = Math.round(sellPrice * ssFee / 100);
-  const netMargin  = sellPrice - cost - ssFeeAmt;
-  const netRate    = (netMargin / sellPrice * 100).toFixed(1);
+  // 판매가 = (원가 + 목표마진) / (1 - 수수료율)
+  const sellPrice = Math.ceil((cost + targetAmt) / (1 - ssFee / 100) / 100) * 100;
+  const ssFeeAmt  = Math.round(sellPrice * ssFee / 100);
+  const netMargin = sellPrice - cost - ssFeeAmt;
+  const netRate   = (netMargin / sellPrice * 100).toFixed(1);
   sellPriceEl.textContent = formatPrice(sellPrice);
   ssFeeAmtEl.textContent  = formatPrice(ssFeeAmt);
   netMarginEl.textContent = `${netMargin.toLocaleString('ko-KR')}원 (${netRate}%)`;
