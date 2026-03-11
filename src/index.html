@@ -1528,8 +1528,9 @@ function renderCandidates(items) {
         <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">마진계산</button>
         ${(() => {
           const q = encodeURIComponent([item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' '));
-          return q ? `
-            <div style="display:flex;gap:3px;margin-top:4px">
+          const noEn = !item.product_name_en ? '<div style="font-size:0.68rem;color:#e53e3e;margin-bottom:2px">⚠ 영문명 미확인</div>' : '';
+          return q ? `${noEn}
+            <div style="display:flex;gap:3px;margin-top:2px">
               <a class="btn-de" href="https://www.amazon.de/s?k=${q}&language=de_DE" target="_blank" rel="noopener">Amazon.de</a>
               <a class="btn-de idealo" href="https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=${q}" target="_blank" rel="noopener">Idealo</a>
             </div>` : '';
