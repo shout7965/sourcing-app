@@ -739,6 +739,20 @@
 </div>
 
 <script>
+// ── eurolife25 배송비 테이블 (브론즈 등급, 0.5kg 단위) ─────────────────────
+const SHIPPING_TABLE = [
+  [0.5,10340],[1.0,12770],[1.5,16080],[2.0,17520],[2.5,19550],
+  [3.0,21480],[3.5,24600],[4.0,27120],[4.5,29650],[5.0,32070],
+  [6.0,38310],[7.0,43560],[8.0,48900],[9.0,54250],[10.0,61670],
+  [11.0,69390],[12.0,74940],[13.0,80390],[14.0,85940],[15.0,91390],
+  [16.0,96940],[17.0,102390],[18.0,107940],[19.0,113390],[20.0,118990],
+];
+function calcShipping(kg) {
+  const rounded = Math.ceil(kg * 2) / 2; // 0.5kg 단위 올림
+  const entry = SHIPPING_TABLE.find(([w]) => w >= rounded);
+  return entry ? entry[1] : SHIPPING_TABLE[SHIPPING_TABLE.length - 1][1];
+}
+
 // ── 상태 ──────────────────────────────────────────────────────────────────
 let currentUser   = null;
 let projects      = [];
@@ -1498,10 +1512,13 @@ function renderCandidates(items) {
     const modeTag  = item.mode === 'gonggu'
       ? '<span style="font-size:0.68rem;background:#e9d8fd;color:#553c9a;padding:1px 5px;border-radius:10px">공구</span> '
       : '';
-    const eur  = item.price_eur || '';
-    const rate = item.exchange_rate || 1400;
-    const ship = item.shipping_fee || '';
-    const memo = item.memo || '';
+    const eur        = item.price_eur     || '';
+    const rate       = item.exchange_rate || 1400;
+    const ship       = item.shipping_fee  || '';
+    const memo       = item.memo          || '';
+    const weight     = item.weight_kg     || '';
+    const vatType    = item.vat_type      || '19';
+    const productUrl = item.product_url   || '';
     return `
     <tr id="cand-${escHtml(id)}">
       <td class="postdate">${savedAt}<br><span style="font-size:0.68rem;color:#a0aec0">${escHtml(item.saved_by||'')}</span></td>
@@ -1558,19 +1575,43 @@ function renderCandidates(items) {
           </div>
         </div>
         <div class="margin-calc">
+          <!-- 제품 URL + 무게 자동조회 -->
+          <div class="margin-field" style="flex:2;min-width:260px">
+            <label>제품 URL (Amazon.de / idealo)</label>
+            <div style="display:flex;gap:4px">
+              <input type="url" id="purl-${escHtml(id)}" value="${escHtml(productUrl)}" placeholder="https://www.amazon.de/dp/..." style="flex:1;font-size:0.78rem" />
+              <button class="btn-sm" id="btnFW-${escHtml(id)}" onclick="fetchWeight('${escHtml(id)}')">무게 조회</button>
+            </div>
+          </div>
+          <!-- EUR + VAT + 환율 -->
           <div class="margin-field">
-            <label>독일구매가 (EUR)</label>
+            <label>독일구매가 (EUR, VAT포함)</label>
             <input type="number" id="eur-${escHtml(id)}" value="${eur}" placeholder="0" oninput="calcMarginLive('${escHtml(id)}')" />
+          </div>
+          <div class="margin-field" style="min-width:130px">
+            <label>VAT (eurolife 면세)</label>
+            <select id="vat-${escHtml(id)}" onchange="calcMarginLive('${escHtml(id)}')" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e0;font-size:0.82rem">
+              <option value="19" ${vatType==='7'||vatType==='0'?'':'selected'}>공산품 19%</option>
+              <option value="7"  ${vatType==='7'?'selected':''}>식품·서적 7%</option>
+              <option value="0"  ${vatType==='0'?'selected':''}>VAT 없음</option>
+            </select>
           </div>
           <div class="margin-field">
             <label>환율 (원/EUR)</label>
             <input type="number" id="rate-${escHtml(id)}" value="${rate}" placeholder="1400" oninput="calcMarginLive('${escHtml(id)}')" />
           </div>
+          <!-- 무게 + 배송비 자동계산 -->
           <div class="margin-field">
-            <label>배송비 (원)</label>
-            <input type="number" id="ship-${escHtml(id)}" value="${ship}" placeholder="0" oninput="calcMarginLive('${escHtml(id)}')" />
+            <label>무게 (kg)</label>
+            <input type="number" id="weight-${escHtml(id)}" value="${weight}" step="0.1" placeholder="0.5" oninput="updateShipping('${escHtml(id)}')" />
           </div>
-          <div class="margin-result" id="mresult-${escHtml(id)}">
+          <div class="margin-field">
+            <label>배송비 (원, 자동)</label>
+            <input type="number" id="ship-${escHtml(id)}" value="${ship}" placeholder="무게 입력 시 자동" oninput="calcMarginLive('${escHtml(id)}')" />
+          </div>
+          <!-- 결과 -->
+          <div class="margin-result" id="mresult-${escHtml(id)}" data-nav="${navPrice}">
+            <span><span class="lbl">VAT제외단가</span><br><span class="val" id="vatprice-${escHtml(id)}">-</span></span>
             <span><span class="lbl">원가</span><br><span class="val" id="cost-${escHtml(id)}">-</span></span>
             <span><span class="lbl">네이버최저가</span><br><span class="val">${navPrice ? formatPrice(navPrice) : '-'}</span></span>
             <span><span class="lbl">마진</span><br><span class="val" id="mval-${escHtml(id)}">-</span></span>
@@ -1587,7 +1628,13 @@ function renderCandidates(items) {
     </tr>`;
   }).join('');
 
-  items.forEach(item => { if (item.price_eur) calcMarginLive(item.id); });
+  items.forEach(item => {
+    if (item.price_eur) {
+      // 무게가 있으면 배송비 자동계산 후 마진 계산
+      if (item.weight_kg && !item.shipping_fee) updateShipping(item.id);
+      else calcMarginLive(item.id);
+    }
+  });
 }
 
 async function updateStatus(docId, status) {
@@ -1650,16 +1697,24 @@ function toggleMarginRow(id) {
 }
 
 function calcMarginLive(id) {
-  const eur  = parseFloat(document.getElementById(`eur-${id}`)?.value)  || 0;
-  const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 1400;
-  const ship = parseFloat(document.getElementById(`ship-${id}`)?.value) || 0;
-  const cost = Math.round(eur * rate + ship);
+  const eur    = parseFloat(document.getElementById(`eur-${id}`)?.value)    || 0;
+  const vat    = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? 19;
+  const rate   = parseFloat(document.getElementById(`rate-${id}`)?.value)   || 1400;
+  const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
+
+  const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
+  const cost = Math.round(eurNoVat * rate + ship);
+
+  const vatpriceEl = document.getElementById(`vatprice-${id}`);
+  if (vatpriceEl) vatpriceEl.textContent = eur > 0
+    ? `€${eurNoVat.toFixed(2)} (절감 €${(eur - eurNoVat).toFixed(2)})` : '-';
+
   const mresult = document.getElementById(`mresult-${id}`);
   if (!mresult) return;
-  const navText = mresult.querySelectorAll('.val')[1]?.textContent?.replace(/[^0-9]/g, '');
-  const nav = parseInt(navText) || 0;
+  const nav    = parseInt(mresult.dataset.nav) || 0;
   const margin = nav - cost;
   const mrate  = nav > 0 ? (margin / nav * 100).toFixed(1) : null;
+
   const costEl  = document.getElementById(`cost-${id}`);
   const mvalEl  = document.getElementById(`mval-${id}`);
   const mrateEl = document.getElementById(`mrate-${id}`);
@@ -1674,20 +1729,62 @@ function calcMarginLive(id) {
   }
 }
 
+function updateShipping(id) {
+  const kg = parseFloat(document.getElementById(`weight-${id}`)?.value) || 0;
+  if (kg > 0) {
+    const shipEl = document.getElementById(`ship-${id}`);
+    if (shipEl) shipEl.value = calcShipping(kg);
+  }
+  calcMarginLive(id);
+}
+
+async function fetchWeight(id) {
+  const url = document.getElementById(`purl-${id}`)?.value?.trim();
+  if (!url) { showToast('제품 URL을 먼저 입력해주세요.', true); return; }
+  const btn = document.getElementById(`btnFW-${id}`);
+  btn.disabled = true; btn.textContent = '조회중...';
+  try {
+    const resp = await fetch('/api/fetch-weight', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url}),
+    });
+    const data = await resp.json();
+    if (data.weight) {
+      document.getElementById(`weight-${id}`).value = data.weight;
+      updateShipping(id);
+      showToast(`무게 ${data.weight}kg 자동 추출 완료`);
+    } else {
+      showToast((data.error || '무게 정보 없음') + ' — 직접 입력해주세요', true);
+    }
+  } catch (e) {
+    showToast('조회 실패: ' + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '무게 조회';
+  }
+}
+
 async function saveMarginData(id, navPrice) {
-  const eur  = parseFloat(document.getElementById(`eur-${id}`)?.value)  || 0;
-  const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 1400;
-  const ship = parseFloat(document.getElementById(`ship-${id}`)?.value) || 0;
-  const memo = document.getElementById(`memo-${id}`)?.value || '';
-  const cost = Math.round(eur * rate + ship);
+  const eur    = parseFloat(document.getElementById(`eur-${id}`)?.value)    || 0;
+  const vat    = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? 19;
+  const rate   = parseFloat(document.getElementById(`rate-${id}`)?.value)   || 1400;
+  const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
+  const weight = parseFloat(document.getElementById(`weight-${id}`)?.value) || null;
+  const purl   = document.getElementById(`purl-${id}`)?.value?.trim()       || null;
+  const memo   = document.getElementById(`memo-${id}`)?.value || '';
+
+  const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
+  const cost = Math.round(eurNoVat * rate + ship);
   const margin = navPrice > 0 ? navPrice - cost : null;
   const marginRate = navPrice > 0 && cost > 0 ? parseFloat((margin / navPrice * 100).toFixed(1)) : null;
   try {
     const resp = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
       method: 'PATCH', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({price_eur: eur||null, exchange_rate: rate, shipping_fee: ship||null,
+      body: JSON.stringify({
+        price_eur: eur||null, exchange_rate: rate, shipping_fee: ship||null,
         cost_price: cost||null, margin, margin_rate: marginRate, memo,
-        completed_by: currentUser || 'anonymous'}),
+        weight_kg: weight, vat_type: String(vat), product_url: purl,
+        completed_by: currentUser || 'anonymous',
+      }),
     });
     if (!resp.ok) throw new Error('저장 실패');
     showToast('마진 정보 저장 완료');
@@ -1703,10 +1800,13 @@ async function saveMarginData(id, navPrice) {
 function copyNaverForm(id) {
   const item = candItemsCache[id];
   if (!item) { showToast('항목 정보 없음', true); return; }
-  const eur  = parseFloat(document.getElementById(`eur-${id}`)?.value)  || item.price_eur || 0;
-  const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || item.exchange_rate || 1400;
-  const ship = parseFloat(document.getElementById(`ship-${id}`)?.value) || item.shipping_fee || 0;
-  const cost = Math.round(eur * rate + ship);
+  const eur    = parseFloat(document.getElementById(`eur-${id}`)?.value)    || item.price_eur || 0;
+  const vat    = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? parseFloat(item.vat_type) ?? 19;
+  const rate   = parseFloat(document.getElementById(`rate-${id}`)?.value)   || item.exchange_rate || 1400;
+  const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || item.shipping_fee || 0;
+  const weight = parseFloat(document.getElementById(`weight-${id}`)?.value) || item.weight_kg || 0;
+  const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
+  const cost = Math.round(eurNoVat * rate + ship);
   const nav  = item.shopping_price || 0;
   const margin = nav && cost ? nav - cost : null;
   const mrate  = nav && cost ? (margin / nav * 100).toFixed(1) : null;
@@ -1717,7 +1817,7 @@ function copyNaverForm(id) {
     `[구매처] ${item.purchase_source || '-'}`,
     `[구매가격] ${item.price_paid || '-'}`,
     nav    ? `[네이버 최저가] ${nav.toLocaleString('ko-KR')}원` : '',
-    eur    ? `[독일 구매가] €${eur} × ${rate} + 배송 ${ship.toLocaleString('ko-KR')}원 = ${cost.toLocaleString('ko-KR')}원` : '',
+    eur    ? `[독일 구매가] €${eur} → VAT제외 €${eurNoVat.toFixed(2)} × ${rate} + 배송 ${ship.toLocaleString('ko-KR')}원 = ${cost.toLocaleString('ko-KR')}원${weight ? ` (${weight}kg)` : ''}` : '',
     margin != null ? `[예상 마진] ${margin.toLocaleString('ko-KR')}원 (${mrate}%)` : '',
     memo   ? `[메모] ${memo}` : '',
     item.link ? `[원문] ${item.link}` : '',

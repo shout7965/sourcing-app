@@ -787,6 +787,7 @@ ALLOWED_UPDATE_FIELDS = {
     'status', 'price_eur', 'exchange_rate', 'shipping_fee',
     'cost_price', 'margin', 'margin_rate', 'memo',
     'completed_by', 'completed_at',
+    'weight_kg', 'vat_type', 'product_url',
 }
 
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])
@@ -814,6 +815,67 @@ def delete_candidate(doc_id):
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/fetch-weight", methods=["POST"])
+def fetch_weight():
+    """Amazon.de / idealo 제품 페이지에서 무게 추출"""
+    url = request.get_json().get('url', '').strip()
+    if not url or not url.startswith('http'):
+        return jsonify({"weight": None, "error": "유효한 URL이 아닙니다"}), 400
+    try:
+        resp = requests.get(url, timeout=8, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+            "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+            "Accept": "text/html,application/xhtml+xml",
+        })
+        if resp.status_code != 200:
+            return jsonify({"weight": None, "error": f"페이지 로드 실패 ({resp.status_code})"}), 400
+
+        text = strip_html(resp.text)
+
+        # 정규식으로 무게 패턴 찾기
+        weight_patterns = [
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(kg|Kilogramm)', 'kg'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+)\s*(kg|Kilogramm)', 'kg'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(g|Gramm)\b', 'g'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+)\s*(g|Gramm)\b', 'g'),
+        ]
+        for pattern, default_unit in weight_patterns:
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m:
+                val = float(m.group(1).replace(',', '.'))
+                if default_unit == 'g':
+                    val = val / 1000
+                return jsonify({"weight": round(val, 3), "unit": "kg", "source": "regex"})
+
+        # 정규식 실패 → 무게 키워드 주변 텍스트만 잘라서 Claude로 추출
+        relevant_text = text[:4000]
+        for kw in ['Gewicht', 'Weight', 'Artikelgewicht', 'kg', 'Gramm']:
+            idx = text.find(kw)
+            if idx > 200:
+                relevant_text = text[max(0, idx - 300): idx + 600]
+                break
+
+        resp_claude = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=80,
+            messages=[{"role": "user", "content":
+                f'Extract the product weight from this text. Reply ONLY with JSON: {{"weight": 0.5, "unit": "kg"}}. '
+                f'If weight is in grams convert to kg. If not found reply {{"weight": null}}.\n\n{relevant_text}'
+            }],
+        )
+        result_text = re.sub(r'```json?\s*|\s*```', '', resp_claude.content[0].text.strip()).strip()
+        result = json.loads(result_text)
+        if result.get('weight') is not None:
+            w = float(result['weight'])
+            if result.get('unit', 'kg') in ('g', 'gram', 'Gramm'):
+                w = w / 1000
+            return jsonify({"weight": round(w, 3), "unit": "kg", "source": "claude"})
+
+        return jsonify({"weight": None, "error": "무게 정보를 찾을 수 없습니다. 직접 입력해주세요."})
+    except Exception as e:
+        return jsonify({"weight": None, "error": str(e)}), 500
 
 
 def main():
