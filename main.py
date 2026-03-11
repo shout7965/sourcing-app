@@ -619,7 +619,7 @@ def extract_all_products():
 추출 항목:
 - brand_name: 브랜드명 (없으면 null)
 - product_name: 한국어 상품명 (없으면 null)
-- product_name_en: 본문에 영문으로 표기된 공식 제품명/모델번호 (한국어 번역 금지, 없으면 null)
+- product_name_en: 본문에 영문으로 표기된 공식 제품명/모델번호. 영문명이 없으면 한국어 상품명을 Amazon 검색에 적합한 영어로 번역해서 입력 (필수, null 금지)
 - price_paid: 후기에서 언급된 구매가격 (예: "3.98€", "$29", 없으면 null)
 - category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나
 

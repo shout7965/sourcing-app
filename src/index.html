@@ -1854,6 +1854,10 @@ async function saveSelected() {
 }
 
 // ── 다중상품 선택 모달 ────────────────────────────────────────────────────
+function toggleGroup(groupId, val) {
+  document.querySelectorAll(`.${groupId}-cb`).forEach(cb => cb.checked = val);
+}
+
 function showProductSelectModal(extracted, keyword) {
   return new Promise(resolve => {
     const modal = document.createElement('div');
@@ -1879,13 +1883,28 @@ function showProductSelectModal(extracted, keyword) {
           </label></div>`;
       }
       // 하울 포스트 - 여러 상품
-      const productRows = products.map((p,pi) => `
-        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;padding:4px 0;border-bottom:1px solid #edf2f7">
-          <input type="checkbox" data-item='${JSON.stringify({...item,...p,_from_modal:true}).replace(/'/g,"&#39;")}'>
-          <span style="font-size:0.82rem"><b>${escHtml(p.brand_name||'')}</b> ${escHtml(p.product_name||'')} ${escHtml(p.product_name_en||'')} ${p.price_paid?`<span style="color:#63b3ed">${escHtml(p.price_paid)}</span>`:''}</span>
-        </label>`).join('');
+      const groupId = `grp-${Math.random().toString(36).slice(2)}`;
+      const productRows = products.map((p, pi) => {
+        const nameKo = p.product_name || '';
+        const nameEn = p.product_name_en || '';
+        return `<label style="display:flex;gap:8px;align-items:center;cursor:pointer;padding:5px 0;border-bottom:1px solid #edf2f7" class="${groupId}-item">
+          <input type="checkbox" class="${groupId}-cb" data-item='${JSON.stringify({...item,...p,_from_modal:true}).replace(/'/g,"&#39;")}'>
+          <span style="font-size:0.82rem;line-height:1.4">
+            <b>${escHtml(p.brand_name||'')}</b>
+            ${nameKo ? `<span style="color:#2d3748"> ${escHtml(nameKo)}</span>` : ''}
+            ${nameEn ? `<span style="color:#4a6cf7;font-size:0.78rem"> ${escHtml(nameEn)}</span>` : ''}
+            ${p.price_paid ? `<span style="color:#63b3ed;font-size:0.78rem"> ${escHtml(p.price_paid)}</span>` : ''}
+          </span>
+        </label>`;
+      }).join('');
       return `<div style="margin-bottom:14px;padding:10px;background:#ebf8ff;border-radius:8px;border:1px solid #bee3f8">
-        <div style="font-size:0.78rem;color:#2c5282;font-weight:600;margin-bottom:8px">📦 ${escHtml(item.title||'')} — ${products.length}개 상품 발견</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:0.78rem;color:#2c5282;font-weight:600">📦 ${escHtml(item.title||'')} — ${products.length}개 상품</div>
+          <div style="display:flex;gap:4px">
+            <button onclick="toggleGroup('${groupId}',true)" style="font-size:0.68rem;padding:2px 7px;border-radius:5px;border:1px solid #bee3f8;background:#ebf8ff;color:#2c5282;cursor:pointer">전체선택</button>
+            <button onclick="toggleGroup('${groupId}',false)" style="font-size:0.68rem;padding:2px 7px;border-radius:5px;border:1px solid #e2e8f0;background:white;color:#718096;cursor:pointer">전체해제</button>
+          </div>
+        </div>
         ${productRows}</div>`;
     }).join('');
 
