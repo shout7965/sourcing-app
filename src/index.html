@@ -1560,11 +1560,13 @@ function renderCandidates(items) {
     <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
       <td colspan="12">
         <div class="img-compare">
-          <div class="img-compare-item">
+          <div class="img-compare-item" style="flex:2;min-width:200px">
             <label>블로그 이미지</label>
-            ${item.blog_image
-              ? `<img src="${escHtml(item.blog_image)}" alt="블로그" onclick="openLightbox('${escHtml(item.blog_image)}')" onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'" />`
-              : `<div class="img-compare-none" id="blogimg-${escHtml(id)}">로딩중...</div>`}
+            <div id="blogimgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px">
+              ${item.blog_image
+                ? `<img src="${escHtml(item.blog_image)}" alt="블로그" onclick="openLightbox('${escHtml(item.blog_image)}')" onerror="this.style.display='none'" style="width:90px;height:90px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e2e8f0" />`
+                : `<div class="img-compare-none" id="blogimg-${escHtml(id)}">로딩중...</div>`}
+            </div>
           </div>
           <div class="img-compare-item">
             <label>쇼핑 검색 이미지</label>
@@ -1616,6 +1618,25 @@ function renderCandidates(items) {
             <span><span class="lbl">네이버최저가</span><br><span class="val">${navPrice ? formatPrice(navPrice) : '-'}</span></span>
             <span><span class="lbl">마진</span><br><span class="val" id="mval-${escHtml(id)}">-</span></span>
             <span><span class="lbl">마진율</span><br><span class="val" id="mrate-${escHtml(id)}">-</span></span>
+          </div>
+          <!-- 스마트스토어 판매가 계산 -->
+          <div style="width:100%;border-top:1px dashed #e2e8f0;margin:6px 0 4px;padding-top:8px">
+            <div style="font-size:0.72rem;color:#718096;font-weight:600;margin-bottom:6px">📦 스마트스토어 판매가</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+              <div class="margin-field" style="min-width:110px">
+                <label>목표 마진율 (%)</label>
+                <input type="number" id="tmargin-${escHtml(id)}" value="30" min="1" max="89" oninput="calcSellPrice('${escHtml(id)}')" />
+              </div>
+              <div class="margin-field" style="min-width:130px">
+                <label>스마트스토어 수수료 (%)</label>
+                <input type="number" id="ssfee-${escHtml(id)}" value="3.5" step="0.1" oninput="calcSellPrice('${escHtml(id)}')" />
+              </div>
+              <div class="margin-result" style="background:#f0fff4;border-color:#c6f6d5;flex-wrap:wrap">
+                <span><span class="lbl">권장 판매가</span><br><span class="val" id="sell-price-${escHtml(id)}" style="color:#276749;font-size:1rem">-</span></span>
+                <span><span class="lbl">수수료</span><br><span class="val" id="ss-fee-amt-${escHtml(id)}" style="color:#c05621">-</span></span>
+                <span><span class="lbl">순마진</span><br><span class="val" id="net-margin-${escHtml(id)}">-</span></span>
+              </div>
+            </div>
           </div>
           <div class="margin-field wide">
             <label>메모</label>
@@ -1672,25 +1693,28 @@ function toggleMarginRow(id) {
   if (row.style.display !== 'none') {
     calcMarginLive(id);
     // blog_image 없는 경우 OG 이미지 lazy load
-    const blogImgEl = document.getElementById(`blogimg-${id}`);
-    if (blogImgEl) {
+    const blogImgsEl = document.getElementById(`blogimgs-${id}`);
+    const blogImgEl  = document.getElementById(`blogimg-${id}`);
+    if (blogImgsEl && blogImgEl) {
+      // 아직 이미지 로딩 전 (로딩중... 표시 상태)
       const item = candItemsCache[id];
       if (item?.link) {
         fetch(`/api/og-image?url=${encodeURIComponent(item.link)}`)
           .then(r => r.json())
           .then(data => {
-            if (data.images?.[0]) {
-              const src = data.images[0];
-              blogImgEl.outerHTML = `<img src="${escHtml(src)}" alt="블로그"
-                onclick="openLightbox('${escHtml(src)}')"
-                onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'"
-                style="width:120px;height:120px;object-fit:contain;border-radius:6px;border:1px solid #c3dafe;background:#f7faff;cursor:pointer" />`;
+            if (data.images?.length) {
+              blogImgsEl.innerHTML = data.images.map(src =>
+                `<img src="${escHtml(src)}" alt="블로그"
+                  onclick="openLightbox('${escHtml(src)}')"
+                  onerror="this.style.display='none'"
+                  style="width:90px;height:90px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid #e2e8f0" />`
+              ).join('');
             } else {
-              blogImgEl.textContent = '이미지 없음';
+              blogImgsEl.innerHTML = '<div class="img-compare-none">이미지 없음</div>';
             }
-          }).catch(() => { blogImgEl.textContent = '이미지 없음'; });
+          }).catch(() => { blogImgsEl.innerHTML = '<div class="img-compare-none">로딩 실패</div>'; });
       } else {
-        blogImgEl.textContent = '이미지 없음';
+        blogImgsEl.innerHTML = '<div class="img-compare-none">링크 없음</div>';
       }
     }
   }
@@ -1727,6 +1751,30 @@ function calcMarginLive(id) {
     mrateEl.style.color = color;
     mvalEl.style.color  = parseFloat(mrate) > 0 ? '#276749' : '#c53030';
   }
+  calcSellPrice(id);
+}
+
+function calcSellPrice(id) {
+  const costEl = document.getElementById(`cost-${id}`);
+  const cost = parseInt(costEl?.textContent?.replace(/[^0-9]/g, '')) || 0;
+  const targetMargin = parseFloat(document.getElementById(`tmargin-${id}`)?.value) || 30;
+  const ssFee        = parseFloat(document.getElementById(`ssfee-${id}`)?.value)   || 3.5;
+  const sellPriceEl  = document.getElementById(`sell-price-${id}`);
+  const ssFeeAmtEl   = document.getElementById(`ss-fee-amt-${id}`);
+  const netMarginEl  = document.getElementById(`net-margin-${id}`);
+  if (!sellPriceEl) return;
+  if (cost <= 0) { [sellPriceEl, ssFeeAmtEl, netMarginEl].forEach(el => el && (el.textContent = '-')); return; }
+  const divisor = 1 - (targetMargin / 100) - (ssFee / 100);
+  if (divisor <= 0) { sellPriceEl.textContent = '마진율 오류'; return; }
+  const sellPrice  = Math.ceil(cost / divisor / 100) * 100;  // 100원 단위 올림
+  const ssFeeAmt   = Math.round(sellPrice * ssFee / 100);
+  const netMargin  = sellPrice - cost - ssFeeAmt;
+  const netRate    = (netMargin / sellPrice * 100).toFixed(1);
+  sellPriceEl.textContent = formatPrice(sellPrice);
+  ssFeeAmtEl.textContent  = formatPrice(ssFeeAmt);
+  netMarginEl.textContent = `${netMargin.toLocaleString('ko-KR')}원 (${netRate}%)`;
+  const color = parseFloat(netRate) >= 30 ? '#276749' : parseFloat(netRate) >= 10 ? '#c05621' : '#c53030';
+  netMarginEl.style.color = color;
 }
 
 function updateShipping(id) {
@@ -1749,13 +1797,20 @@ async function fetchWeight(id) {
       body: JSON.stringify({url}),
     });
     const data = await resp.json();
+    const got = [];
+    if (data.price_eur) {
+      document.getElementById(`eur-${id}`).value = data.price_eur;
+      got.push(`€${data.price_eur}`);
+    }
     if (data.weight) {
       document.getElementById(`weight-${id}`).value = data.weight;
       updateShipping(id);
-      showToast(`무게 ${data.weight}kg 자동 추출 완료`);
+      got.push(`${data.weight}kg`);
     } else {
-      showToast((data.error || '무게 정보 없음') + ' — 직접 입력해주세요', true);
+      calcMarginLive(id);
     }
+    if (got.length) showToast(`자동 추출: ${got.join(', ')}`);
+    else showToast((data.error || '정보 없음') + ' — 직접 입력해주세요', true);
   } catch (e) {
     showToast('조회 실패: ' + e.message, true);
   } finally {

@@ -532,11 +532,20 @@ def og_image():
     if not url or not url.startswith("http"):
         return jsonify({"images": []})
     try:
-        resp = requests.get(url, timeout=5, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+        # 네이버 블로그: blog.naver.com → m.blog.naver.com (iframe 껍데기 우회)
+        fetch_url = url
+        m_blog = re.match(r'https?://blog\.naver\.com/([^/?#]+)/([0-9]+)', url)
+        if m_blog:
+            fetch_url = f"https://m.blog.naver.com/{m_blog.group(1)}/{m_blog.group(2)}"
+
+        resp = requests.get(fetch_url, timeout=6, headers={
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
             "Accept-Language": "ko-KR,ko;q=0.9",
+            "Referer": "https://m.blog.naver.com/",
         })
         images = []
+
+        # 1) og:image
         for pattern in [
             r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
             r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
@@ -545,10 +554,20 @@ def og_image():
                 img = m.group(1).strip()
                 if img and img not in images:
                     images.append(img)
-                if len(images) >= 2:
-                    break
-            if images:
+
+        # 2) 본문 이미지 (네이버 블로그 CDN 도메인)
+        for m in re.finditer(
+            r'<img[^>]+src=["\']([^"\']*(?:pstatic\.net|blogfiles\.naver\.net)[^"\']*)["\']',
+            resp.text, re.IGNORECASE
+        ):
+            img = m.group(1).strip()
+            if img.startswith('//'):
+                img = 'https:' + img
+            if img and img not in images:
+                images.append(img)
+            if len(images) >= 6:
                 break
+
         return jsonify({"images": images})
     except Exception:
         return jsonify({"images": []})
@@ -702,7 +721,7 @@ index는 게시물 번호 숫자를 그대로 사용하세요."""
 추출 항목:
 - brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
 - product_name: 상품명/모델명 한국어로 (없으면 null)
-- product_name_en: 영문 공식 제품명 또는 모델번호 (예: "Stomaticum", "Cloud Bag", "BOT Z10 Pro", "iPhone 15 Pro", 없으면 null)
+- product_name_en: 본문에 영문으로 실제 표기된 공식 제품명/모델번호 (한국어를 영어로 번역하지 말 것, 텍스트에 영문이 명시된 경우에만 추출, 없으면 null)
 - category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나 (없으면 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
 - price_paid: 후기에서 언급된 구매 가격 (예: "$120", "15만원", "89달러", 없으면 null)
@@ -841,39 +860,72 @@ def fetch_weight():
             (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(g|Gramm)\b', 'g'),
             (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+)\s*(g|Gramm)\b', 'g'),
         ]
+        found_weight = None
         for pattern, default_unit in weight_patterns:
             m = re.search(pattern, text, re.IGNORECASE)
             if m:
                 val = float(m.group(1).replace(',', '.'))
                 if default_unit == 'g':
                     val = val / 1000
-                return jsonify({"weight": round(val, 3), "unit": "kg", "source": "regex"})
+                found_weight = round(val, 3)
+                break
 
-        # 정규식 실패 → 무게 키워드 주변 텍스트만 잘라서 Claude로 추출
+        # 가격 정규식 (EUR)
+        found_price = None
+        price_patterns = [
+            r'([0-9]+[.,][0-9]{2})\s*€',
+            r'€\s*([0-9]+[.,][0-9]{2})',
+            r'EUR\s*([0-9]+[.,][0-9]{2})',
+            r'Preis[^\d]{0,20}([0-9]+[.,][0-9]{2})',
+        ]
+        for pp in price_patterns:
+            pm = re.search(pp, text)
+            if pm:
+                found_price = round(float(pm.group(1).replace(',', '.')), 2)
+                break
+
+        if found_weight is not None and found_price is not None:
+            return jsonify({"weight": found_weight, "price_eur": found_price, "unit": "kg", "source": "regex"})
+        if found_weight is not None:
+            pass  # 가격은 Claude로 보완 시도
+
+        # Claude로 무게+가격 추출 (정규식에서 못 찾은 필드 보완)
         relevant_text = text[:4000]
-        for kw in ['Gewicht', 'Weight', 'Artikelgewicht', 'kg', 'Gramm']:
+        for kw in ['Gewicht', 'Weight', 'Artikelgewicht', 'Preis', 'Price', '€', 'kg']:
             idx = text.find(kw)
             if idx > 200:
-                relevant_text = text[max(0, idx - 300): idx + 600]
+                relevant_text = text[max(0, idx - 300): idx + 800]
                 break
 
         resp_claude = claude.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=80,
+            max_tokens=120,
             messages=[{"role": "user", "content":
-                f'Extract the product weight from this text. Reply ONLY with JSON: {{"weight": 0.5, "unit": "kg"}}. '
-                f'If weight is in grams convert to kg. If not found reply {{"weight": null}}.\n\n{relevant_text}'
+                f'Extract product weight and price from this text. '
+                f'Reply ONLY with JSON: {{"weight": 0.5, "unit": "kg", "price_eur": 29.99}}. '
+                f'Weight in kg (convert grams to kg). Price in EUR as number only. '
+                f'Use null for any field not found.\n\n{relevant_text}'
             }],
         )
         result_text = re.sub(r'```json?\s*|\s*```', '', resp_claude.content[0].text.strip()).strip()
         result = json.loads(result_text)
-        if result.get('weight') is not None:
+        out = {}
+        if found_weight is not None:
+            out['weight'] = found_weight
+        elif result.get('weight') is not None:
             w = float(result['weight'])
             if result.get('unit', 'kg') in ('g', 'gram', 'Gramm'):
                 w = w / 1000
-            return jsonify({"weight": round(w, 3), "unit": "kg", "source": "claude"})
+            out['weight'] = round(w, 3)
+        if found_price is not None:
+            out['price_eur'] = found_price
+        elif result.get('price_eur') is not None:
+            out['price_eur'] = round(float(result['price_eur']), 2)
+        if out:
+            out['source'] = 'claude'
+            return jsonify(out)
 
-        return jsonify({"weight": None, "error": "무게 정보를 찾을 수 없습니다. 직접 입력해주세요."})
+        return jsonify({"weight": None, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
     except Exception as e:
         return jsonify({"weight": None, "error": str(e)}), 500
 
