@@ -2052,11 +2052,13 @@ function renderCandidates(items) {
           const isDirectUrl = purl && /\/dp\/|\/itm\/|product\.|\/p\//.test(purl);
           const amazonHref  = isDirectUrl ? purl : (q ? `https://www.amazon.de/s?k=${q}&language=de_DE` : '');
           const idealoHref  = isDirectUrl ? '' : (q ? `https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=${q}` : '');
+          const googleHref  = q ? `https://www.google.de/search?q=${q}` : '';
           const amazonLabel = isDirectUrl ? 'Amazon.de↗' : 'Amazon.de';
-          return amazonHref ? `${noEn}
-            <div style="display:flex;gap:3px;margin-top:2px">
-              <a class="btn-de" href="${amazonHref}" target="_blank" rel="noopener">${amazonLabel}</a>
+          return (amazonHref || googleHref) ? `${noEn}
+            <div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">
+              ${amazonHref ? `<a class="btn-de" href="${amazonHref}" target="_blank" rel="noopener">${amazonLabel}</a>` : ''}
               ${idealoHref ? `<a class="btn-de idealo" href="${idealoHref}" target="_blank" rel="noopener">Idealo</a>` : ''}
+              ${googleHref ? `<a class="btn-de" href="${googleHref}" target="_blank" rel="noopener" style="background:#e8f0fe;color:#1a73e8;border-color:#a8c7fa">Google.de</a>` : ''}
             </div>` : '';
         })()}
         <div style="margin-top:4px">
