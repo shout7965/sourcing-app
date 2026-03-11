@@ -924,8 +924,19 @@ async function moveToRegister() {
     });
     const data = await resp.json();
     if (!resp.ok) { showToast('이동 실패: ' + (data.error || ''), true); return; }
-    showToast(`${data.created}개 상품등록대장으로 이동 완료`);
-    setTimeout(() => switchTab('register'), 600);
+    showToast(`${data.created}개 이동 완료 — AI 상품명 자동생성 중...`);
+    // 상품등록대장 탭으로 이동 후 AI 상품명 자동생성
+    setTimeout(async () => {
+      switchTab('register');
+      // loadRegistrations 완료 후 자동생성 (약간 지연)
+      setTimeout(async () => {
+        const regIds = [...document.querySelectorAll('.reg-cb')].map(cb => cb.dataset.id);
+        for (const rid of regIds) {
+          const src = regItemsCache[rid] || {};
+          if (!src.product_name_display) await generateProductName(rid);
+        }
+      }, 1200);
+    }, 600);
   } catch (e) { showToast('실패: ' + e.message, true); }
 }
 
@@ -950,24 +961,57 @@ async function loadRegistrations() {
   }
 }
 
+// 네이버/쿠팡 수수료 (결제수수료 포함)
+const NAVER_FEE  = 0.0585; // 스마트스토어 5.85%
+const COUPANG_FEE = 0.10;  // 쿠팡 10%
+const TARGET_MARGIN = 10000; // 목표마진 기본 10,000원
+
+function calcSuggestedPrice(totalCost, fee) {
+  return Math.ceil((totalCost + TARGET_MARGIN) / (1 - fee) / 100) * 100;
+}
+
 function renderRegistrations(items) {
   items.forEach(item => { if (item.id) regItemsCache[item.id] = item; });
   document.getElementById('regBody').innerHTML = items.map(item => {
-    const id         = item.id;
-    const country    = item.country || extractCountry(item.product_url || '');
-    const productUrl = item.product_url || '';
-    const nameDisplay = item.product_name_display || [item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' ');
-    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * currentRate) : (item.cost_price || 0);
-    const shipFee    = item.shipping_fee || 0;
-    const sourcePriceKrw = item.price_eur ? Math.round(item.price_eur * currentRate) : '-';
-    const customs    = item.customs_amt  || 0;
-    const vat10      = item.vat10_amt    || 0;
-    const fta        = item.fta;
-    const naverPrice = item.naver_price  || item.shopping_price || '-';
-    const coupangPrice = item.coupang_price || '-';
-    const totalCost  = vatPriceKrw + shipFee + customs + vat10;
-    const netMargin  = (typeof naverPrice === 'number') ? naverPrice - totalCost : '-';
-    const returnRate = (typeof netMargin === 'number' && naverPrice) ? (netMargin / naverPrice * 100).toFixed(1) : '-';
+    const id          = item.id;
+    const country     = item.country || extractCountry(item.product_url || '');
+    const productUrl  = item.product_url || '';
+    const nameHtml = (item.name_50 || item.name_100)
+      ? `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50byte</span> ${escHtml(item.name_50||'')}</div>` +
+        `<div><span style="font-size:0.65rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px">100byte</span> ${escHtml(item.name_100||'')}</div>`
+      : escHtml(item.product_name_display || [item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' ') || '-');
+    // 저장 시점 환율 기준 면세가 우선, 없으면 현재 환율로 재계산
+    const rate        = item.exchange_rate || currentRate;
+    const vatPriceKrw = item.price_eur
+      ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate)
+      : (item.cost_price || 0);
+    const shipFee        = item.shipping_fee || 0;
+    const sourcePriceKrw = item.price_eur ? Math.round(item.price_eur * rate) : null;
+    const customs        = item.customs_amt  || 0;
+    const vat10          = item.vat10_amt    || 0;
+    const fta            = item.fta;
+    const totalCost      = vatPriceKrw + shipFee + customs + vat10;
+
+    // 저장된 수동 가격 OR 자동계산 제안가
+    const naverSaved   = item.naver_price   || null;
+    const coupangSaved = item.coupang_price || null;
+    const naverCalc    = totalCost > 0 ? calcSuggestedPrice(totalCost, NAVER_FEE)   : 0;
+    const coupangCalc  = totalCost > 0 ? calcSuggestedPrice(totalCost, COUPANG_FEE) : 0;
+    const naverEff     = naverSaved   || naverCalc;
+    const coupangEff   = coupangSaved || coupangCalc;
+
+    const netMargin  = naverEff && totalCost ? naverEff - totalCost : null;
+    const returnRate = netMargin !== null && naverEff ? (netMargin / naverEff * 100).toFixed(1) : null;
+    const marginColor = netMargin !== null ? (netMargin > 0 ? '#276749' : '#c53030') : '#718096';
+
+    const inputStyle = 'width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px';
+    const naverInput   = `<input type="number" value="${naverEff || ''}" placeholder="자동계산"
+      style="${inputStyle}${!naverSaved ? ';color:#63b3ed' : ''}"
+      onchange="updateRegPrice('${escHtml(id)}','naver',this.value,${naverCalc})" data-calc="${naverCalc}">`;
+    const coupangInput = `<input type="number" value="${coupangEff || ''}" placeholder="자동계산"
+      style="${inputStyle}${!coupangSaved ? ';color:#63b3ed' : ''}"
+      onchange="updateRegPrice('${escHtml(id)}','coupang',this.value,${coupangCalc})" data-calc="${coupangCalc}">`;
+
     return `
     <tr id="reg-${escHtml(id)}">
       <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}" onchange="onRegCheck()"></td>
@@ -975,18 +1019,18 @@ function renderRegistrations(items) {
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
       <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
       <td style="min-width:200px">
-        <div id="regname-${escHtml(id)}" style="font-size:0.8rem;color:#2d3748;line-height:1.4">${escHtml(nameDisplay)}</div>
+        <div id="regname-${escHtml(id)}" style="font-size:0.78rem;color:#2d3748;line-height:1.5">${nameHtml}</div>
         <button class="btn-sm" style="margin-top:3px;background:#4a6cf7;color:white;font-size:0.68rem" onclick="generateProductName('${escHtml(id)}')">AI 상품명</button>
       </td>
-      <td style="text-align:right">${typeof naverPrice === 'number' ? `<input type="number" value="${naverPrice}" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','naver',this.value)">` : `<input type="number" placeholder="입력" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','naver',this.value)">`}</td>
-      <td style="text-align:right"><input type="number" value="${typeof coupangPrice === 'number' ? coupangPrice : ''}" placeholder="입력" style="width:80px;font-size:0.78rem;text-align:right;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px" onchange="updateRegPrice('${escHtml(id)}','coupang',this.value)"></td>
-      <td style="text-align:right">${typeof sourcePriceKrw === 'number' ? formatPrice(sourcePriceKrw) : '-'}</td>
+      <td style="text-align:right">${naverInput}</td>
+      <td style="text-align:right">${coupangInput}</td>
+      <td style="text-align:right">${sourcePriceKrw ? formatPrice(sourcePriceKrw) : '-'}</td>
       <td style="text-align:right">${vatPriceKrw ? formatPrice(vatPriceKrw) : '-'}</td>
       <td style="text-align:right">${shipFee ? formatPrice(shipFee) : '-'}</td>
       <td style="text-align:center">${fta ? '<span style="color:#276749;font-weight:600">FTA✓</span>' : '<span style="color:#718096">-</span>'}</td>
       <td style="text-align:right;color:#c05621">${customs + vat10 ? formatPrice(customs + vat10) : '-'}</td>
-      <td style="text-align:right;font-weight:600;color:${typeof netMargin==='number'&&netMargin>0?'#276749':'#c53030'}">${typeof netMargin === 'number' ? formatPrice(netMargin) : '-'}</td>
-      <td style="text-align:right">${returnRate !== '-' ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
+      <td id="margin-${escHtml(id)}" style="text-align:right;font-weight:600;color:${marginColor}">${netMargin !== null ? formatPrice(netMargin) : '-'}</td>
+      <td id="rate-${escHtml(id)}" style="text-align:right">${returnRate !== null ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
       <td><button class="btn-icon del" onclick="deleteReg('${escHtml(id)}')">삭제</button></td>
     </tr>`;
   }).join('');
@@ -1019,43 +1063,72 @@ async function deleteSelectedRegs() {
   showToast(`${ids.length}개 삭제 완료`);
 }
 async function generateProductName(id) {
-  const row = document.getElementById(`reg-${id}`);
-  if (!row) return;
-  const item = {}; // Firestore에서 가져온 원본 데이터 필요
   const nameEl = document.getElementById(`regname-${id}`);
-  nameEl.textContent = 'AI 생성중...';
-  // candItemsCache에서 찾기 (이동 시 캐시됨)
+  if (!nameEl) return;
   const src = regItemsCache[id] || {};
+  nameEl.innerHTML = '<span style="color:#63b3ed;font-size:0.75rem">AI 생성중...</span>';
   try {
     const resp = await fetch('/api/generate-product-name', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        brand_name: src.brand_name, product_name: src.product_name,
-        product_name_en: src.product_name_en, category: src.category,
-        country: src.country,
+        brand_name:          src.brand_name,
+        product_name:        src.product_name,
+        product_name_en:     src.product_name_en,
+        category:            src.category,
+        country:             src.country,
+        product_url:         src.product_url,
+        review_title:        src.title        || '',
+        review_description:  src.description  || '',
       }),
     });
     const data = await resp.json();
-    if (data.product_name) {
-      nameEl.textContent = data.product_name;
+    if (data.name_100 || data.name_50) {
+      const n50  = data.name_50  || '';
+      const n100 = data.name_100 || '';
+      regItemsCache[id] = {...src, name_50: n50, name_100: n100, product_name_display: n100};
+      nameEl.innerHTML =
+        `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50byte</span> <span class="name-50">${escHtml(n50)}</span></div>` +
+        `<div><span style="font-size:0.65rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px">100byte</span> <span class="name-100">${escHtml(n100)}</span></div>`;
       await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({product_name_display: data.product_name}),
+        body: JSON.stringify({name_50: n50, name_100: n100, product_name_display: n100}),
       });
       showToast('AI 상품명 생성 완료');
     } else {
-      nameEl.textContent = src.product_name || '-';
+      nameEl.textContent = src.product_name_display || src.product_name || '-';
       showToast('생성 실패', true);
     }
-  } catch (e) { nameEl.textContent = src.product_name || '-'; showToast('실패: ' + e.message, true); }
+  } catch (e) {
+    const el = document.getElementById(`regname-${id}`);
+    if (el) el.textContent = src.product_name_display || src.product_name || '-';
+    showToast('실패: ' + e.message, true);
+  }
 }
-async function updateRegPrice(id, type, val) {
+async function updateRegPrice(id, type, val, calcVal) {
   const price = parseInt(val) || null;
   const field = type === 'naver' ? 'naver_price' : 'coupang_price';
-  await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
-    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({[field]: price}),
-  });
+  // 입력값이 자동계산값과 같으면 저장 안함 (파란색=자동계산 유지)
+  if (price && price !== calcVal) {
+    await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[field]: price}),
+    });
+  }
+  // N스토어가 변경 시 순마진/수익률 실시간 갱신
+  if (type === 'naver') {
+    const item = regItemsCache[id];
+    if (!item) return;
+    const rate = item.exchange_rate || currentRate;
+    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : (item.cost_price || 0);
+    const totalCost   = vatPriceKrw + (item.shipping_fee || 0) + (item.customs_amt || 0) + (item.vat10_amt || 0);
+    const naverEff    = price || calcVal;
+    const netMargin   = naverEff - totalCost;
+    const returnRate  = naverEff ? (netMargin / naverEff * 100).toFixed(1) : null;
+    const marginEl    = document.getElementById(`margin-${id}`);
+    const rateEl      = document.getElementById(`rate-${id}`);
+    if (marginEl) { marginEl.textContent = formatPrice(netMargin); marginEl.style.color = netMargin > 0 ? '#276749' : '#c53030'; }
+    if (rateEl)   { rateEl.innerHTML = returnRate ? `<span style="font-weight:600">${returnRate}%</span>` : '-'; }
+  }
 }
 let regItemsCache = {};
 

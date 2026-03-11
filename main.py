@@ -851,41 +851,72 @@ def exchange_rate():
 @app.route("/api/generate-product-name", methods=["POST"])
 def generate_product_name():
     """SEO 최적화 등록상품명 생성"""
-    data        = request.get_json()
-    brand       = data.get('brand_name', '')
-    product     = data.get('product_name', '')
-    product_en  = data.get('product_name_en', '')
-    category    = data.get('category', '')
-    country     = data.get('country', '')
+    data           = request.get_json()
+    brand          = data.get('brand_name', '')
+    product        = data.get('product_name', '')
+    product_en     = data.get('product_name_en', '')
+    category       = data.get('category', '')
+    country        = data.get('country', '')
+    product_url    = data.get('product_url', '')
+    review_title   = data.get('review_title', '')      # 블로그/카페 후기 제목
+    review_desc    = data.get('review_description', '') # 후기 본문 발췌
 
-    prompt = f"""다음 제품의 네이버 스마트스토어/쿠팡 SEO 최적화 상품명을 작성해주세요.
+    prompt = f"""다음 제품의 네이버 스마트스토어/쿠팡 SEO 최적화 상품명을 50byte 버전과 100byte 버전으로 각각 작성해주세요.
 
 제품 정보:
-- 브랜드: {brand}
+- 브랜드/제조사: {brand}
 - 제품명(한국어): {product}
 - 제품명(영문): {product_en}
 - 카테고리: {category}
 - 소싱국가: {country}
+- 소싱처 URL: {product_url}
 
-규칙:
-1. [브랜드] [모델/시리즈] [핵심 키워드] [주요 속성] 순서
-2. 모델번호, 색상, 용량, 사이즈, 소재 등 속성 최대한 포함 (검색 최적화)
-3. 100바이트 이내 (한글 약 33자, 영문 50자)
-4. 특수문자 최소화, 쇼핑몰 검색어 최적화
-5. 상품명만 한 줄로 반환 (설명 없이)"""
+실제 구매 후기 제목 (소비자 검색 키워드 참고):
+{review_title}
+
+후기 본문 발췌 (소비자 표현/키워드 참고):
+{review_desc[:300] if review_desc else '없음'}
+
+상품명 구성 순서 (해당 정보가 있을 때만 포함):
+브랜드/제조사 → 시리즈 → 모델명 → 상품유형 → 색상 → 소재 → 수량(갯수묶음) → 사이즈 → 성별 → 속성(Spec/용량/무게/연식/호수 등)
+
+바이트 계산: 한글 1자=3byte, 영문·숫자·공백 1자=1byte
+
+작성 규칙:
+- URL·제품명에서 추출 가능한 스펙(색상, 용량ml/g, 사이즈, 갯수, 소재, 모델번호, 빈티지연도 등) 최대한 포함
+- 후기 제목의 소비자 검색 키워드를 자연스럽게 포함
+- 특수문자 최소화 (네이버/쿠팡 등록 허용 문자만)
+
+반드시 아래 형식으로만 반환 (설명·이유 없이):
+50byte: [50바이트 이하 상품명]
+100byte: [100바이트 이하, 최대한 꽉 채운 상품명]"""
+
     try:
         response = claude.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=200,
+            max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )
-        return jsonify({"product_name": response.content[0].text.strip()})
+        raw = response.content[0].text.strip()
+        name_50 = name_100 = ''
+        for line in raw.splitlines():
+            if line.startswith('50byte:'):
+                name_50  = line[len('50byte:'):].strip()
+            elif line.startswith('100byte:'):
+                name_100 = line[len('100byte:'):].strip()
+        # fallback: 파싱 실패 시 전체 텍스트를 100byte로
+        if not name_100:
+            name_100 = raw.split('\n')[0].strip()
+        if not name_50:
+            name_50  = name_100[:50]
+        return jsonify({"name_50": name_50, "name_100": name_100})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 ALLOWED_REG_FIELDS = {
-    'product_name_display', 'naver_price', 'coupang_price',
+    'product_name_display', 'name_50', 'name_100',
+    'naver_price', 'coupang_price',
     'customs_rate', 'fta', 'status', 'memo', 'country',
 }
 
