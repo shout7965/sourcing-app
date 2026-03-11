@@ -610,7 +610,7 @@
                 <th style="width:44px">출처</th>
                 <th style="width:64px">이미지</th>
                 <th>브랜드</th>
-                <th>상품명</th>
+                <th>상품명 / 영문명</th>
                 <th>카테고리</th>
                 <th>구매처</th>
                 <th>후기가격</th>
@@ -660,7 +660,7 @@
         <table>
           <thead>
             <tr>
-              <th>저장일</th><th>키워드</th><th>브랜드</th><th>상품명</th>
+              <th>저장일</th><th>키워드</th><th>브랜드</th><th>상품명 / 영문명</th>
               <th>카테고리</th><th>구매처</th><th>후기가격</th><th>최저가</th>
               <th>마진율</th><th>제목</th><th>상태</th><th>액션</th>
             </tr>
@@ -1336,7 +1336,10 @@ function buildRowHtml(r, gid) {
     <td>${srcBadge(r.source)}</td>
     <td class="img-cell" id="img-${gid}">${imgHtml}</td>
     <td>${badge(r.brand_name, 'brand')}</td>
-    <td style="font-weight:500;color:#2d3748;min-width:80px">${r.product_name ? escHtml(r.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+    <td style="min-width:90px">
+      ${r.product_name ? `<div style="font-weight:500;color:#2d3748">${escHtml(r.product_name)}</div>` : '<span style="color:#a0aec0">-</span>'}
+      ${r.product_name_en ? `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(r.product_name_en)}</div>` : ''}
+    </td>
     <td>${badge(r.category, 'category')}</td>
     <td>${badge(r.purchase_source, 'source')}</td>
     <td class="price-paid">${r.price_paid ? escHtml(r.price_paid) : '<span style="color:#a0aec0">-</span>'}</td>
@@ -1504,7 +1507,10 @@ function renderCandidates(items) {
       <td class="postdate">${savedAt}<br><span style="font-size:0.68rem;color:#a0aec0">${escHtml(item.saved_by||'')}</span></td>
       <td>${modeTag}<span class="badge badge-brand">${escHtml(item.keyword||'-')}</span></td>
       <td>${item.brand_name ? `<span class="badge badge-brand">${escHtml(item.brand_name)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
-      <td style="font-weight:500;min-width:80px">${item.product_name ? escHtml(item.product_name) : '<span style="color:#a0aec0">-</span>'}</td>
+      <td style="min-width:90px">
+        ${item.product_name ? `<div style="font-weight:500">${escHtml(item.product_name)}</div>` : '<span style="color:#a0aec0">-</span>'}
+        ${item.product_name_en ? `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(item.product_name_en)}</div>` : ''}
+      </td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
@@ -1521,7 +1527,7 @@ function renderCandidates(items) {
       <td style="white-space:nowrap;min-width:130px">
         <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">마진계산</button>
         ${(() => {
-          const q = encodeURIComponent([item.brand_name, item.product_name].filter(Boolean).join(' '));
+          const q = encodeURIComponent([item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' '));
           return q ? `
             <div style="display:flex;gap:3px;margin-top:4px">
               <a class="btn-de" href="https://www.amazon.de/s?k=${q}&language=de_DE" target="_blank" rel="noopener">Amazon.de</a>

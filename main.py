@@ -127,6 +127,38 @@ def naver_search(endpoint: str, query: str, display: int, start: int, headers: d
     except requests.RequestException:
         return [], 0
 
+def analyze_image_for_product(image_url: str) -> dict:
+    """썸네일 이미지에서 영문 브랜드명/제품명 추출 (Claude Vision)"""
+    import base64
+    try:
+        resp = requests.get(image_url, timeout=5, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        })
+        if resp.status_code != 200:
+            return {}
+        content_type = resp.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+        if content_type not in ('image/jpeg', 'image/png', 'image/gif', 'image/webp'):
+            content_type = 'image/jpeg'
+        image_data = base64.b64encode(resp.content).decode()
+        response = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=150,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": content_type, "data": image_data}},
+                    {"type": "text", "text": 'What brand and official English product name/model number is shown in this image? Reply ONLY with JSON: {"brand_name": "...", "product_name_en": "..."}. Use null if not clearly visible.'},
+                ],
+            }],
+        )
+        text = response.content[0].text.strip()
+        text = re.sub(r'```json?\s*|\s*```', '', text).strip()
+        return json.loads(text)
+    except Exception as e:
+        print(f"[Vision] 분석 실패: {e}")
+        return {}
+
+
 def search_naver_shopping(query: str, headers: dict, brand_name: str = None) -> Optional[dict]:
     if not query.strip():
         return None
@@ -172,6 +204,7 @@ class ReviewItem(BaseModel):
     index: int
     brand_name:                Optional[str] = None
     product_name:              Optional[str] = None
+    product_name_en:           Optional[str] = None   # 영문 공식 제품명/모델번호
     category:                  Optional[str] = None
     purchase_source:           Optional[str] = None
     price_paid:                Optional[str] = None   # 후기에서 언급된 구매 가격
@@ -432,27 +465,44 @@ def save_selected():
     if not items:
         return jsonify({"error": "선택된 항목이 없습니다."}), 400
 
-    # 선택된 항목만 네이버 쇼핑 조회
     naver_headers = {
         "X-Naver-Client-Id":     NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
     }
+
+    # ① Vision 분석으로 영문 제품명 보강 (썸네일 있고 영문명 없는 항목만)
+    for item in items:
+        if item.get('product_name_en'):
+            continue
+        thumbnail = item.get('thumbnail') or ''
+        if thumbnail and thumbnail.startswith('http'):
+            vision = analyze_image_for_product(thumbnail)
+            if vision.get('product_name_en'):
+                item['product_name_en'] = vision['product_name_en']
+            if vision.get('brand_name') and not item.get('brand_name'):
+                item['brand_name'] = vision['brand_name']
+
+    # ② 영문명 우선으로 네이버 쇼핑 조회
     shopping_cache = {}
     shopping_calls = 0
     for item in items:
-        parts = [p for p in [item.get('brand_name'), item.get('product_name')] if p]
+        brand   = item.get('brand_name')
+        product = item.get('product_name_en') or item.get('product_name')
+        parts   = [p for p in [brand, product] if p]
         if not parts:
             continue
         key = " ".join(parts)
         if key not in shopping_cache:
-            shopping_cache[key] = search_naver_shopping(key, naver_headers, brand_name=item.get('brand_name'))
+            shopping_cache[key] = search_naver_shopping(key, naver_headers, brand_name=brand)
             shopping_calls += 1
     increment_usage(shopping_calls)
 
     try:
         batch = db.batch()
         for item in items:
-            parts = [p for p in [item.get('brand_name'), item.get('product_name')] if p]
+            brand   = item.get('brand_name')
+            product = item.get('product_name_en') or item.get('product_name')
+            parts   = [p for p in [brand, product] if p]
             shopping_info = shopping_cache.get(" ".join(parts)) if parts else None
             ref = db.collection('sourcing_candidates').document()
             batch.set(ref, {
@@ -463,6 +513,7 @@ def save_selected():
                 'saved_by':       session.get('user', 'anonymous'),
                 'mode':           mode,
                 'blog_image':     item.get('thumbnail') or None,
+                'product_name_en': item.get('product_name_en') or None,
                 'shopping_price': shopping_info['shopping_price'] if shopping_info else None,
                 'shopping_image': shopping_info['shopping_image'] if shopping_info else None,
                 'shopping_link':  shopping_info['shopping_link']  if shopping_info else None,
@@ -650,7 +701,8 @@ index는 게시물 번호 숫자를 그대로 사용하세요."""
 
 추출 항목:
 - brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
-- product_name: 구체적인 상품명/모델명 (없으면 null)
+- product_name: 상품명/모델명 한국어로 (없으면 null)
+- product_name_en: 영문 공식 제품명 또는 모델번호 (예: "Stomaticum", "Cloud Bag", "BOT Z10 Pro", "iPhone 15 Pro", 없으면 null)
 - category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나 (없으면 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
 - price_paid: 후기에서 언급된 구매 가격 (예: "$120", "15만원", "89달러", 없으면 null)
@@ -688,6 +740,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "postdate":                  format_date(item["_date"]),
             "brand_name":                ext.brand_name               if ext else None,
             "product_name":              ext.product_name             if ext else None,
+            "product_name_en":           ext.product_name_en          if ext else None,
             "category":                  ext.category                 if ext else None,
             "purchase_source":           ext.purchase_source          if ext else None,
             "price_paid":                ext.price_paid               if ext else None,
