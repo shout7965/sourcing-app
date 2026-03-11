@@ -601,11 +601,13 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 제목에 keyword + '직구' 모두 포함된 항목만 (노이즈 제거)
+    # 네이버 검색 스타일 필터:
+    # 1) 제목에 keyword 포함 (필수 - 핵심 주제 확인)
+    # 2) 제목 또는 내용에 '직구' 포함 (완화 - 내용에만 있어도 OK)
     keyword_lower = keyword.lower()
     all_items = [i for i in all_items
                  if keyword_lower in strip_html(i.get("title", "")).lower()
-                 and '직구' in strip_html(i.get("title", ""))]
+                 and '직구' in (strip_html(i.get("title", "")) + strip_html(i.get("description", "")))]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
