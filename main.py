@@ -862,37 +862,53 @@ def generate_product_name():
     review_title      = data.get('review_title', '')       # 블로그/카페 후기 제목 (SEO 키워드 보조)
     review_desc       = data.get('review_description', '') # 후기 본문 발췌 (SEO 키워드 보조)
 
-    prompt = f"""다음 제품의 네이버 스마트스토어/쿠팡 SEO 최적화 상품명을 50byte 버전과 100byte 버전으로 각각 작성해주세요.
+    # 소싱국가에서 직구 태그 결정
+    sourcing_tag = ''
+    if '독일' in country or 'EU' in country:
+        sourcing_tag = '독일직구'
+    elif '미국' in country:
+        sourcing_tag = '미국직구'
+    elif '영국' in country:
+        sourcing_tag = '영국직구'
+    elif '프랑스' in country:
+        sourcing_tag = '프랑스직구'
+    elif '이탈리아' in country:
+        sourcing_tag = '이탈리아직구'
+    elif country and country != '-':
+        sourcing_tag = '유럽직구'
 
-━━ [PRIMARY] 소싱처 실제 제품 정보 (가장 우선) ━━
-- 소싱처 페이지 제품 타이틀: {product_title_url or '(미추출)'}
+    prompt = f"""네이버 스마트스토어/쿠팡 등록용 SEO 상품명을 50byte 버전과 100byte 버전으로 작성해주세요.
+
+━━ [PRIMARY] 소싱처 제품 정보 ━━
+- 제품 타이틀: {product_title_url or '(미추출)'}
 - 소싱처 URL: {product_url}
 - 브랜드/제조사: {brand}
 - 카테고리: {category}
-- 소싱국가: {country}
+- 소싱국가 태그: {sourcing_tag}
 
-━━ [SECONDARY] 블로그 후기 SEO 키워드 (보조 참고용) ━━
+━━ [SECONDARY] 블로그 후기 ━━
 - 후기 제목: {review_title}
-- 후기 본문: {review_desc[:300] if review_desc else '없음'}
-- 후기에서 추출된 영문 제품명: {product_en}
-- 후기에서 추출된 한국어 제품명: {product}
+- 후기 본문: {review_desc[:400] if review_desc else '없음'}
+- 후기 추출 영문명: {product_en}
+- 후기 추출 한국명: {product}
 
-상품명 구성 순서 (해당 정보가 있을 때만 포함):
-브랜드/제조사 → 시리즈 → 모델명 → 상품유형 → 색상 → 소재 → 수량(갯수묶음) → 사이즈 → 성별 → 속성(Spec/용량/무게/연식/호수 등)
+상품명 구성 순서: 브랜드/제조사 → 시리즈 → 모델명 → 상품유형 → 색상·소재 → 수량·사이즈 → 성별 → 속성(Spec/용량/무게/연식/호수)
 
 바이트 계산: 한글 1자=3byte, 영문·숫자·공백 1자=1byte
 
 작성 규칙:
-1. 소싱처 제품 타이틀이 있으면 그 정보(브랜드·모델명·스펙)를 최우선으로 상품명에 반영
-2. 소싱처 URL에서 추출 가능한 스펙(색상, 용량ml/g, 사이즈, 갯수, 소재, 모델번호 등) 포함
-3. 블로그 후기 제목의 소비자 검색 키워드를 SEO 보조용으로 자연스럽게 추가
-4. 상품명은 반드시 한글 위주로 작성 (소비자가 한국어로 검색하므로)
-5. 정확히 100바이트에 최대한 가깝게 꽉 채울 것
-6. 특수문자 최소화 (네이버/쿠팡 등록 허용 문자만)
+1. 소싱처 제품 타이틀 정보(브랜드·모델명·스펙) 최우선 반영
+2. 용량(ml/g/L), 수량(x N개), 사이즈, 색상 등 스펙 최대한 명시
+3. 블로그 후기에서 소비자가 해당 제품을 특별히 표현한 감성·기능 단어 1~2개 자연스럽게 삽입
+   (예: 맛 관련 "입에서 살살 녹는·바삭바삭한", 권위 "미슐랭 세프·성악가 사탕", 대중성 "국민 튼살크림",
+    사용감 "좁쌀만큼 써도 개운한·코가뻥", 없으면 생략)
+4. 소싱 태그({sourcing_tag}) 공간이 남으면 포함
+5. 상품명은 한글 위주, 100byte 버전은 최대한 꽉 채울 것
+6. 특수문자 최소화 (공백·영문·한글·숫자·x·/·% 허용)
 
 반드시 아래 형식으로만 반환 (설명·이유 없이):
-50byte: [50바이트 이하 상품명]
-100byte: [100바이트 이하, 최대한 꽉 채운 상품명]"""
+50byte: [50바이트 이하]
+100byte: [100바이트 이하, 꽉 채운 버전]"""
 
     try:
         response = claude.messages.create(
