@@ -917,7 +917,7 @@ def generate_product_name():
 ALLOWED_REG_FIELDS = {
     'product_name_display', 'name_50', 'name_100',
     'naver_price', 'coupang_price',
-    'customs_rate', 'fta', 'status', 'memo', 'country',
+    'customs_rate', 'fta', 'fta_agreement', 'status', 'memo', 'country',
 }
 
 @app.route("/api/product-registrations", methods=["GET"])

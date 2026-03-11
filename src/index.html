@@ -868,16 +868,43 @@ async function deleteSelectedCandidates() {
   showToast(`${ids.length}개 삭제 완료`);
 }
 
+// ── FTA 협정 테이블 ────────────────────────────────────────────────────────
+// rate: 공산품 기준 관세율(%). 부가세(10%)는 별도 계산.
+const FTA_TABLE = {
+  '🇩🇪 독일':    { fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇫🇷 프랑스':  { fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇮🇹 이탈리아':{ fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇪🇸 스페인':  { fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇳🇱 네덜란드':{ fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇧🇪 벨기에':  { fta: true,  rate: 0,   agreement: '한-EU FTA' },
+  '🇦🇹 오스트리아':{ fta: true, rate: 0,  agreement: '한-EU FTA' },
+  '🇺🇸 미국':    { fta: true,  rate: 0,   agreement: '한-미 FTA' },
+  '🇬🇧 영국':    { fta: true,  rate: 0,   agreement: '한-영 FTA' },
+  '🇨🇦 캐나다':  { fta: true,  rate: 0,   agreement: '한-캐나다 FTA' },
+  '🇦🇺 호주':    { fta: true,  rate: 0,   agreement: '한-호주 FTA' },
+  '🇨🇳 중국':    { fta: true,  rate: 4,   agreement: '한-중 FTA(단계적)' },
+  '🇯🇵 일본':    { fta: false, rate: 8,   agreement: null },
+  '🇻🇳 베트남':  { fta: true,  rate: 0,   agreement: '한-ASEAN FTA' },
+  '🇹🇭 태국':    { fta: true,  rate: 0,   agreement: '한-ASEAN FTA' },
+};
+function getFtaInfo(country) {
+  return FTA_TABLE[country] || { fta: false, rate: 8, agreement: null };
+}
+
 // ── 소싱국가 추출 ─────────────────────────────────────────────────────────
 function extractCountry(url) {
   if (!url) return '-';
-  if (/amazon\.de|idealo\.de|eurolife|\.de[/?#]|\.de$/.test(url)) return '🇩🇪 독일';
-  if (/amazon\.com[/?#]/.test(url)) return '🇺🇸 미국';
-  if (/amazon\.co\.uk/.test(url))   return '🇬🇧 영국';
-  if (/amazon\.fr/.test(url))       return '🇫🇷 프랑스';
-  if (/amazon\.it/.test(url))       return '🇮🇹 이탈리아';
-  if (/amazon\.es/.test(url))       return '🇪🇸 스페인';
-  if (/amazon\.co\.jp/.test(url))   return '🇯🇵 일본';
+  if (/amazon\.de|idealo\.de|eurolife|\.de[/?#]|\.de$/.test(url))  return '🇩🇪 독일';
+  if (/amazon\.nl|\.nl[/?#]|\.nl$/.test(url))                      return '🇳🇱 네덜란드';
+  if (/amazon\.fr|\.fr[/?#]|\.fr$/.test(url))                      return '🇫🇷 프랑스';
+  if (/amazon\.it|\.it[/?#]|\.it$/.test(url))                      return '🇮🇹 이탈리아';
+  if (/amazon\.es|\.es[/?#]|\.es$/.test(url))                      return '🇪🇸 스페인';
+  if (/amazon\.co\.uk|\.uk[/?#]|\.uk$/.test(url))                  return '🇬🇧 영국';
+  if (/amazon\.com\.au|\.au[/?#]|\.au$/.test(url))                 return '🇦🇺 호주';
+  if (/amazon\.ca|\.ca[/?#]|\.ca$/.test(url))                      return '🇨🇦 캐나다';
+  if (/amazon\.co\.jp|\.jp[/?#]|\.jp$/.test(url))                  return '🇯🇵 일본';
+  if (/taobao|tmall|jd\.com|\.cn[/?#]|\.cn$/.test(url))            return '🇨🇳 중국';
+  if (/amazon\.com/.test(url))                                      return '🇺🇸 미국';
   return '-';
 }
 
@@ -897,23 +924,24 @@ async function moveToRegister() {
   const items = ids.map(id => {
     const item = candItemsCache[id];
     if (!item) return null;
-    const country = extractCountry(item.product_url || '');
-    // 관세+부가세 기본 계산 (최신 환율 적용)
+    const country   = extractCountry(item.product_url || '');
+    const ftaInfo   = getFtaInfo(country);
+    // 관세+부가세 기본 계산 (최신 환율 + FTA 협정 관세율 적용)
     const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : 0;
     const shipFee     = item.shipping_fee || 0;
     const cifKrw      = vatPriceKrw + shipFee;
-    const customsRate = country.includes('독일') ? 0 : 8; // EU-한국 FTA 기본 0%
-    const customs     = Math.round(cifKrw * customsRate / 100);
+    const customs     = Math.round(cifKrw * ftaInfo.rate / 100);
     const vat10       = Math.round((cifKrw + customs) * 0.1);
     return {
       ...item,
       country,
-      exchange_rate: rate,
-      cif_krw:      cifKrw,
-      customs_rate: customsRate,
-      customs_amt:  customs,
-      vat10_amt:    vat10,
-      fta:          country.includes('독일') || country.includes('프랑스') || country.includes('이탈리아') || country.includes('스페인'),
+      exchange_rate:    rate,
+      cif_krw:          cifKrw,
+      fta:              ftaInfo.fta,
+      fta_agreement:    ftaInfo.agreement,
+      customs_rate:     ftaInfo.rate,
+      customs_amt:      customs,
+      vat10_amt:        vat10,
     };
   }).filter(Boolean);
 
@@ -1027,7 +1055,10 @@ function renderRegistrations(items) {
       <td style="text-align:right">${sourcePriceKrw ? formatPrice(sourcePriceKrw) : '-'}</td>
       <td style="text-align:right">${vatPriceKrw ? formatPrice(vatPriceKrw) : '-'}</td>
       <td style="text-align:right">${shipFee ? formatPrice(shipFee) : '-'}</td>
-      <td style="text-align:center">${fta ? '<span style="color:#276749;font-weight:600">FTA✓</span>' : '<span style="color:#718096">-</span>'}</td>
+      <td style="text-align:center">${fta
+        ? `<span style="color:#276749;font-weight:600;font-size:0.72rem" title="${escHtml(item.fta_agreement||'')}">FTA✓<br><span style="font-size:0.62rem;font-weight:400;color:#48bb78">${escHtml((item.fta_agreement||'').replace('한-','').replace(' FTA','').replace('(단계적)',''))}</span></span>`
+        : `<span style="color:#c53030;font-size:0.72rem">없음<br><span style="font-size:0.62rem;color:#fc8181">${item.customs_rate || 8}%</span></span>`
+      }</td>
       <td style="text-align:right;color:#c05621">${customs + vat10 ? formatPrice(customs + vat10) : '-'}</td>
       <td id="margin-${escHtml(id)}" style="text-align:right;font-weight:600;color:${marginColor}">${netMargin !== null ? formatPrice(netMargin) : '-'}</td>
       <td id="rate-${escHtml(id)}" style="text-align:right">${returnRate !== null ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
