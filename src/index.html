@@ -641,8 +641,6 @@
       <h2>소싱 후보 목록</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
-        <span id="rateDisplay" style="font-size:0.78rem;color:#63b3ed;background:#1a2a4a;padding:3px 8px;border-radius:6px">환율 -</span>
-        <button class="btn-sm" onclick="refreshExchangeRate()" style="background:#2d3748;color:#a0aec0">환율 최신화</button>
         <button class="btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCandidates()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-sm" id="btnMoveToRegister" onclick="moveToRegister()" style="background:#276749;color:white;display:none">→ 상품등록대장</button>
         <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
@@ -688,8 +686,6 @@
       <h2>상품등록대장</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span id="regCount" style="font-size:0.82rem;color:#718096"></span>
-        <span id="regRateDisplay" style="font-size:0.78rem;color:#63b3ed;background:#1a2a4a;padding:3px 8px;border-radius:6px">환율 -</span>
-        <button class="btn-sm" onclick="refreshExchangeRate()" style="background:#2d3748;color:#a0aec0">환율 최신화</button>
         <button class="btn-sm" id="btnDeleteReg" onclick="deleteSelectedRegs()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-search" onclick="loadRegistrations()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
@@ -843,18 +839,8 @@ function switchTab(tab) {
   if (tab === 'register')   loadRegistrations();
 }
 
-// ── 환율 ──────────────────────────────────────────────────────────────────
+// ── 환율 (이동 시점에 자동 조회) ──────────────────────────────────────────
 let currentRate = 1450;
-async function refreshExchangeRate() {
-  try {
-    const data = await (await fetch('/api/exchange-rate')).json();
-    currentRate = data.rate || 1450;
-    const txt = `환율 ${currentRate.toLocaleString()}원/EUR`;
-    document.getElementById('rateDisplay')    && (document.getElementById('rateDisplay').textContent    = txt);
-    document.getElementById('regRateDisplay') && (document.getElementById('regRateDisplay').textContent = txt);
-    showToast(`환율 최신화: ${currentRate.toLocaleString()}원/EUR`);
-  } catch { showToast('환율 조회 실패', true); }
-}
 
 // ── 소싱후보 체크박스 ──────────────────────────────────────────────────────
 function onCandCheck() {
@@ -899,12 +885,21 @@ function extractCountry(url) {
 async function moveToRegister() {
   const ids = [...document.querySelectorAll('.cand-cb:checked')].map(cb => cb.dataset.id);
   if (!ids.length) { showToast('항목을 선택해주세요.', true); return; }
+
+  // 이동 시점에 환율 최신화
+  let rate = currentRate;
+  try {
+    const rateData = await (await fetch('/api/exchange-rate')).json();
+    rate = rateData.rate || currentRate;
+    currentRate = rate;
+  } catch { /* 실패 시 기존값 사용 */ }
+
   const items = ids.map(id => {
     const item = candItemsCache[id];
     if (!item) return null;
     const country = extractCountry(item.product_url || '');
-    // 관세+부가세 기본 계산
-    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * currentRate) : 0;
+    // 관세+부가세 기본 계산 (최신 환율 적용)
+    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : 0;
     const shipFee     = item.shipping_fee || 0;
     const cifKrw      = vatPriceKrw + shipFee;
     const customsRate = country.includes('독일') ? 0 : 8; // EU-한국 FTA 기본 0%
@@ -913,6 +908,7 @@ async function moveToRegister() {
     return {
       ...item,
       country,
+      exchange_rate: rate,
       cif_krw:      cifKrw,
       customs_rate: customsRate,
       customs_amt:  customs,
