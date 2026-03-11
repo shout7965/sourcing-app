@@ -601,11 +601,11 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 키워드가 title 또는 description에 포함된 항목만 (Naver가 관계없는 글 섞어 반환하는 경우 제거)
+    # 제목에 keyword + '직구' 모두 포함된 항목만 (노이즈 제거)
     keyword_lower = keyword.lower()
     all_items = [i for i in all_items
                  if keyword_lower in strip_html(i.get("title", "")).lower()
-                 or keyword_lower in strip_html(i.get("description", "")).lower()]
+                 and '직구' in strip_html(i.get("title", ""))]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
