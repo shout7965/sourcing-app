@@ -572,6 +572,67 @@ def og_image():
     except Exception:
         return jsonify({"images": []})
 
+
+class ExtractedProduct(BaseModel):
+    brand_name:      Optional[str] = None
+    product_name:    Optional[str] = None   # 한국어 상품명
+    product_name_en: Optional[str] = None   # 영문 공식명/모델번호
+    price_paid:      Optional[str] = None   # 후기 언급 가격
+    category:        Optional[str] = None
+
+class AllProductsResult(BaseModel):
+    products: List[ExtractedProduct]
+
+@app.route("/api/extract-all-products", methods=["POST"])
+def extract_all_products():
+    """블로그 풀텍스트에서 언급된 모든 개별 상품 추출 (하울 포스트 대응)"""
+    data = request.get_json()
+    url  = data.get('url', '').strip()
+    if not url or not url.startswith('http'):
+        return jsonify({"error": "유효하지 않은 URL"}), 400
+    try:
+        fetch_url = url
+        m_blog = re.match(r'https?://blog\.naver\.com/([^/?#]+)/([0-9]+)', url)
+        if m_blog:
+            fetch_url = f"https://m.blog.naver.com/{m_blog.group(1)}/{m_blog.group(2)}"
+
+        resp = requests.get(fetch_url, timeout=8, headers={
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+            "Referer": "https://m.blog.naver.com/",
+        })
+        # HTML → 텍스트 (스크립트/스타일 제거)
+        text = re.sub(r'<script[^>]*>.*?</script>', ' ', resp.text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r'<style[^>]*>.*?</style>',  ' ', text,      flags=re.DOTALL | re.IGNORECASE)
+        text = strip_html(text)
+        text = re.sub(r'\s{3,}', '\n', text).strip()
+        # 본문 앞 2000자 + 중간 2000자 조합 (최대 4000자)
+        content = text[:4000] if len(text) <= 4000 else text[:2000] + '\n...\n' + text[len(text)//2:len(text)//2+2000]
+
+        response = claude.messages.parse(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=4000,
+            messages=[{"role": "user", "content": f"""다음은 해외직구 후기 블로그 본문입니다.
+본문에 등장하는 모든 개별 상품을 각각 추출해주세요.
+하나의 포스트에 여러 제품이 나오면 각각 별도 항목으로 추출하세요.
+
+추출 항목:
+- brand_name: 브랜드명 (없으면 null)
+- product_name: 한국어 상품명 (없으면 null)
+- product_name_en: 본문에 영문으로 표기된 공식 제품명/모델번호 (한국어 번역 금지, 없으면 null)
+- price_paid: 후기에서 언급된 구매가격 (예: "3.98€", "$29", 없으면 null)
+- category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나
+
+블로그 본문:
+{content}"""}],
+            output_format=AllProductsResult,
+        )
+        products = [p.model_dump() for p in response.parsed_output.products]
+        return jsonify({"products": products, "count": len(products)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # 메인 검색 (cursor 기반 무한스크롤)
 @app.route("/api/search", methods=["POST"])
 def search():
@@ -1003,12 +1064,17 @@ def delete_product_registration(doc_id):
 
 @app.route("/api/fetch-weight", methods=["POST"])
 def fetch_weight():
-    """Amazon.de / idealo 제품 페이지에서 무게 추출"""
+    """Amazon.de / idealo 제품 페이지에서 무게+가격+타이틀 추출"""
     url = request.get_json().get('url', '').strip()
     if not url or not url.startswith('http'):
         return jsonify({"weight": None, "error": "유효한 URL이 아닙니다"}), 400
     try:
-        resp = requests.get(url, timeout=8, headers={
+        # Amazon URL에 language=de_DE 강제 (EUR 가격 + 독어 필드명 보장)
+        fetch_url = url
+        if 'amazon.' in url and 'language=' not in url:
+            sep = '&' if '?' in url else '?'
+            fetch_url = url + sep + 'language=de_DE'
+        resp = requests.get(fetch_url, timeout=8, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
             "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
             "Accept": "text/html,application/xhtml+xml",
@@ -1018,36 +1084,58 @@ def fetch_weight():
 
         text = strip_html(resp.text)
 
-        # 정규식으로 무게 패턴 찾기
+        # 정규식으로 무게 패턴 찾기 (독어 Kilogramm + 영어 Kilograms + kg/g 모두 처리)
         weight_patterns = [
-            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(kg|Kilogramm)', 'kg'),
-            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+)\s*(kg|Kilogramm)', 'kg'),
-            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(g|Gramm)\b', 'g'),
-            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht)[^\d]{0,30}([0-9]+)\s*(g|Gramm)\b', 'g'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht|Produktgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(kg|Kilogramm|Kilograms?)', 'kg'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht|Produktgewicht)[^\d]{0,30}([0-9]+)\s*(kg|Kilogramm|Kilograms?)', 'kg'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht|Produktgewicht)[^\d]{0,30}([0-9]+[.,][0-9]*)\s*(g|Gramm|Grams?)\b', 'g'),
+            (r'(?:Artikelgewicht|Item\s+Weight|Gewicht|Versandgewicht|Stückgewicht|Produktgewicht)[^\d]{0,30}([0-9]+)\s*(g|Gramm|Grams?)\b', 'g'),
+            # prodDetAttrValue 형식 (Amazon 스펙 테이블)
+            (r'prodDetAttrValue[^>]*>\s*(?:&lrm;)?\s*([0-9]+[.,][0-9]*)\s*(Kilograms?|Kilogramm|kg)', 'kg'),
+            (r'prodDetAttrValue[^>]*>\s*(?:&lrm;)?\s*([0-9]+[.,][0-9]*)\s*(Grams?|Gramm|g)\b', 'g'),
         ]
         found_weight = None
         for pattern, default_unit in weight_patterns:
-            m = re.search(pattern, text, re.IGNORECASE)
+            m = re.search(pattern, resp.text, re.IGNORECASE)  # HTML 원문에서 직접 검색
             if m:
                 val = float(m.group(1).replace(',', '.'))
                 if default_unit == 'g':
                     val = val / 1000
                 found_weight = round(val, 3)
                 break
+        # strip_html 텍스트에서도 재시도
+        if found_weight is None:
+            for pattern, default_unit in weight_patterns[:4]:
+                m = re.search(pattern, text, re.IGNORECASE)
+                if m:
+                    val = float(m.group(1).replace(',', '.'))
+                    if default_unit == 'g': val = val / 1000
+                    found_weight = round(val, 3)
+                    break
 
-        # 가격 정규식 (EUR)
+        # 가격 정규식 (EUR) - Amazon a-price 구조 + 일반 패턴
         found_price = None
-        price_patterns = [
-            r'([0-9]+[.,][0-9]{2})\s*€',
-            r'€\s*([0-9]+[.,][0-9]{2})',
-            r'EUR\s*([0-9]+[.,][0-9]{2})',
-            r'Preis[^\d]{0,20}([0-9]+[.,][0-9]{2})',
-        ]
-        for pp in price_patterns:
-            pm = re.search(pp, text)
-            if pm:
-                found_price = round(float(pm.group(1).replace(',', '.')), 2)
-                break
+        # Amazon: <span class="a-price-whole">N</span>...<span class="a-price-fraction">NN</span>
+        ap_m = re.search(r'a-price-whole["\'][^>]*>([0-9]+)[^<]*</span>.*?a-price-fraction["\'][^>]*>([0-9]{2})', resp.text, re.DOTALL)
+        if ap_m:
+            candidate = float(f"{ap_m.group(1)}.{ap_m.group(2)}")
+            if candidate < 10000:  # 합리적 EUR 범위
+                found_price = candidate
+        if not found_price:
+            price_patterns = [
+                r'([0-9]+[.,][0-9]{2})\s*€',
+                r'€\s*([0-9]+[.,][0-9]{2})',
+                r'EUR\s*([0-9]+[.,][0-9]{2})',
+                r'"price":\s*"EUR ([0-9]+[.,][0-9]{2})"',
+                r'Preis[^\d]{0,20}([0-9]+[.,][0-9]{2})',
+            ]
+            for pp in price_patterns:
+                pm = re.search(pp, resp.text)
+                if pm:
+                    candidate = round(float(pm.group(1).replace(',', '.')), 2)
+                    if candidate < 100000:
+                        found_price = candidate
+                        break
 
         # 제품 타이틀 추출 (HTML에서)
         product_title = None

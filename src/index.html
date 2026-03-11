@@ -1787,11 +1787,53 @@ async function saveSelected() {
   const keyword = searchJobs[0]?.keyword || '';
   const btn = document.getElementById('btnNext');
   btn.disabled = true;
-  btn.textContent = '⏳ 쇼핑 조회 + 저장 중...';
+  btn.textContent = '⏳ 본문 분석 중...';
+
   try {
+    // 각 선택 항목에 대해 블로그 풀텍스트 추출 (병렬)
+    const extracted = await Promise.all(items.map(async item => {
+      if (!item.link) return { item, products: null };
+      try {
+        const r = await fetch('/api/extract-all-products', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({url: item.link}),
+        });
+        const d = await r.json();
+        return { item, products: d.products || null };
+      } catch { return { item, products: null }; }
+    }));
+
+    // 다중 상품이 나온 게시물이 있으면 선택 모달 표시
+    const hasFork = extracted.some(e => e.products && e.products.length > 1);
+    let finalItems = [];
+
+    if (hasFork) {
+      // 모달에서 선택받기
+      finalItems = await showProductSelectModal(extracted, keyword);
+      if (finalItems === null) {
+        // 취소
+        return;
+      }
+    } else {
+      // 단일 상품 또는 추출 실패 → 추출 결과로 원본 보강
+      finalItems = extracted.map(({ item, products }) => {
+        const p = products && products[0];
+        if (!p) return item;
+        return {
+          ...item,
+          brand_name:      p.brand_name      || item.brand_name,
+          product_name:    p.product_name    || item.product_name,
+          product_name_en: p.product_name_en || item.product_name_en,
+          price_paid:      p.price_paid      || item.price_paid,
+          category:        p.category        || item.category,
+        };
+      });
+    }
+
+    btn.textContent = '⏳ 쇼핑 조회 + 저장 중...';
     const resp = await fetch('/api/save-selected', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({items, keyword, mode: curMode}),
+      body: JSON.stringify({items: finalItems, keyword, mode: curMode}),
     });
     const data = await resp.json();
     if (!resp.ok) { showToast('저장 실패: ' + (data.error || '오류'), true); return; }
@@ -1809,6 +1851,67 @@ async function saveSelected() {
     btn.disabled = false;
     btn.textContent = '선택한 항목 소싱후보로 →';
   }
+}
+
+// ── 다중상품 선택 모달 ────────────────────────────────────────────────────
+function showProductSelectModal(extracted, keyword) {
+  return new Promise(resolve => {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+
+    const rows = extracted.map(({ item, products }) => {
+      if (!products || products.length === 0) {
+        // 추출 실패 → 원본 1개 항목으로 체크박스
+        return `<div style="margin-bottom:12px;padding:10px;background:#f7fafc;border-radius:8px">
+          <div style="font-size:0.78rem;color:#718096;margin-bottom:6px">📄 ${escHtml(item.title||'')}</div>
+          <label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+            <input type="checkbox" checked data-item='${JSON.stringify({...item,_from_modal:true}).replace(/'/g,"&#39;")}'>
+            <span style="font-size:0.82rem">${escHtml([item.brand_name,item.product_name].filter(Boolean).join(' ')||'원본 그대로 저장')}</span>
+          </label></div>`;
+      }
+      if (products.length === 1) {
+        const p = products[0];
+        return `<div style="margin-bottom:12px;padding:10px;background:#f7fafc;border-radius:8px">
+          <div style="font-size:0.78rem;color:#718096;margin-bottom:6px">📄 ${escHtml(item.title||'')}</div>
+          <label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+            <input type="checkbox" checked data-item='${JSON.stringify({...item,...p,_from_modal:true}).replace(/'/g,"&#39;")}'>
+            <span style="font-size:0.82rem"><b>${escHtml(p.brand_name||'')}</b> ${escHtml(p.product_name||p.product_name_en||'')} ${p.price_paid?`<span style="color:#63b3ed">${escHtml(p.price_paid)}</span>`:''}</span>
+          </label></div>`;
+      }
+      // 하울 포스트 - 여러 상품
+      const productRows = products.map((p,pi) => `
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;padding:4px 0;border-bottom:1px solid #edf2f7">
+          <input type="checkbox" data-item='${JSON.stringify({...item,...p,_from_modal:true}).replace(/'/g,"&#39;")}'>
+          <span style="font-size:0.82rem"><b>${escHtml(p.brand_name||'')}</b> ${escHtml(p.product_name||'')} ${escHtml(p.product_name_en||'')} ${p.price_paid?`<span style="color:#63b3ed">${escHtml(p.price_paid)}</span>`:''}</span>
+        </label>`).join('');
+      return `<div style="margin-bottom:14px;padding:10px;background:#ebf8ff;border-radius:8px;border:1px solid #bee3f8">
+        <div style="font-size:0.78rem;color:#2c5282;font-weight:600;margin-bottom:8px">📦 ${escHtml(item.title||'')} — ${products.length}개 상품 발견</div>
+        ${productRows}</div>`;
+    }).join('');
+
+    modal.innerHTML = `
+      <div style="background:white;border-radius:14px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <h3 style="margin:0 0 6px;font-size:1rem;color:#1a202c">소싱후보 저장 확인</h3>
+        <p style="margin:0 0 16px;font-size:0.82rem;color:#718096">블로그 본문에서 상품을 추출했습니다. 저장할 항목을 선택해주세요.</p>
+        <div id="modal-rows">${rows}</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button id="modal-cancel" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:white;cursor:pointer;font-size:0.85rem">취소</button>
+          <button id="modal-ok" style="padding:8px 20px;border-radius:8px;border:none;background:#276749;color:white;cursor:pointer;font-size:0.85rem;font-weight:600">선택 저장</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#modal-cancel').onclick = () => { modal.remove(); resolve(null); };
+    modal.querySelector('#modal-ok').onclick = () => {
+      const checked = [...modal.querySelectorAll('input[type="checkbox"]:checked')];
+      const selected = checked.map(cb => {
+        try { return JSON.parse(cb.dataset.item.replace(/&#39;/g,"'")); } catch { return null; }
+      }).filter(Boolean);
+      modal.remove();
+      resolve(selected);
+    };
+  });
 }
 
 // ── OG 이미지 ─────────────────────────────────────────────────────────────
