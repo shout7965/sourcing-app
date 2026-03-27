@@ -790,18 +790,27 @@
 </div>
 
 <script>
-// ── eurolife25 배송비 테이블 (브론즈 등급, 0.5kg 단위) ─────────────────────
+// ── eurolife25 배송비 테이블 (브론즈 등급, 0.5kg 단위, 10kg 초과 할증 포함) ───
 const SHIPPING_TABLE = [
-  [0.5,10340],[1.0,12770],[1.5,16080],[2.0,17520],[2.5,19550],
-  [3.0,21480],[3.5,24600],[4.0,27120],[4.5,29650],[5.0,32070],
-  [6.0,38310],[7.0,43560],[8.0,48900],[9.0,54250],[10.0,61670],
-  [11.0,69390],[12.0,74940],[13.0,80390],[14.0,85940],[15.0,91390],
-  [16.0,96940],[17.0,102390],[18.0,107940],[19.0,113390],[20.0,118990],
+  [0.5,10346],[1.0,12771],[1.5,16088],[2.0,17523],[2.5,19553],
+  [3.0,21483],[3.5,24602],[4.0,27126],[4.5,29651],[5.0,32076],
+  [6.0,38313],[7.0,43560],[8.0,48906],[9.0,54252],[10.0,61677],
+  [11.0,69399],[12.0,74943],[13.0,80388],[14.0,85932],[15.0,91377],
+  [16.0,96921],[17.0,102465],[18.0,107910],[19.0,113454],[20.0,118998],
+  [21.0,126522],[22.0,132066],[23.0,137610],[24.0,143055],[25.0,148599],
+  [26.0,155133],[27.0,160677],[28.0,166122],[29.0,171666],[30.0,177210],
 ];
 function calcShipping(kg) {
   const rounded = Math.ceil(kg * 2) / 2; // 0.5kg 단위 올림
   const entry = SHIPPING_TABLE.find(([w]) => w >= rounded);
   return entry ? entry[1] : SHIPPING_TABLE[SHIPPING_TABLE.length - 1][1];
+}
+// 유로라이프25 추가 수수료 (면세쇼핑대행수수료 + 배송대행수수료)
+function calcEurolifeFees(eurNoVat, eurTotal, rate) {
+  if (eurNoVat <= 0) return { shoppingFee: 0, agentFee: 0 };
+  const shoppingFee = eurNoVat < 1000 ? 5500 : Math.round(eurTotal * rate * 0.01);
+  const agentFee    = eurNoVat <= 30 ? 6000 : eurNoVat <= 50 ? 8000 : 10000;
+  return { shoppingFee, agentFee };
 }
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
@@ -2135,6 +2144,10 @@ function renderCandidates(items) {
             <label>배송비 (원, 자동)</label>
             <input type="number" id="ship-${escHtml(id)}" value="${ship}" placeholder="무게 입력 시 자동" oninput="calcMarginLive('${escHtml(id)}')" />
           </div>
+          <div class="margin-field">
+            <label style="color:#a0aec0">유로라이프 수수료 (자동)</label>
+            <div id="fees-${escHtml(id)}" style="font-size:0.72rem;color:#718096;padding:5px 8px;background:#f7faff;border-radius:6px;min-width:120px;line-height:1.6">-</div>
+          </div>
           <!-- 결과 -->
           <div class="margin-result" id="mresult-${escHtml(id)}" data-nav="${navPrice}">
             <span><span class="lbl">VAT제외단가</span><br><span class="val" id="vatprice-${escHtml(id)}">-</span></span>
@@ -2251,7 +2264,17 @@ function calcMarginLive(id) {
   const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
 
   const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
-  const cost = Math.round(eurNoVat * rate + ship);
+  const { shoppingFee, agentFee } = calcEurolifeFees(eurNoVat, eur, rate);
+  const cost = Math.round(eurNoVat * rate + ship + shoppingFee + agentFee);
+
+  const feesEl = document.getElementById(`fees-${id}`);
+  if (feesEl) {
+    if (eur > 0) {
+      feesEl.innerHTML = `대행 ${shoppingFee.toLocaleString('ko-KR')}원 + 배송대행 ${agentFee.toLocaleString('ko-KR')}원`;
+    } else {
+      feesEl.textContent = '-';
+    }
+  }
 
   const vatpriceEl = document.getElementById(`vatprice-${id}`);
   if (vatpriceEl) vatpriceEl.textContent = eur > 0
