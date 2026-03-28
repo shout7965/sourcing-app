@@ -6,7 +6,7 @@ import requests
 import anthropic
 import openpyxl
 import firebase_admin
-from firebase_admin import credentials, firestore as fb_fs
+from firebase_admin import credentials, firestore as fb_fs, storage as fb_storage
 from datetime import datetime, date
 from flask import Flask, send_file, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -45,8 +45,9 @@ def init_firebase():
     try:
         sa_dict = json.loads(sa_json)
         cred = credentials.Certificate(sa_dict)
+        bucket_name = os.environ.get('FIREBASE_STORAGE_BUCKET') or f"{sa_dict.get('project_id', '')}.appspot.com"
         if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
         db = fb_fs.client()
         FIREBASE_ENABLED = True
         print("[Firebase] 초기화 성공")
@@ -1125,6 +1126,30 @@ def delete_product_registration(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
+    """외부 이미지 URL을 Firebase Storage에 업로드하고 공개 URL 반환.
+    실패 시 원본 URL 반환."""
+    if not img_url or not img_url.startswith('http'):
+        return img_url
+    try:
+        bucket = fb_storage.bucket()
+        resp = requests.get(img_url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        })
+        if resp.status_code != 200:
+            return img_url
+        content_type = resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
+        ext = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif'}.get(content_type, 'jpg')
+        path = f'product_images/{doc_id}/img_{idx}.{ext}'
+        blob = bucket.blob(path)
+        blob.upload_from_string(resp.content, content_type=content_type)
+        blob.make_public()
+        return blob.public_url
+    except Exception as e:
+        print(f"[Storage] 업로드 실패 {img_url[:60]}: {e}")
+        return img_url
+
+
 def _fetch_product_page_data(url: str):
     """제품 URL에서 이미지 목록 + 본문 텍스트 추출"""
     try:
@@ -1350,10 +1375,16 @@ def export_excel():
         if not page_images and fallback_img:
             page_images = [fallback_img]
 
-        if page_images:
-            w('대표이미지', page_images[0])
-        if len(page_images) > 1:
-            w('추가이미지', '\n'.join(page_images[1:]))
+        # 이미지를 Firebase Storage에 업로드 (Naver가 접근 가능한 영구 URL로 변환)
+        uploaded_images = []
+        for idx, img_url in enumerate(page_images[:10]):
+            pub_url = _upload_image_to_storage(img_url, item.get('id', f'item_{row_num}'), idx)
+            uploaded_images.append(pub_url)
+
+        if uploaded_images:
+            w('대표이미지', uploaded_images[0])
+        if len(uploaded_images) > 1:
+            w('추가이미지', '\n'.join(uploaded_images[1:]))
 
         # ── 상세설명: Claude 한국어 번역/요약
         desc_html = _generate_korean_description(product_name, page_text, page_images, item)
