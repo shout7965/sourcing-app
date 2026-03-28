@@ -1122,6 +1122,103 @@ def delete_product_registration(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+def _fetch_product_page_data(url: str):
+    """제품 URL에서 이미지 목록 + 본문 텍스트 추출"""
+    try:
+        fetch_url = url
+        if 'amazon.' in url and 'language=' not in url:
+            sep = '&' if '?' in url else '?'
+            fetch_url = url + sep + 'language=en_US'  # 영어로 받아서 Claude가 번역
+        resp = requests.get(fetch_url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml",
+        })
+        html = resp.text
+
+        images = []
+
+        # ── Amazon 이미지 ──
+        if 'amazon.' in url:
+            # 메인 이미지: data-a-dynamic-image JSON
+            m = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', html)
+            if m:
+                raw = m.group(1).replace('&quot;', '"')
+                try:
+                    img_dict = json.loads(raw)
+                    # 가장 큰 이미지 우선 (width 기준)
+                    sorted_imgs = sorted(img_dict.items(), key=lambda x: x[1][0] if x[1] else 0, reverse=True)
+                    images += [k for k, _ in sorted_imgs]
+                except Exception:
+                    pass
+            # 보조 이미지: altImages 썸네일 URL → 고해상도로 변환
+            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/[A-Za-z0-9%+_-]+\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', html):
+                large = re.sub(r'\._[A-Z0-9_,]+_\.', '.', m2.group(0))
+                if large not in images:
+                    images.append(large)
+        else:
+            # ── 일반 페이지: <img> src 수집 ──
+            for m3 in re.finditer(r'<img[^>]+(?:src|data-src)=["\']([^"\']+)["\']', html, re.IGNORECASE):
+                src = m3.group(1)
+                if src.startswith('http') and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                    if not any(x in src.lower() for x in ['logo', 'icon', 'sprite', 'banner', 'badge', 'pixel']):
+                        if src not in images:
+                            images.append(src)
+
+        # 이미지 중복 제거, 최대 10개
+        seen = set(); uniq = []
+        for img in images:
+            if img not in seen:
+                seen.add(img); uniq.append(img)
+        images = uniq[:10]
+
+        # ── 본문 텍스트 추출 ──
+        page_text = strip_html(html)
+        # 너무 긴 경우 제품명 + 핵심 설명 부분만
+        page_text = re.sub(r'\n{3,}', '\n\n', page_text).strip()[:4000]
+
+        return images, page_text
+    except Exception:
+        return [], ''
+
+
+def _generate_korean_description(product_name: str, page_text: str, images: list) -> str:
+    """Claude로 제품 페이지 텍스트를 한국어 HTML 상세설명으로 변환"""
+    if not page_text:
+        # 텍스트 없으면 이미지만으로 간단 HTML 생성
+        img_html = '\n'.join(f'<img src="{img}" style="max-width:860px;display:block;margin:0 auto">' for img in images)
+        return img_html
+
+    try:
+        prompt = f"""다음은 해외 쇼핑몰의 제품 페이지 텍스트입니다.
+한국 네이버 스마트스토어 상품 상세설명용 HTML로 변환해주세요.
+
+제품명: {product_name}
+
+페이지 텍스트:
+{page_text}
+
+요구사항:
+1. 핵심 제품 특징·스펙·사용법을 한국어로 번역/요약
+2. HTML 형식으로 작성 (<h3>, <ul>, <li>, <p>, <strong> 사용)
+3. 불필요한 광고·배송·법적 문구 제외
+4. 500~1000자 분량
+5. <html>/<body> 태그 없이 내용만 반환"""
+
+        resp = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        desc_html = resp.content[0].text.strip()
+    except Exception:
+        desc_html = f'<p><strong>{product_name}</strong></p>'
+
+    # 이미지 삽입 (상단)
+    img_html = '\n'.join(f'<img src="{img}" style="max-width:860px;display:block;margin:8px auto">' for img in images[:9])
+    return img_html + '\n' + desc_html if img_html else desc_html
+
+
 @app.route("/api/export-excel", methods=["POST"])
 def export_excel():
     """선택된 상품등록대장 항목을 네이버 스마트스토어 일괄등록 Excel로 내보내기"""
@@ -1196,24 +1293,26 @@ def export_excel():
         origin = ORIGIN_CODE.get(country, '0001')
         w('원산지코드', origin)
 
-        # 이미지
-        img = item.get('shopping_image') or item.get('blog_image') or ''
-        if img:
-            w('대표이미지', img)
-
-        # 상세설명 (간단한 HTML)
+        # 제품 URL에서 이미지 + 상세 텍스트 추출
+        product_url = item.get('product_url', '')
         product_name = item.get('name_100') or item.get('product_name_display') or ''
-        desc_parts = []
-        if img:
-            desc_parts.append(f'<img src="{img}" style="max-width:600px">')
-        if product_name:
-            desc_parts.append(f'<p><strong>{product_name}</strong></p>')
         brand = item.get('brand_name', '')
-        if brand:
-            desc_parts.append(f'<p>브랜드: {brand}</p>')
-        if country:
-            desc_parts.append(f'<p>소싱국가: {country}</p>')
-        w('상세설명', ''.join(desc_parts) if desc_parts else '')
+
+        page_images, page_text = _fetch_product_page_data(product_url) if product_url else ([], '')
+
+        # 이미지: URL이미지 우선, 없으면 쇼핑/블로그 이미지 fallback
+        fallback_img = item.get('shopping_image') or item.get('blog_image') or ''
+        if not page_images and fallback_img:
+            page_images = [fallback_img]
+
+        if page_images:
+            w('대표이미지', page_images[0])
+        if len(page_images) > 1:
+            w('추가이미지', '\n'.join(page_images[1:]))
+
+        # 상세설명: Claude 한국어 번역/요약
+        desc_html = _generate_korean_description(product_name, page_text, page_images)
+        w('상세설명', desc_html)
 
         # 선택 필드
         w('브랜드', brand)
