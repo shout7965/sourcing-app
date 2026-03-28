@@ -1319,7 +1319,23 @@ JSON 형식으로만 응답하세요."""
             messages=[{"role": "user", "content": prompt}],
             output_format=NicheIdeaResult,
         )
-        return jsonify(result.parsed_output.model_dump())
+        data = result.parsed_output.model_dump()
+
+        # 각 키워드를 네이버에서 실제 검색해서 블로그 건수 확인
+        naver_headers = {
+            "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+            "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+        }
+        for item in data.get("items", []):
+            kw = item.get("search_keyword", "")
+            if kw:
+                _, total = naver_search("blog", f"{kw} 직구 후기", 1, 1, naver_headers)
+                item["naver_count"] = total
+            else:
+                item["naver_count"] = 0
+        increment_usage(len(data.get("items", [])))
+
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

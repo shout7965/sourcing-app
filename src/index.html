@@ -1106,6 +1106,7 @@ function renderAiNiche(data) {
       <td><span class="niche-country-badge">${escHtml(item.sourcing_country || '-')}</span></td>
       <td style="color:#a0aec0;font-size:0.8rem">${escHtml(item.sourcing_reason)}</td>
       <td><button class="ai-niche-kw-btn" data-query="${escHtml(item.search_keyword)}" onclick="startFromAiKeyword(this.dataset.query)">${escHtml(item.search_keyword)}</button></td>
+      <td>${renderNaverCount(item.naver_count)}</td>
     </tr>
   `).join('');
   el.innerHTML = `
@@ -1116,11 +1117,18 @@ function renderAiNiche(data) {
       <button class="btn-modal-ok" style="padding:5px 14px;font-size:0.8rem" onclick="startFromNicheSelected()">선택 항목 소싱 시작 →</button>
     </div>
     <table class="ai-niche-table">
-      <thead><tr><th></th><th>아이템</th><th>카테고리</th><th>소싱처</th><th>소싱 이유</th><th>검색 키워드</th></tr></thead>
+      <thead><tr><th></th><th>아이템</th><th>카테고리</th><th>소싱처</th><th>소싱 이유</th><th>검색 키워드</th><th>네이버 블로그</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     ${data.tips ? `<div class="ai-tips-box">💡 ${escHtml(data.tips)}</div>` : ''}
   `;
+}
+
+function renderNaverCount(count) {
+  if (count === undefined || count === null) return '<span style="color:#718096">-</span>';
+  if (count === 0)   return '<span style="color:#fc8181;font-weight:700">0건 ⚠️</span>';
+  if (count < 50)    return `<span style="color:#f6ad55">${count.toLocaleString()}건 ⚠️</span>`;
+  return `<span style="color:#9ae6b4">${count.toLocaleString()}건</span>`;
 }
 
 function toggleNicheAll(master) {
