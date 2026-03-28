@@ -1058,6 +1058,8 @@ ALLOWED_REG_FIELDS = {
     'product_name_display', 'name_50', 'name_100',
     'naver_price', 'coupang_price',
     'customs_rate', 'fta', 'fta_agreement', 'status', 'memo', 'country',
+    'product_url', 'product_title_url', 'price_eur', 'exchange_rate',
+    'weight_kg', 'shipping_fee', 'vat_type', 'customs_amt', 'vat10_amt',
 }
 
 @app.route("/api/product-registrations", methods=["GET"])
@@ -1182,26 +1184,45 @@ def _fetch_product_page_data(url: str):
         return [], ''
 
 
-def _generate_korean_description(product_name: str, page_text: str, images: list) -> str:
-    """Claude로 제품 페이지 텍스트를 한국어 HTML 상세설명으로 변환"""
+def _generate_korean_description(product_name: str, page_text: str, images: list, item: dict = None) -> str:
+    """Claude로 제품 페이지 텍스트를 한국어 HTML 상세설명으로 변환
+    page_text가 없으면 저장된 item 필드(product_title_url 등)로 대체 생성"""
+    item = item or {}
+
+    # 이미지 HTML (상단)
+    img_html = '\n'.join(
+        f'<img src="{img}" style="max-width:860px;display:block;margin:8px auto">'
+        for img in images[:9]
+    )
+
+    # 텍스트 소스 결정: 페이지 직접 fetch > 저장된 product_title_url > 기본 필드
     if not page_text:
-        # 텍스트 없으면 이미지만으로 간단 HTML 생성
-        img_html = '\n'.join(f'<img src="{img}" style="max-width:860px;display:block;margin:0 auto">' for img in images)
-        return img_html
+        product_title_url = item.get('product_title_url', '')
+        brand = item.get('brand_name', '')
+        category = item.get('category', '')
+        country = item.get('country', '')
+        product_name_en = item.get('product_name_en', '') or item.get('product_name', '')
+        sourcing_url = item.get('product_url', '')
+
+        if product_title_url:
+            page_text = f"Product Title: {product_title_url}\nBrand: {brand}\nCategory: {category}"
+        elif product_name_en:
+            page_text = f"Product: {product_name_en}\nBrand: {brand}\nCategory: {category}\nCountry: {country}"
+        else:
+            # 텍스트도 없고 저장된 정보도 없으면 이미지만
+            return img_html
 
     try:
-        prompt = f"""다음은 해외 쇼핑몰의 제품 페이지 텍스트입니다.
-한국 네이버 스마트스토어 상품 상세설명용 HTML로 변환해주세요.
+        prompt = f"""다음 제품 정보를 바탕으로 한국 네이버 스마트스토어 상품 상세설명용 HTML을 작성해주세요.
 
-제품명: {product_name}
-
-페이지 텍스트:
-{page_text}
+제품명(한국어): {product_name}
+제품 정보:
+{page_text[:3000]}
 
 요구사항:
-1. 핵심 제품 특징·스펙·사용법을 한국어로 번역/요약
-2. HTML 형식으로 작성 (<h3>, <ul>, <li>, <p>, <strong> 사용)
-3. 불필요한 광고·배송·법적 문구 제외
+1. 제품 특징·스펙·사용방법을 한국어로 작성 (번역/요약)
+2. HTML 태그 사용: <h3>, <ul>, <li>, <p>, <strong>, <table>
+3. 배송·광고·법적문구 제외
 4. 500~1000자 분량
 5. <html>/<body> 태그 없이 내용만 반환"""
 
@@ -1214,9 +1235,7 @@ def _generate_korean_description(product_name: str, page_text: str, images: list
     except Exception:
         desc_html = f'<p><strong>{product_name}</strong></p>'
 
-    # 이미지 삽입 (상단)
-    img_html = '\n'.join(f'<img src="{img}" style="max-width:860px;display:block;margin:8px auto">' for img in images[:9])
-    return img_html + '\n' + desc_html if img_html else desc_html
+    return (img_html + '\n' + desc_html) if img_html else desc_html
 
 
 @app.route("/api/export-excel", methods=["POST"])
@@ -1310,8 +1329,8 @@ def export_excel():
         if len(page_images) > 1:
             w('추가이미지', '\n'.join(page_images[1:]))
 
-        # 상세설명: Claude 한국어 번역/요약
-        desc_html = _generate_korean_description(product_name, page_text, page_images)
+        # 상세설명: Claude 한국어 번역/요약 (URL fetch 실패 시 저장 데이터 활용)
+        desc_html = _generate_korean_description(product_name, page_text, page_images, item)
         w('상세설명', desc_html)
 
         # 선택 필드
