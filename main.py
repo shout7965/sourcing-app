@@ -1071,7 +1071,7 @@ ALLOWED_REG_FIELDS = {
     'customs_rate', 'fta', 'fta_agreement', 'status', 'memo', 'country',
     'product_url', 'product_title_url', 'price_eur', 'exchange_rate',
     'weight_kg', 'shipping_fee', 'vat_type', 'customs_amt', 'vat10_amt',
-    'naver_category',
+    'naver_category', 'reg_images',
 }
 
 @app.route("/api/product-registrations", methods=["GET"])
