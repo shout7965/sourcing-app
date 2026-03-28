@@ -825,6 +825,10 @@
               <th>소싱처가격</th>
               <th>최종면세가</th>
               <th>배대지배송비</th>
+              <th>FTA</th>
+              <th>관세+부가세</th>
+              <th>순마진</th>
+              <th>수익률</th>
               <th>소싱가입력</th>
               <th>액션</th>
             </tr>
@@ -1428,6 +1432,9 @@ function renderRegistrations(items) {
         ? `<span style="color:#276749;font-weight:600;font-size:0.72rem" title="${escHtml(item.fta_agreement||'')}">FTA✓<br><span style="font-size:0.62rem;font-weight:400;color:#48bb78">${escHtml((item.fta_agreement||'').replace('한-','').replace(' FTA','').replace('(단계적)',''))}</span></span>`
         : `<span style="color:#c53030;font-size:0.72rem">없음<br><span style="font-size:0.62rem;color:#fc8181">${item.customs_rate || 8}%</span></span>`
       }</td>
+      <td style="text-align:right;color:#c05621">${customs + vat10 ? formatPrice(customs + vat10) : '-'}</td>
+      <td id="margin-${escHtml(id)}" style="text-align:right;font-weight:600;color:${marginColor}">${netMargin !== null ? formatPrice(netMargin) : '-'}</td>
+      <td id="rate-${escHtml(id)}" style="text-align:right">${returnRate !== null ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
       <td style="text-align:center">
         <button class="btn-expand" onclick="toggleRegDetail('${escHtml(id)}')" title="소싱가 입력">✏️</button>
       </td>
