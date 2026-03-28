@@ -599,6 +599,7 @@ class NicheItem(BaseModel):
     item_name_ko: str
     item_name_en: str
     category: str
+    sourcing_country: str   # 예: "아마존 미국", "알리익스프레스", "라쿠텐 일본", "이베이"
     sourcing_reason: str
     search_keyword: str
 
@@ -756,24 +757,10 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 필터: 키워드 토큰(제목+본문) ALL 매칭 + '직구' 포함
-    # - 소싱 공통어는 제거하고 실제 브랜드/제품어만 추출
-    # - 제목만이 아닌 제목+본문 합쳐서 검색 (영문/한글 혼용 대응)
-    SOURCING_STOPWORDS = {'직구', '후기', '관세', '구매', '대행', '최저가',
-                          '할인', '가격', '정품', '배송', '택배', '무료', '리뷰'}
+    # 키워드/직구 텍스트 재필터 없음 — 네이버 API가 이미 "{keyword} 직구 후기" 기준으로 필터링.
+    # 추가 텍스트 필터는 영문/한글 혼용, 모델명 표기 차이 등으로 관련 결과를 과도하게 제거함.
+    # Claude is_direct_purchase_review 필드가 품질 게이트 역할을 담당.
     keyword_lower = keyword.lower()
-    keyword_tokens = [t for t in keyword_lower.split()
-                      if len(t) >= 2 and t not in SOURCING_STOPWORDS]
-
-    def item_matches(item):
-        title = strip_html(item.get("title", "")).lower()
-        full  = title + " " + strip_html(item.get("description", "")).lower()
-        kw_ok    = all(t in full for t in keyword_tokens) if keyword_tokens else True
-        # 직구는 반드시 제목에 있어야 함 — 본문 비교 문구·해시태그만 있는 글 제외
-        jikgu_ok = '직구' in title or '해외구매' in title
-        return kw_ok and jikgu_ok
-
-    all_items = [i for i in all_items if item_matches(i)]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
@@ -1299,6 +1286,7 @@ def api_ai_niche_ideas():
 - item_name_ko: 한국어 상품명
 - item_name_en: 영문명 또는 모델명
 - category: 카테고리
+- sourcing_country: 가장 저렴하게 살 수 있는 나라/플랫폼 (예: "아마존 미국", "알리익스프레스", "라쿠텐 일본", "이베이", "독일 아마존", "1688")
 - sourcing_reason: 소싱하면 좋은 이유 (1문장)
 - search_keyword: 네이버 직구 후기 검색용 키워드
 - tips: 이 시나리오 소싱 전략 팁 (2~3문장)

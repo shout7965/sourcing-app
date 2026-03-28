@@ -568,6 +568,10 @@
       white-space: nowrap;
     }
     .ai-niche-kw-btn:hover { background: #276749; }
+    .niche-country-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      background: #2a3a5c; color: #90cdf4; font-size: 0.75rem; white-space: nowrap;
+    }
     .ai-tips-box {
       background: #1a2332; border-left: 3px solid #276749;
       padding: 12px 16px; border-radius: 0 8px 8px 0;
@@ -1079,23 +1083,53 @@ async function runAiNiche() {
 }
 
 function renderAiNiche(data) {
-  const el    = document.getElementById('aiNicheResult');
-  const rows  = (data.items || []).map((item, i) => `
+  const el  = document.getElementById('aiNicheResult');
+  const rows = (data.items || []).map((item, i) => `
     <tr>
-      <td style="color:#718096;font-size:0.75rem">${i+1}</td>
+      <td style="text-align:center"><input type="checkbox" class="niche-cb" data-query="${escHtml(item.search_keyword)}"></td>
       <td><strong>${escHtml(item.item_name_ko)}</strong><br><span style="color:#718096;font-size:0.75rem">${escHtml(item.item_name_en)}</span></td>
       <td>${escHtml(item.category)}</td>
-      <td style="color:#a0aec0">${escHtml(item.sourcing_reason)}</td>
+      <td><span class="niche-country-badge">${escHtml(item.sourcing_country || '-')}</span></td>
+      <td style="color:#a0aec0;font-size:0.8rem">${escHtml(item.sourcing_reason)}</td>
       <td><button class="ai-niche-kw-btn" data-query="${escHtml(item.search_keyword)}" onclick="startFromAiKeyword(this.dataset.query)">${escHtml(item.search_keyword)}</button></td>
     </tr>
   `).join('');
   el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <label style="font-size:0.82rem;color:#a0aec0;cursor:pointer">
+        <input type="checkbox" id="nicheSelectAll" onchange="toggleNicheAll(this)"> 전체선택
+      </label>
+      <button class="btn-modal-ok" style="padding:5px 14px;font-size:0.8rem" onclick="startFromNicheSelected()">선택 항목 소싱 시작 →</button>
+    </div>
     <table class="ai-niche-table">
-      <thead><tr><th>#</th><th>아이템</th><th>카테고리</th><th>소싱 이유</th><th>검색 키워드</th></tr></thead>
+      <thead><tr><th></th><th>아이템</th><th>카테고리</th><th>소싱처</th><th>소싱 이유</th><th>검색 키워드</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     ${data.tips ? `<div class="ai-tips-box">💡 ${escHtml(data.tips)}</div>` : ''}
   `;
+}
+
+function toggleNicheAll(master) {
+  document.querySelectorAll('.niche-cb').forEach(cb => cb.checked = master.checked);
+}
+
+function startFromNicheSelected() {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', true);
+    document.getElementById('loginModal').style.display = 'flex';
+    return;
+  }
+  const checked = [...document.querySelectorAll('.niche-cb:checked')];
+  if (!checked.length) { showToast('항목을 선택해주세요', true); return; }
+  // 첫 번째 항목은 바로 프로젝트 모달로, 나머지는 순서대로 안내
+  const keywords = checked.map(cb => cb.dataset.query);
+  switchTab('projects');
+  document.getElementById('newProjectName').value = keywords[0];
+  document.getElementById('newProjectModal').style.display = 'flex';
+  document.getElementById('newProjectName').focus();
+  if (keywords.length > 1) {
+    showToast(`${keywords.length}개 선택됨. 첫 번째 키워드로 시작 — 나머지는 순서대로 프로젝트 추가하세요.`);
+  }
 }
 
 function startFromAiKeyword(keyword) {
