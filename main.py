@@ -1120,6 +1120,148 @@ def delete_product_registration(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/export-excel", methods=["POST"])
+def export_excel():
+    """선택된 상품등록대장 항목을 네이버 스마트스토어 일괄등록 Excel로 내보내기"""
+    import io
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+
+    data = request.get_json()
+    ids = data.get("ids", [])  # 선택된 doc ID 목록. 빈 리스트면 전체
+
+    try:
+        col_ref = db.collection('product_registrations')
+        if ids:
+            # Firestore는 in 쿼리 10개 제한 → 직접 fetch
+            docs = [col_ref.document(doc_id).get() for doc_id in ids]
+            items = [dict(d.to_dict(), id=d.id) for d in docs if d.exists]
+        else:
+            items = [dict(d.to_dict(), id=d.id) for d in col_ref.limit(200).stream()]
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if not items:
+        return jsonify({"error": "내보낼 항목이 없습니다"}), 400
+
+    # 원산지코드 매핑 (ISO 3166-1 numeric 기반 네이버 코드)
+    ORIGIN_CODE = {
+        '독일': '0276', '미국': '0840', '일본': '0392', '중국': '0156',
+        '영국': '0826', '프랑스': '0250', '이탈리아': '0380', '스페인': '0724',
+        '캐나다': '0124', '호주': '0036', '네덜란드': '0528', '스위스': '0756',
+        '오스트리아': '0040', '벨기에': '0056', '폴란드': '0616',
+    }
+
+    # 템플릿 로드
+    template_path = os.path.join(os.path.dirname(__file__), 'Documents', 'ExcelSaveTemplate_20260309.xlsx')
+    wb = openpyxl.load_workbook(template_path)
+    ws = wb.active
+
+    # 행 3~6 (가이드) 삭제 → 데이터를 행 3부터 기입
+    ws.delete_rows(3, 4)
+
+    # 컬럼 헤더 → 인덱스 맵 (row 2 기준)
+    header_map = {}
+    for col in range(1, ws.max_column + 1):
+        h = ws.cell(row=2, column=col).value
+        if h:
+            header_map[str(h).replace('\n', '').strip()] = col
+
+    def col_idx(name):
+        return header_map.get(name)
+
+    # 데이터 행 기입 (행 3~)
+    for row_num, item in enumerate(items, start=3):
+        def w(col_name, val):
+            idx = col_idx(col_name)
+            if idx:
+                ws.cell(row=row_num, column=idx).value = val
+
+        # 필수 필드
+        w('상품명', item.get('name_100') or item.get('name_50') or item.get('product_name_display') or '')
+        naver_price = item.get('naver_price')
+        if naver_price:
+            try:
+                price_val = int(str(naver_price).replace(',', '').replace('원', '').strip())
+                # 10원 단위 반올림
+                price_val = (price_val // 10) * 10
+                w('판매가', price_val)
+            except Exception:
+                pass
+        w('재고수량', 100)
+
+        # 원산지코드
+        country = item.get('country', '')
+        origin = ORIGIN_CODE.get(country, '0001')
+        w('원산지코드', origin)
+
+        # 이미지
+        img = item.get('shopping_image') or item.get('blog_image') or ''
+        if img:
+            w('대표이미지', img)
+
+        # 상세설명 (간단한 HTML)
+        product_name = item.get('name_100') or item.get('product_name_display') or ''
+        desc_parts = []
+        if img:
+            desc_parts.append(f'<img src="{img}" style="max-width:600px">')
+        if product_name:
+            desc_parts.append(f'<p><strong>{product_name}</strong></p>')
+        brand = item.get('brand_name', '')
+        if brand:
+            desc_parts.append(f'<p>브랜드: {brand}</p>')
+        if country:
+            desc_parts.append(f'<p>소싱국가: {country}</p>')
+        w('상세설명', ''.join(desc_parts) if desc_parts else '')
+
+        # 선택 필드
+        w('브랜드', brand)
+        w('제조사', brand)
+
+        # 부가세
+        vat_type = item.get('vat_type', '')
+        if '면세' in str(vat_type):
+            w('부가세', '면세상품')
+        else:
+            w('부가세', '과세상품')
+
+        # 배송 기본값
+        w('배송방법', '택배, 소포, 등기')
+        w('택배사코드', 'HANJIN')
+        w('배송비유형', '무료')
+        w('기본배송비', 0)
+        w('배송비 결제방식', '선결제')
+        w('반품배송비', 50000)
+        w('교환배송비', 100000)
+
+        # A/S
+        w('A/S 전화번호', '070-4571-6921')
+        w('A/S 안내', '해외 구매 대행 상품으로 A/S는 불가합니다.\n자세한 내용은 상세페이지를 참조해주세요.')
+
+        # 관부가세
+        w('관부가세', '부과 대상 아님')
+
+        # 상품상태
+        w('상품상태', '신상품')
+
+    # 파일 저장 후 반환
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    from flask import send_file as _send_file
+    today = datetime.now().strftime('%Y%m%d')
+    return _send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'스마트스토어_일괄등록_{today}.xlsx'
+    )
+
+
 @app.route("/api/fetch-weight", methods=["POST"])
 def fetch_weight():
     """Amazon.de / idealo 제품 페이지에서 무게+가격+타이틀 추출"""

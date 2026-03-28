@@ -802,6 +802,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span id="regCount" style="font-size:0.82rem;color:#718096"></span>
         <button class="btn-sm" id="btnDeleteReg" onclick="deleteSelectedRegs()" style="background:#c53030;color:white;display:none">선택 삭제</button>
+        <button class="btn-sm" id="btnExcelReg" onclick="exportRegExcel()" style="background:#1a6a3a;color:white;display:none">📥 엑셀 다운로드</button>
         <button class="btn-search" onclick="loadRegistrations()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
     </div>
@@ -1538,6 +1539,36 @@ async function saveRegSourcePrice(id) {
 function onRegCheck() {
   const checked = document.querySelectorAll('.reg-cb:checked');
   document.getElementById('btnDeleteReg').style.display = checked.length ? '' : 'none';
+  document.getElementById('btnExcelReg').style.display = checked.length ? '' : 'none';
+}
+
+async function exportRegExcel() {
+  const ids = [...document.querySelectorAll('.reg-cb:checked')].map(cb => cb.dataset.id);
+  if (!ids.length) { showToast('항목을 선택해 주세요'); return; }
+  showToast('엑셀 생성 중...');
+  try {
+    const res = await fetch('/api/export-excel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids})
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      showToast('오류: ' + (e.error || res.status)); return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename[^;=\n]*=(['"]?)([^'";\n]*)\1/);
+    a.download = match ? decodeURIComponent(match[2]) : '스마트스토어_일괄등록.xlsx';
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('다운로드 완료');
+  } catch(e) {
+    showToast('다운로드 실패: ' + e.message);
+  }
 }
 function toggleRegAll(master) {
   document.querySelectorAll('.reg-cb').forEach(cb => { cb.checked = master.checked; });
@@ -1559,6 +1590,7 @@ async function deleteSelectedRegs() {
     document.getElementById(`reg-${id}`)?.remove();
   }
   document.getElementById('btnDeleteReg').style.display = 'none';
+  document.getElementById('btnExcelReg').style.display = 'none';
   showToast(`${ids.length}개 삭제 완료`);
 }
 async function saveRegNameEdit(el) {
