@@ -2616,9 +2616,18 @@ function renderSpecsCell(item) {
   const rows = specs.map(s => {
     const isMin = s.price === minPrice;
     const priceHtml = `<span style="font-weight:${isMin?'700':'400'};color:${isMin?'#276749':'#2d3748'}">${formatPrice(s.price)}</span>`;
+    let shipHtml = '';
+    if (s.free_shipping === true) {
+      shipHtml = `<span style="font-size:0.62rem;color:#276749;background:#f0fff4;padding:0 4px;border-radius:3px">무료</span>`;
+    } else if (s.delivery_fee) {
+      shipHtml = `<span style="font-size:0.62rem;color:#c05621;background:#fffaf0;padding:0 4px;border-radius:3px">+${formatPrice(s.delivery_fee)}</span>`;
+    } else {
+      shipHtml = `<span style="font-size:0.62rem;color:#718096">배송?</span>`;
+    }
     return `<tr>
       <td style="padding:1px 4px 1px 0;font-size:0.72rem;color:#4a5568;white-space:nowrap">${escHtml(s.spec)}</td>
       <td style="padding:1px 0;white-space:nowrap">${s.link ? `<a href="${escHtml(s.link)}" target="_blank" rel="noopener" style="text-decoration:none">${priceHtml}</a>` : priceHtml}</td>
+      <td style="padding:1px 3px;white-space:nowrap">${shipHtml}</td>
       ${isMin ? `<td style="padding:1px 4px;font-size:0.65rem;color:#48bb78">최저</td>` : '<td></td>'}
     </tr>`;
   }).join('');

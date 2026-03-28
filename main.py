@@ -214,10 +214,12 @@ class ExtractionResult(BaseModel):
     items: List[ReviewItem]
 
 class SpecItem(BaseModel):
-    spec:   str                 # 예: "200g 1개", "200g 2팩", "500g 1봉"
-    price:  int                 # 최저가 (원)
-    seller: Optional[str] = None
-    link:   Optional[str] = None
+    spec:          str                 # 예: "200g 1개", "200g 2팩", "500g 1봉"
+    price:         int                 # 최저가 (원)
+    free_shipping: Optional[bool] = None  # True=무료배송 확인, False=유료, None=알수없음
+    delivery_fee:  Optional[int]  = None  # 배송비 금액 (원, 확인된 경우)
+    seller:        Optional[str]  = None
+    link:          Optional[str]  = None
 
 class SpecResult(BaseModel):
     specs: List[SpecItem]
@@ -1404,6 +1406,8 @@ def naver_shopping_specs():
 규칙:
 - spec: "200g 1개", "200g 2팩", "500g", "1kg 3팩" 등 명확하게
 - price: 해당 스펙 중 가장 낮은 가격(원 정수)
+- free_shipping: 상품명/판매처에 "무료배송", "로켓배송", "로켓직구", "무료", "free shipping" 등이 있으면 true, "배송비" 뒤에 금액이 있으면 false, 불명확하면 null
+- delivery_fee: "배송비 9,900원", "배송 3,000원" 등 명시된 금액이 있으면 정수(원), 없으면 null
 - seller: mallName
 - link: 해당 상품 링크 그대로
 - 스펙 불분명하거나 명백히 관련 없는 상품 제외
@@ -1414,7 +1418,14 @@ def naver_shopping_specs():
             output_format=SpecResult,
         )
         specs = [
-            {"spec": s.spec, "price": s.price, "seller": s.seller or "", "link": s.link or ""}
+            {
+                "spec":          s.spec,
+                "price":         s.price,
+                "free_shipping": s.free_shipping,
+                "delivery_fee":  s.delivery_fee,
+                "seller":        s.seller or "",
+                "link":          s.link or "",
+            }
             for s in response.parsed_output.specs
         ]
     except Exception as e:
