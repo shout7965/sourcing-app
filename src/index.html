@@ -108,6 +108,17 @@
     }
     .btn-new-project:hover { opacity: 0.85; }
 
+    .country-presets {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;
+    }
+    .btn-country {
+      padding: 5px 8px; background: #1e2d4a; border: 1px solid #2d3748;
+      border-radius: 6px; color: #a0aec0; font-size: 0.78rem;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-country:hover { background: #2d3a5c; color: #e2e8f0; border-color: #4a6cf7; }
+    .btn-country.active { background: #4a6cf7; color: white; border-color: #4a6cf7; }
+
     .project-list {
       flex: 1;
       overflow-y: auto;
@@ -626,6 +637,13 @@
     <!-- 사이드바 -->
     <div class="sidebar">
       <div class="sidebar-top">
+        <div class="country-presets">
+          <button class="btn-country" id="cp-독일" onclick="selectOrCreateCountryProject('독일')">🇩🇪 독일</button>
+          <button class="btn-country" id="cp-미국" onclick="selectOrCreateCountryProject('미국')">🇺🇸 미국</button>
+          <button class="btn-country" id="cp-일본" onclick="selectOrCreateCountryProject('일본')">🇯🇵 일본</button>
+          <button class="btn-country" id="cp-영국" onclick="selectOrCreateCountryProject('영국')">🇬🇧 영국</button>
+          <button class="btn-country" id="cp-중국" onclick="selectOrCreateCountryProject('중국')">🇨🇳 중국</button>
+        </div>
         <button class="btn-new-project" id="btnNewProject" onclick="openNewProjectModal()">+ 새 프로젝트</button>
       </div>
 
@@ -928,6 +946,13 @@
   <div class="modal-box">
     <h2>새 프로젝트</h2>
     <p class="modal-hint">프로젝트 이름이 검색 키워드가 됩니다.<br>예: "독일" → "독일 직구후기" 검색</p>
+    <div class="country-presets" style="margin-bottom:10px">
+      <button class="btn-country" onclick="document.getElementById('newProjectName').value='독일'">🇩🇪 독일</button>
+      <button class="btn-country" onclick="document.getElementById('newProjectName').value='미국'">🇺🇸 미국</button>
+      <button class="btn-country" onclick="document.getElementById('newProjectName').value='일본'">🇯🇵 일본</button>
+      <button class="btn-country" onclick="document.getElementById('newProjectName').value='영국'">🇬🇧 영국</button>
+      <button class="btn-country" onclick="document.getElementById('newProjectName').value='중국'">🇨🇳 중국</button>
+    </div>
     <input class="modal-input" id="newProjectName" placeholder="키워드 (예: 독일, 나이키, 다이슨)"
       onkeydown="if(event.key==='Enter')createProject()" />
     <p class="modal-err" id="newProjectErr"></p>
@@ -1819,6 +1844,33 @@ function updateSelectionSummary() {
   btn.disabled = false;
 }
 
+// ── 국가 퀵 선택 ──────────────────────────────────────────────────────────
+function selectOrCreateCountryProject(keyword) {
+  if (!currentUser) { openLoginModal(); return; }
+
+  // 국가 버튼 active 표시
+  document.querySelectorAll('.btn-country[id^="cp-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`cp-${keyword}`);
+  if (btn) btn.classList.add('active');
+
+  // 이미 있는 프로젝트 찾기
+  const existing = projects.find(p => (p.keyword || p.name) === keyword);
+  if (existing) {
+    const card = document.getElementById(`proj-${existing.id}`);
+    if (card) {
+      card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+      if (!card.classList.contains('open')) card.classList.add('open');
+    }
+    showToast(`"${keyword}" 프로젝트로 이동`);
+    return;
+  }
+
+  // 없으면 모달 pre-fill
+  document.getElementById('newProjectName').value = keyword;
+  document.getElementById('newProjectErr').textContent = '';
+  document.getElementById('newProjectModal').style.display = 'flex';
+}
+
 // ── 새 프로젝트 ───────────────────────────────────────────────────────────
 function openNewProjectModal() {
   if (!currentUser) { openLoginModal(); return; }
@@ -2087,6 +2139,12 @@ function appendResults(results) {
 
 function buildRowHtml(r, gid) {
   const imgHtml = `<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">...</span>`;
+  const searchQ = encodeURIComponent(r.product_name_en || r.product_name || '');
+  const amazonLinks = searchQ ? `<div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap">
+    <a href="https://www.amazon.de/s?k=${searchQ}" target="_blank" rel="noopener" style="font-size:0.62rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px;text-decoration:none">🛒 .de</a>
+    <a href="https://www.amazon.com/s?k=${searchQ}" target="_blank" rel="noopener" style="font-size:0.62rem;color:#276749;background:#f0fff4;padding:1px 5px;border-radius:3px;text-decoration:none">🛒 .com</a>
+    <a href="https://www.amazon.co.jp/s?k=${searchQ}" target="_blank" rel="noopener" style="font-size:0.62rem;color:#744210;background:#fffff0;padding:1px 5px;border-radius:3px;text-decoration:none">🛒 .jp</a>
+  </div>` : '';
   return `
     <td class="cb-cell"><input type="checkbox" data-gid="${gid}" onchange="onCheck(this)" /></td>
     <td class="num-cell">${gid + 1}</td>
@@ -2096,6 +2154,7 @@ function buildRowHtml(r, gid) {
     <td style="min-width:90px">
       ${r.product_name ? `<div style="font-weight:500;color:#2d3748">${escHtml(r.product_name)}</div>` : '<span style="color:#a0aec0">-</span>'}
       ${r.product_name_en ? `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(r.product_name_en)}</div>` : ''}
+      ${amazonLinks}
     </td>
     <td>${badge(r.category, 'category')}</td>
     <td>${badge(r.purchase_source, 'source')}</td>
