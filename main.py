@@ -1136,6 +1136,30 @@ def delete_product_registration(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/dashboard", methods=["GET"])
+def get_dashboard():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    try:
+        docs = db.collection('product_registrations').stream()
+        stats = {}
+        for doc in docs:
+            d = doc.to_dict()
+            user = d.get('created_by') or 'anonymous'
+            if user not in stats:
+                stats[user] = {'total': 0, 'exported': 0}
+            stats[user]['total'] += 1
+            if d.get('exported_at'):
+                stats[user]['exported'] += 1
+        result = [{'user': u, 'total': v['total'], 'exported': v['exported']}
+                  for u, v in sorted(stats.items())]
+        grand = {'user': '합계', 'total': sum(v['total'] for v in stats.values()),
+                 'exported': sum(v['exported'] for v in stats.values())}
+        return jsonify({'stats': result, 'grand': grand})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 CLOUDINARY_CLOUD = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
 CLOUDINARY_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', '')
 
@@ -1520,6 +1544,16 @@ def export_excel():
 
         # 상품상태
         w('상품상태', '신상품')
+
+    # 엑셀 다운로드된 항목에 exported_at 마킹
+    try:
+        batch = db.batch()
+        for item in items:
+            ref = db.collection('product_registrations').document(item['id'])
+            batch.update(ref, {'exported_at': fb_fs.SERVER_TIMESTAMP})
+        batch.commit()
+    except Exception as e:
+        print(f"[Excel] exported_at 마킹 실패: {e}")
 
     # 파일 저장 후 반환
     output = io.BytesIO()

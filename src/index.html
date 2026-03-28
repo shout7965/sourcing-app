@@ -617,6 +617,7 @@
     <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
     <button class="tab-btn" id="tab-register" onclick="switchTab('register')">상품등록대장</button>
     <button class="tab-btn" id="tab-ai" onclick="switchTab('ai')">✨ AI 도우미</button>
+    <button class="tab-btn" id="tab-dashboard" onclick="switchTab('dashboard')">대시보드</button>
   </nav>
 </header>
 
@@ -758,6 +759,7 @@
         <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
         <button class="btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCandidates()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-sm" id="btnMoveToRegister" onclick="moveToRegister()" style="background:#276749;color:white;display:none">→ 상품등록대장</button>
+        <button class="btn-sm" id="btnBatchUrl" onclick="openBatchUrlModal()" style="background:#4a6cf7;color:white;display:none">+ URL 일괄 추가</button>
         <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
     </div>
@@ -841,6 +843,62 @@
     </div>
     <div class="cand-empty" id="regEmpty" style="display:none">
       소싱 후보에서 항목을 선택 후 "→ 상품등록대장" 버튼을 눌러주세요.
+    </div>
+  </div>
+</div>
+
+<!-- ══ 대시보드 탭 ══ -->
+<div id="dashboardTab" class="tab-content" style="flex-direction:column;overflow-y:auto">
+  <div class="container" style="max-width:700px;padding:24px 16px">
+    <div class="cand-header">
+      <h2>대시보드</h2>
+      <button class="btn-search" onclick="loadDashboard()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
+    </div>
+    <div id="dashLoading" style="display:none;text-align:center;padding:40px">
+      <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px"></div>
+    </div>
+    <div class="cand-card" id="dashCard" style="display:none">
+      <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+        <thead>
+          <tr style="background:#edf2f7">
+            <th style="padding:10px 14px;text-align:left;border-bottom:2px solid #e2e8f0">아이디</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">전체 아이템</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">엑셀 다운로드</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">미다운로드</th>
+          </tr>
+        </thead>
+        <tbody id="dashBody"></tbody>
+      </table>
+    </div>
+    <div id="dashEmpty" style="display:none;text-align:center;padding:40px;color:#718096">데이터 없음</div>
+  </div>
+</div>
+
+<!-- ══ URL 일괄 추가 모달 ══ -->
+<div id="batchUrlModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:12px;padding:24px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0;font-size:1rem">URL 일괄 추가</h3>
+      <button onclick="closeBatchUrlModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#718096">✕</button>
+    </div>
+    <div style="margin-bottom:12px;font-size:0.82rem;color:#718096">기준 항목의 정보를 복제하고 URL만 바꿔서 상품등록대장에 바로 추가합니다.</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">기준 항목</label>
+      <div id="batchBaseItem" style="padding:8px 12px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;color:#4a5568">선택된 소싱 후보 항목이 기준으로 사용됩니다.</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">소싱처 URL 목록 <span style="font-weight:400;color:#718096">(한 줄에 하나씩)</span></label>
+      <textarea id="batchUrlInput" placeholder="https://www.amazon.de/dp/...&#10;https://www.amazon.de/dp/...&#10;https://www.amazon.de/dp/..." style="width:100%;height:140px;font-size:0.8rem;border:1px solid #cbd5e0;border-radius:6px;padding:8px;resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+    <div id="batchProgress" style="display:none;margin-bottom:12px">
+      <div style="font-size:0.82rem;color:#4a5568;margin-bottom:6px" id="batchProgressText">처리 중...</div>
+      <div style="background:#e2e8f0;border-radius:4px;height:6px">
+        <div id="batchProgressBar" style="background:#4a6cf7;height:6px;border-radius:4px;width:0%;transition:width 0.3s"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeBatchUrlModal()" style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:0.85rem">취소</button>
+      <button id="batchUrlSubmit" onclick="runBatchUrl()" style="padding:8px 18px;background:#276749;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">상품등록대장에 추가</button>
     </div>
   </div>
 </div>
@@ -1034,11 +1092,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab', ai: 'aiTab'};
+  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab', ai: 'aiTab', dashboard: 'dashboardTab'};
   document.getElementById(tabMap[tab] || 'projectsTab').classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'candidates') loadCandidates();
   if (tab === 'register')   loadRegistrations();
+  if (tab === 'dashboard')  loadDashboard();
 }
 
 // ── AI 도우미 ──────────────────────────────────────────────────────────────
@@ -1212,6 +1271,7 @@ function onCandCheck() {
   const checked = document.querySelectorAll('.cand-cb:checked');
   document.getElementById('btnDeleteSelected').style.display  = checked.length ? '' : 'none';
   document.getElementById('btnMoveToRegister').style.display  = checked.length ? '' : 'none';
+  document.getElementById('btnBatchUrl').style.display        = checked.length === 1 ? '' : 'none';
 }
 function toggleCandAll(master) {
   document.querySelectorAll('.cand-cb').forEach(cb => { cb.checked = master.checked; });
@@ -1439,9 +1499,10 @@ function renderRegistrations(items) {
       style="${inputStyle}${!coupangSaved ? ';color:#63b3ed' : ''}"
       onchange="updateRegPrice('${escHtml(id)}','coupang',this.value,${coupangCalc})" data-calc="${coupangCalc}">`;
 
+    const isExported = !!item.exported_at;
     return `
-    <tr id="reg-${escHtml(id)}">
-      <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}" onchange="onRegCheck()"></td>
+    <tr id="reg-${escHtml(id)}"${isExported ? ' style="background:#f0fff4"' : ''}>
+      <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}"${isExported ? ' data-exported="1"' : ''} onchange="onRegCheck()"></td>
       <td style="white-space:nowrap">${country}</td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
       <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
@@ -1625,7 +1686,10 @@ async function exportRegExcel() {
   }
 }
 function toggleRegAll(master) {
-  document.querySelectorAll('.reg-cb').forEach(cb => { cb.checked = master.checked; });
+  document.querySelectorAll('.reg-cb').forEach(cb => {
+    // 엑셀 다운로드된 항목은 전체선택에서 제외 (개별 체크는 가능)
+    if (!cb.dataset.exported) cb.checked = master.checked;
+  });
   onRegCheck();
 }
 async function deleteReg(id) {
@@ -3325,6 +3389,141 @@ function showToast(msg, isErr) {
   t.style.background = isErr ? '#e53e3e' : '#276749';
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── 대시보드 ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  document.getElementById('dashLoading').style.display = '';
+  document.getElementById('dashCard').style.display    = 'none';
+  document.getElementById('dashEmpty').style.display   = 'none';
+  try {
+    const res  = await fetch('/api/dashboard');
+    const data = await res.json();
+    document.getElementById('dashLoading').style.display = 'none';
+    const stats = data.stats || [];
+    if (!stats.length) { document.getElementById('dashEmpty').style.display = ''; return; }
+    const tbody = document.getElementById('dashBody');
+    const rows  = [...stats, data.grand].map((r, i) => {
+      const isGrand = i === stats.length;
+      const style   = isGrand ? 'font-weight:700;background:#edf2f7;border-top:2px solid #e2e8f0' : (i % 2 === 0 ? '' : 'background:#f7fafc');
+      return `<tr style="${style}">
+        <td style="padding:9px 14px;border-bottom:1px solid #e2e8f0">${r.user}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0">${r.total}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#276749">${r.exported}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#c05621">${r.total - r.exported}</td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML = rows;
+    document.getElementById('dashCard').style.display = '';
+  } catch(e) {
+    document.getElementById('dashLoading').style.display = 'none';
+    document.getElementById('dashEmpty').style.display   = '';
+    document.getElementById('dashEmpty').textContent = '로딩 실패: ' + e.message;
+  }
+}
+
+// ── URL 일괄 복제 ────────────────────────────────────────────────────────────
+let batchBaseId = null;
+
+function openBatchUrlModal() {
+  const checked = [...document.querySelectorAll('.cand-cb:checked')];
+  if (checked.length !== 1) { showToast('기준 항목을 1개만 선택해주세요', true); return; }
+  batchBaseId = checked[0].dataset.id;
+  const base  = candItemsCache[batchBaseId];
+  const label = base ? [base.brand_name, base.product_name_en || base.product_name].filter(Boolean).join(' ') || batchBaseId : batchBaseId;
+  document.getElementById('batchBaseItem').textContent = label;
+  document.getElementById('batchUrlInput').value       = '';
+  document.getElementById('batchProgress').style.display = 'none';
+  document.getElementById('batchUrlSubmit').disabled   = false;
+  document.getElementById('batchUrlModal').style.display = 'flex';
+}
+
+function closeBatchUrlModal() {
+  document.getElementById('batchUrlModal').style.display = 'none';
+  batchBaseId = null;
+}
+
+async function runBatchUrl() {
+  if (!batchBaseId) return;
+  const base = candItemsCache[batchBaseId];
+  if (!base) { showToast('기준 항목을 찾을 수 없습니다', true); return; }
+
+  const urls = document.getElementById('batchUrlInput').value
+    .split('\n').map(s => s.trim()).filter(s => s.startsWith('http'));
+  if (!urls.length) { showToast('URL을 입력해주세요', true); return; }
+
+  document.getElementById('batchUrlSubmit').disabled   = true;
+  document.getElementById('batchProgress').style.display = '';
+
+  let rate = currentRate;
+  try {
+    const rateData = await (await fetch('/api/exchange-rate')).json();
+    rate = rateData.rate || currentRate;
+    currentRate = rate;
+  } catch {}
+
+  const country  = resolveCountry(base);
+  const ftaInfo  = getFtaInfo(country);
+  const vatPriceKrw = base.price_eur ? Math.round((base.price_eur / (1 + (parseFloat(base.vat_type || '19')) / 100)) * rate) : 0;
+  const shipFee  = base.shipping_fee || 0;
+  const cifKrw   = vatPriceKrw + shipFee;
+  const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
+
+  const bar  = document.getElementById('batchProgressBar');
+  const text = document.getElementById('batchProgressText');
+
+  const regItems = [];
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    text.textContent = `처리 중... (${i + 1}/${urls.length}) ${url.slice(0, 50)}`;
+    bar.style.width  = `${Math.round((i / urls.length) * 100)}%`;
+
+    // fetch-weight로 상품정보 조회
+    let productTitle = '', images = [];
+    try {
+      const wResp = await fetch('/api/fetch-weight', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url, candidate_id: ''}),
+      });
+      const wData = await wResp.json();
+      productTitle = wData.product_title || '';
+      images       = wData.images        || [];
+    } catch {}
+
+    regItems.push({
+      ...base,
+      id: undefined,
+      product_url:       url,
+      product_title_url: productTitle,
+      reg_images:        images.length ? images : (base.reg_images || []),
+      country,
+      exchange_rate:     rate,
+      shipping_fee:      shipFee,
+      cif_krw:           cifKrw,
+      fta:               ftaInfo.fta,
+      fta_agreement:     ftaInfo.agreement,
+      customs_rate:      ftaInfo.rate,
+      customs_amt:       customs,
+      vat10_amt:         vat10,
+    });
+  }
+
+  bar.style.width  = '100%';
+  text.textContent = `등록대장에 추가 중...`;
+
+  try {
+    const resp = await fetch('/api/product-registrations', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({items: regItems}),
+    });
+    const data = await resp.json();
+    closeBatchUrlModal();
+    showToast(`${data.created}개 상품등록대장에 추가됨`);
+    switchTab('register');
+  } catch(e) {
+    showToast('추가 실패: ' + e.message, true);
+    document.getElementById('batchUrlSubmit').disabled = false;
+  }
 }
 </script>
 <!-- ── Claude 빠른 질문 위젯 ── -->
