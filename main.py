@@ -924,12 +924,31 @@ def get_candidates():
         return jsonify({"items": [], "error": str(e), "firebase": True})
 
 
+# 소싱 후보 직접 생성 (행 복제용)
+@app.route("/api/candidates", methods=["POST"])
+def create_candidate():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    item = request.get_json()
+    if not item:
+        return jsonify({"error": "데이터 없음"}), 400
+    # id 제거 후 새 문서로 저장
+    item.pop('id', None)
+    item['saved_at']  = fb_fs.SERVER_TIMESTAMP
+    item['saved_by']  = session.get('user', 'anonymous')
+    item['status']    = item.get('status', 'review')
+    ref = db.collection('sourcing_candidates').document()
+    ref.set(item)
+    return jsonify({"id": ref.id, "success": True})
+
+
 # 소싱 후보 상태 업데이트
 ALLOWED_UPDATE_FIELDS = {
     'status', 'price_eur', 'exchange_rate', 'shipping_fee',
     'cost_price', 'margin', 'margin_rate', 'memo',
     'completed_by', 'completed_at',
     'weight_kg', 'vat_type', 'product_url', 'product_title_url',
+    'name_50', 'name_100', 'reg_images',
 }
 
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])

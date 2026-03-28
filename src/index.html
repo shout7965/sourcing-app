@@ -759,7 +759,6 @@
         <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
         <button class="btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCandidates()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-sm" id="btnMoveToRegister" onclick="moveToRegister()" style="background:#276749;color:white;display:none">→ 상품등록대장</button>
-        <button class="btn-sm" id="btnBatchUrl" onclick="openBatchUrlModal()" style="background:#4a6cf7;color:white;display:none">+ URL 일괄 추가</button>
         <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
     </div>
@@ -874,34 +873,6 @@
   </div>
 </div>
 
-<!-- ══ URL 일괄 추가 모달 ══ -->
-<div id="batchUrlModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center">
-  <div style="background:white;border-radius:12px;padding:24px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="margin:0;font-size:1rem">URL 일괄 추가</h3>
-      <button onclick="closeBatchUrlModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#718096">✕</button>
-    </div>
-    <div style="margin-bottom:12px;font-size:0.82rem;color:#718096">기준 항목의 정보를 복제하고 URL만 바꿔서 상품등록대장에 바로 추가합니다.</div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">기준 항목</label>
-      <div id="batchBaseItem" style="padding:8px 12px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;color:#4a5568">선택된 소싱 후보 항목이 기준으로 사용됩니다.</div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px">소싱처 URL 목록 <span style="font-weight:400;color:#718096">(한 줄에 하나씩)</span></label>
-      <textarea id="batchUrlInput" placeholder="https://www.amazon.de/dp/...&#10;https://www.amazon.de/dp/...&#10;https://www.amazon.de/dp/..." style="width:100%;height:140px;font-size:0.8rem;border:1px solid #cbd5e0;border-radius:6px;padding:8px;resize:vertical;box-sizing:border-box"></textarea>
-    </div>
-    <div id="batchProgress" style="display:none;margin-bottom:12px">
-      <div style="font-size:0.82rem;color:#4a5568;margin-bottom:6px" id="batchProgressText">처리 중...</div>
-      <div style="background:#e2e8f0;border-radius:4px;height:6px">
-        <div id="batchProgressBar" style="background:#4a6cf7;height:6px;border-radius:4px;width:0%;transition:width 0.3s"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="closeBatchUrlModal()" style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:0.85rem">취소</button>
-      <button id="batchUrlSubmit" onclick="runBatchUrl()" style="padding:8px 18px;background:#276749;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">상품등록대장에 추가</button>
-    </div>
-  </div>
-</div>
 
 <!-- ══ AI 도우미 탭 ══ -->
 <div id="aiTab" class="tab-content" style="flex-direction:column;overflow-y:auto">
@@ -1271,7 +1242,6 @@ function onCandCheck() {
   const checked = document.querySelectorAll('.cand-cb:checked');
   document.getElementById('btnDeleteSelected').style.display  = checked.length ? '' : 'none';
   document.getElementById('btnMoveToRegister').style.display  = checked.length ? '' : 'none';
-  document.getElementById('btnBatchUrl').style.display        = checked.length === 1 ? '' : 'none';
 }
 function toggleCandAll(master) {
   document.querySelectorAll('.cand-cb').forEach(cb => { cb.checked = master.checked; });
@@ -2898,7 +2868,8 @@ function renderCandidates(items) {
               ${googleHref ? `<a class="btn-de" href="${googleHref}" target="_blank" rel="noopener" style="background:#e8f0fe;color:#1a73e8;border-color:#a8c7fa">Google.de</a>` : ''}
             </div>` : '';
         })()}
-        <div style="margin-top:4px">
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <button class="btn-icon" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8" onclick="cloneCandidate('${escHtml(id)}')">복제</button>
           <button class="btn-icon del" onclick="deleteCandidate('${escHtml(id)}')">삭제</button>
         </div>
       </td>
@@ -3422,108 +3393,26 @@ async function loadDashboard() {
   }
 }
 
-// ── URL 일괄 복제 ────────────────────────────────────────────────────────────
-let batchBaseId = null;
-
-function openBatchUrlModal() {
-  const checked = [...document.querySelectorAll('.cand-cb:checked')];
-  if (checked.length !== 1) { showToast('기준 항목을 1개만 선택해주세요', true); return; }
-  batchBaseId = checked[0].dataset.id;
-  const base  = candItemsCache[batchBaseId];
-  const label = base ? [base.brand_name, base.product_name_en || base.product_name].filter(Boolean).join(' ') || batchBaseId : batchBaseId;
-  document.getElementById('batchBaseItem').textContent = label;
-  document.getElementById('batchUrlInput').value       = '';
-  document.getElementById('batchProgress').style.display = 'none';
-  document.getElementById('batchUrlSubmit').disabled   = false;
-  document.getElementById('batchUrlModal').style.display = 'flex';
-}
-
-function closeBatchUrlModal() {
-  document.getElementById('batchUrlModal').style.display = 'none';
-  batchBaseId = null;
-}
-
-async function runBatchUrl() {
-  if (!batchBaseId) return;
-  const base = candItemsCache[batchBaseId];
-  if (!base) { showToast('기준 항목을 찾을 수 없습니다', true); return; }
-
-  const urls = document.getElementById('batchUrlInput').value
-    .split('\n').map(s => s.trim()).filter(s => s.startsWith('http'));
-  if (!urls.length) { showToast('URL을 입력해주세요', true); return; }
-
-  document.getElementById('batchUrlSubmit').disabled   = true;
-  document.getElementById('batchProgress').style.display = '';
-
-  let rate = currentRate;
+// ── 소싱후보 행 복제 ──────────────────────────────────────────────────────────
+async function cloneCandidate(id) {
+  const original = candItemsCache[id];
+  if (!original) { showToast('항목을 찾을 수 없습니다', true); return; }
+  // id/saved_at 제외하고 복제
+  const clone = {...original};
+  delete clone.id;
+  delete clone.saved_at;
+  clone.status = 'review';
   try {
-    const rateData = await (await fetch('/api/exchange-rate')).json();
-    rate = rateData.rate || currentRate;
-    currentRate = rate;
-  } catch {}
-
-  const country  = resolveCountry(base);
-  const ftaInfo  = getFtaInfo(country);
-  const vatPriceKrw = base.price_eur ? Math.round((base.price_eur / (1 + (parseFloat(base.vat_type || '19')) / 100)) * rate) : 0;
-  const shipFee  = base.shipping_fee || 0;
-  const cifKrw   = vatPriceKrw + shipFee;
-  const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
-
-  const bar  = document.getElementById('batchProgressBar');
-  const text = document.getElementById('batchProgressText');
-
-  const regItems = [];
-  for (let i = 0; i < urls.length; i++) {
-    const url = urls[i];
-    text.textContent = `처리 중... (${i + 1}/${urls.length}) ${url.slice(0, 50)}`;
-    bar.style.width  = `${Math.round((i / urls.length) * 100)}%`;
-
-    // fetch-weight로 상품정보 조회
-    let productTitle = '', images = [];
-    try {
-      const wResp = await fetch('/api/fetch-weight', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({url, candidate_id: ''}),
-      });
-      const wData = await wResp.json();
-      productTitle = wData.product_title || '';
-      images       = wData.images        || [];
-    } catch {}
-
-    regItems.push({
-      ...base,
-      id: undefined,
-      product_url:       url,
-      product_title_url: productTitle,
-      reg_images:        images.length ? images : (base.reg_images || []),
-      country,
-      exchange_rate:     rate,
-      shipping_fee:      shipFee,
-      cif_krw:           cifKrw,
-      fta:               ftaInfo.fta,
-      fta_agreement:     ftaInfo.agreement,
-      customs_rate:      ftaInfo.rate,
-      customs_amt:       customs,
-      vat10_amt:         vat10,
-    });
-  }
-
-  bar.style.width  = '100%';
-  text.textContent = `등록대장에 추가 중...`;
-
-  try {
-    const resp = await fetch('/api/product-registrations', {
+    const resp = await fetch('/api/candidates', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({items: regItems}),
+      body: JSON.stringify(clone),
     });
     const data = await resp.json();
-    closeBatchUrlModal();
-    showToast(`${data.created}개 상품등록대장에 추가됨`);
-    switchTab('register');
-  } catch(e) {
-    showToast('추가 실패: ' + e.message, true);
-    document.getElementById('batchUrlSubmit').disabled = false;
-  }
+    if (!resp.ok) { showToast('복제 실패: ' + (data.error || ''), true); return; }
+    // 캐시에 추가하고 목록 새로고침
+    showToast('행이 복제됐습니다. 수정 후 등록대장으로 이동하세요.');
+    loadCandidates();
+  } catch(e) { showToast('복제 실패: ' + e.message, true); }
 }
 </script>
 <!-- ── Claude 빠른 질문 위젯 ── -->
