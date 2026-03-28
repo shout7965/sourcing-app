@@ -757,15 +757,7 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 키워드가 제목+본문 어딘가에 있어야 함 (제목만 → 너무 엄격, 전체제거 → 엉뚱한 결과)
-    # 네이버가 부분매칭으로 무관한 글을 섞어서 반환하는 것을 막기 위해 최소 필터 유지
     keyword_lower = keyword.lower()
-
-    def item_matches_kw(item):
-        full = strip_html(item.get("title", "") + " " + item.get("description", "")).lower()
-        return keyword_lower in full
-
-    all_items = [i for i in all_items if item_matches_kw(i)]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
@@ -836,6 +828,10 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
     results = []
     for i, item in enumerate(all_items, 1):
         ext = extracted_map.get(i)
+        is_review = getattr(ext, 'is_direct_purchase_review', True) if ext else True
+        # Claude가 직구후기 아니라고 판정한 항목 제외 (이어폰/포러너 같은 무관 글 차단)
+        if is_review is False:
+            continue
         results.append({
             "index":                     i,
             "source":                    item.get("_source", "블로그"),
@@ -851,7 +847,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "category":                  ext.category                 if ext else None,
             "purchase_source":           ext.purchase_source          if ext else None,
             "price_paid":                ext.price_paid               if ext else None,
-            "is_direct_purchase_review": getattr(ext, 'is_direct_purchase_review', True) if ext else True,
+            "is_direct_purchase_review": True,
         })
 
     return jsonify({
