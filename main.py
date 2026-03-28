@@ -1060,6 +1060,7 @@ ALLOWED_REG_FIELDS = {
     'customs_rate', 'fta', 'fta_agreement', 'status', 'memo', 'country',
     'product_url', 'product_title_url', 'price_eur', 'exchange_rate',
     'weight_kg', 'shipping_fee', 'vat_type', 'customs_amt', 'vat10_amt',
+    'naver_category',
 }
 
 @app.route("/api/product-registrations", methods=["GET"])
@@ -1232,6 +1233,9 @@ def _generate_korean_description(product_name: str, page_text: str, images: list
             messages=[{"role": "user", "content": prompt}],
         )
         desc_html = resp.content[0].text.strip()
+        # markdown code fence 제거 (```html ... ``` 또는 ``` ... ```)
+        desc_html = re.sub(r'^```(?:html)?\s*\n?', '', desc_html)
+        desc_html = re.sub(r'\n?```\s*$', '', desc_html).strip()
     except Exception:
         desc_html = f'<p><strong>{product_name}</strong></p>'
 
@@ -1294,33 +1298,55 @@ def export_excel():
             if idx:
                 ws.cell(row=row_num, column=idx).value = val
 
-        # 필수 필드
-        w('상품명', item.get('name_100') or item.get('name_50') or item.get('product_name_display') or '')
+        product_name = item.get('name_100') or item.get('name_50') or item.get('product_name_display') or ''
+        brand        = item.get('brand_name', '') or ''
+        product_url  = item.get('product_url', '') or ''
+
+        # ── 필수: 상품명
+        w('상품명', product_name)
+
+        # ── 필수: 판매가 (저장 값 없으면 totalCost 기반 제안가 계산)
         naver_price = item.get('naver_price')
+        price_val = None
         if naver_price:
             try:
-                price_val = int(str(naver_price).replace(',', '').replace('원', '').strip())
-                # 10원 단위 반올림
-                price_val = (price_val // 10) * 10
-                w('판매가', price_val)
+                price_val = (int(str(naver_price).replace(',', '').replace('원', '').strip()) // 10) * 10
             except Exception:
                 pass
+        if not price_val and item.get('price_eur'):
+            import math as _math
+            _rate    = float(item.get('exchange_rate') or 1450)
+            _vat     = float(item.get('vat_type') or 19) / 100
+            _eur     = float(item.get('price_eur') or 0)
+            _eur_nv  = _eur / (1 + _vat)
+            _vat_krw = round(_eur_nv * _rate)
+            _ship    = float(item.get('shipping_fee') or 0)
+            _cust    = float(item.get('customs_amt')  or 0)
+            _vat10   = float(item.get('vat10_amt')    or 0)
+            _sfee    = 5500 if _eur_nv < 1000 else round(_eur * _rate * 0.01)
+            _afee    = 6000 if _eur_nv <= 30 else (8000 if _eur_nv <= 50 else 10000)
+            _total   = _vat_krw + _ship + _cust + _vat10 + _sfee + _afee
+            price_val = int(_math.ceil((_total + 10000) / (1 - 0.0585) / 100) * 100)
+        if price_val:
+            w('판매가', price_val)
+
+        # ── 필수: 재고수량
         w('재고수량', 100)
 
-        # 원산지코드
-        country = item.get('country', '')
-        origin = ORIGIN_CODE.get(country, '0001')
+        # ── 필수: 원산지코드 (이모지 제거 후 매핑)
+        country      = item.get('country', '') or ''
+        country_bare = re.sub(r'[^\w가-힣]', '', country).strip()  # 이모지·공백 제거
+        origin = ORIGIN_CODE.get(country_bare, '0001')
         w('원산지코드', origin)
 
-        # 제품 URL에서 이미지 + 상세 텍스트 추출
-        product_url = item.get('product_url', '')
-        product_name = item.get('name_100') or item.get('product_name_display') or ''
-        brand = item.get('brand_name', '')
+        # ── 카테고리 (저장된 naver_category 필드 우선, 없으면 빈칸)
+        naver_cat = item.get('naver_category') or item.get('naver_category_code')
+        if naver_cat:
+            w('카테고리코드', int(naver_cat))
 
+        # ── 이미지: 제품URL fetch 우선, 없으면 저장된 이미지 fallback
         page_images, page_text = _fetch_product_page_data(product_url) if product_url else ([], '')
-
-        # 이미지: URL이미지 우선, 없으면 쇼핑/블로그 이미지 fallback
-        fallback_img = item.get('shopping_image') or item.get('blog_image') or ''
+        fallback_img = item.get('shopping_image') or item.get('blog_image') or item.get('thumbnail') or ''
         if not page_images and fallback_img:
             page_images = [fallback_img]
 
@@ -1329,17 +1355,17 @@ def export_excel():
         if len(page_images) > 1:
             w('추가이미지', '\n'.join(page_images[1:]))
 
-        # 상세설명: Claude 한국어 번역/요약 (URL fetch 실패 시 저장 데이터 활용)
+        # ── 상세설명: Claude 한국어 번역/요약
         desc_html = _generate_korean_description(product_name, page_text, page_images, item)
         w('상세설명', desc_html)
 
-        # 선택 필드
+        # ── 선택 필드
         w('브랜드', brand)
         w('제조사', brand)
 
-        # 부가세
-        vat_type = item.get('vat_type', '')
-        if '면세' in str(vat_type):
+        # ── 부가세
+        vat_type = str(item.get('vat_type', '') or '')
+        if '면세' in vat_type:
             w('부가세', '면세상품')
         else:
             w('부가세', '과세상품')
