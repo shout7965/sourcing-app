@@ -1471,7 +1471,13 @@ def fetch_weight():
             "Pragma": "no-cache",
         })
         if resp.status_code != 200:
-            return jsonify({"weight": None, "error": f"페이지 로드 실패 ({resp.status_code})"}), 400
+            slug_title = None
+            if 'amazon.' in url:
+                slug_m = re.search(r'amazon\.[^/]+/([^/]+)/dp/', url)
+                if slug_m and slug_m.group(1) != 'dp':
+                    slug_title = slug_m.group(1).replace('-', ' ')
+            return jsonify({"weight": None, "product_title": slug_title,
+                            "error": f"페이지 로드 실패 ({resp.status_code})"})
         # Amazon 봇 차단 감지 (CAPTCHA 또는 Robot Check 페이지)
         if 'amazon.' in url and (
             'Robot Check' in resp.text or
@@ -1479,7 +1485,15 @@ def fetch_weight():
             'api-services-support@amazon.com' in resp.text or
             resp.text.strip().count('<') < 10
         ):
-            return jsonify({"weight": None, "error": "Amazon 봇 차단 — 브라우저에서 직접 열어 정보를 입력해주세요"}), 400
+            # URL 슬러그에서 상품명 추출 (amazon.de/SLUG/dp/ASIN/...)
+            slug_title = None
+            slug_m = re.search(r'amazon\.[^/]+/([^/]+)/dp/', url)
+            if slug_m:
+                slug = slug_m.group(1)
+                if slug and slug != 'dp':
+                    slug_title = slug.replace('-', ' ')
+            return jsonify({"weight": None, "product_title": slug_title,
+                            "error": "Amazon 봇 차단 — 무게/가격은 직접 입력해주세요"})
 
         text = strip_html(resp.text)
 
