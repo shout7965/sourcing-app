@@ -2381,7 +2381,7 @@ function appendResults(results) {
 
 function buildRowHtml(r, gid) {
   const imgHtml = `<span class="img-none" style="font-size:0.7rem;color:#cbd5e0">...</span>`;
-  const searchQ = encodeURIComponent(r.product_name_en || r.product_title_url || '');
+  const searchQ = encodeURIComponent(r.product_name_en || '');
   const amazonLinks = searchQ ? `<div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap">
     <a href="https://www.amazon.de/s?k=${searchQ}" target="_blank" rel="noopener" style="font-size:0.62rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px;text-decoration:none">🛒 .de</a>
     <a href="https://www.amazon.com/s?k=${searchQ}" target="_blank" rel="noopener" style="font-size:0.62rem;color:#276749;background:#f0fff4;padding:1px 5px;border-radius:3px;text-decoration:none">🛒 .com</a>
@@ -2718,10 +2718,8 @@ function renderCandidates(items) {
       <td style="white-space:nowrap;min-width:100px">
         ${(() => {
           const purl = item.product_url || '';
-          // 영문명 우선, 없으면 소싱처 상품명(영문) — 한글 절대 금지
-          const enTerm = item.product_name_en || item.product_title_url || '';
-          const q    = encodeURIComponent(enTerm);
-          const noEn = !enTerm && !purl ? '<div style="font-size:0.68rem;color:#e53e3e;margin-bottom:2px">⚠ 영문명 미확인</div>' : '';
+          const q    = encodeURIComponent(item.product_name_en || '');
+          const noEn = !item.product_name_en && !purl ? '<div style="font-size:0.68rem;color:#e53e3e;margin-bottom:2px">⚠ 영문명 미확인</div>' : '';
           // product_url이 특정 상품 페이지(/dp/ 등)면 직접 링크, 아니면 검색 링크
           const isDirectUrl = purl && /\/dp\/|\/itm\/|product\.|\/p\//.test(purl);
           const amazonHref  = isDirectUrl ? purl : (q ? `https://www.amazon.de/s?k=${q}&language=de_DE` : '');
