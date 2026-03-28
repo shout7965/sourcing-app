@@ -1255,6 +1255,11 @@ function getFtaInfo(country) {
 }
 
 // ── 소싱국가 추출 ─────────────────────────────────────────────────────────
+const KEYWORD_COUNTRY_MAP = {
+  '독일':'🇩🇪 독일','미국':'🇺🇸 미국','일본':'🇯🇵 일본','중국':'🇨🇳 중국',
+  '영국':'🇬🇧 영국','프랑스':'🇫🇷 프랑스','이탈리아':'🇮🇹 이탈리아','스페인':'🇪🇸 스페인',
+  '캐나다':'🇨🇦 캐나다','호주':'🇦🇺 호주','네덜란드':'🇳🇱 네덜란드',
+};
 function extractCountry(url) {
   if (!url) return '-';
   if (/amazon\.de|idealo\.de|eurolife|\.de[/?#]|\.de$/.test(url))  return '🇩🇪 독일';
@@ -1269,6 +1274,13 @@ function extractCountry(url) {
   if (/taobao|tmall|jd\.com|\.cn[/?#]|\.cn$/.test(url))            return '🇨🇳 중국';
   if (/amazon\.com/.test(url))                                      return '🇺🇸 미국';
   return '-';
+}
+// item에서 country 결정: product_url → item.country → keyword 순
+function resolveCountry(item) {
+  const fromUrl = extractCountry(item.product_url || '');
+  if (fromUrl !== '-') return fromUrl;
+  if (item.country && item.country !== '-') return item.country;
+  return KEYWORD_COUNTRY_MAP[item.keyword] || '-';
 }
 
 // ── 소싱후보 → 상품등록대장 이동 ─────────────────────────────────────────
@@ -1287,7 +1299,7 @@ async function moveToRegister() {
   const items = ids.map(id => {
     const item = candItemsCache[id];
     if (!item) return null;
-    const country   = extractCountry(item.product_url || '');
+    const country   = resolveCountry(item);
     const ftaInfo   = getFtaInfo(country);
     // UI에서 수정된 배송비 우선 반영 (weight 기반 자동계산값 포함)
     const shipEl      = document.getElementById(`ship-${id}`);
@@ -1366,7 +1378,7 @@ function renderRegistrations(items) {
   items.forEach(item => { if (item.id) regItemsCache[item.id] = item; });
   document.getElementById('regBody').innerHTML = items.map(item => {
     const id          = item.id;
-    const country     = item.country || extractCountry(item.product_url || '');
+    const country     = resolveCountry(item);
     const productUrl  = item.product_url || '';
     const nameHtml = (item.name_50 || item.name_100)
       ? `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(item.name_50||'')}</span></div>` +
