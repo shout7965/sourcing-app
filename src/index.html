@@ -1661,6 +1661,26 @@ async function saveRegNameEdit(el) {
   } catch(e) { showToast('저장 실패', true); }
 }
 
+function showImgInput(id) {
+  const el = document.getElementById(`img-input-${id}`);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function saveImgInput(id) {
+  const ta = document.getElementById(`img-textarea-${id}`);
+  if (!ta) return;
+  const urls = ta.value.split('\n').map(s => s.trim()).filter(s => s.startsWith('http')).slice(0, 5);
+  if (!urls.length) { showToast('유효한 URL을 입력해주세요', true); return; }
+  if (regItemsCache[id]) regItemsCache[id].reg_images = urls;
+  const cell = document.getElementById(`reg-imgs-${id}`);
+  if (cell) cell.outerHTML = `<td id="reg-imgs-${id}" style="min-width:160px;vertical-align:top">${renderRegImages(id, regItemsCache[id])}</td>`;
+  await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reg_images: urls}),
+  });
+  showToast(`이미지 ${urls.length}개 저장`);
+}
+
 async function fetchRegImages(id) {
   const item = regItemsCache[id];
   const url = item?.product_url || '';
@@ -1693,7 +1713,15 @@ async function fetchRegImages(id) {
 
 function renderRegImages(id, item) {
   const imgs = item.reg_images || [];
-  if (!imgs.length) return `<button id="btn-regimg-${escHtml(id)}" class="btn-sm" style="font-size:0.68rem" onclick="fetchRegImages('${escHtml(id)}')">🖼 이미지 가져오기</button>`;
+  if (!imgs.length) return `
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button id="btn-regimg-${escHtml(id)}" class="btn-sm" style="font-size:0.68rem" onclick="fetchRegImages('${escHtml(id)}')">🖼 자동 가져오기</button>
+      <button class="btn-sm" style="font-size:0.68rem;background:#718096;color:white" onclick="showImgInput('${escHtml(id)}')">✏️ URL 직접 입력</button>
+      <div id="img-input-${escHtml(id)}" style="display:none;margin-top:2px">
+        <textarea id="img-textarea-${escHtml(id)}" placeholder="이미지 URL 입력&#10;(줄바꿈으로 구분, 최대 5개)" style="width:150px;height:70px;font-size:0.68rem;border:1px solid #cbd5e0;border-radius:4px;padding:3px;resize:none"></textarea>
+        <button class="btn-sm" style="font-size:0.68rem;margin-top:2px;background:#276749;color:white;width:100%" onclick="saveImgInput('${escHtml(id)}')">저장</button>
+      </div>
+    </div>`;
   return `<div id="reg-imgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start">` +
     imgs.map((url, i) => `
       <div style="position:relative;display:inline-block">
