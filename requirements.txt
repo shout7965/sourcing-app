@@ -9,3 +9,4 @@ requests
 python-dotenv
 pydantic
 firebase-admin
+openpyxl

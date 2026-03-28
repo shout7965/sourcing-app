@@ -1156,7 +1156,7 @@ def export_excel():
     }
 
     # 템플릿 로드
-    template_path = os.path.join(os.path.dirname(__file__), 'Documents', 'ExcelSaveTemplate_20260309.xlsx')
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Documents', 'ExcelSaveTemplate_20260309.xlsx')
     wb = openpyxl.load_workbook(template_path)
     ws = wb.active
 
