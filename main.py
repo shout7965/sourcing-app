@@ -1512,42 +1512,60 @@ def fetch_weight():
                     found_weight = round(val, 3)
                     break
 
-        # 가격 정규식 (EUR) - Amazon a-price 구조 + 일반 패턴
+        # 가격 정규식 (EUR)
         found_price = None
-        # Amazon: <span class="a-price-whole">N</span>...<span class="a-price-fraction">NN</span>
-        ap_m = re.search(r'a-price-whole["\'][^>]*>([0-9]+)[^<]*</span>.*?a-price-fraction["\'][^>]*>([0-9]{2})', resp.text, re.DOTALL)
-        if ap_m:
-            candidate = float(f"{ap_m.group(1)}.{ap_m.group(2)}")
-            if candidate < 10000:  # 합리적 EUR 범위
-                found_price = candidate
+        # 1순위: corePriceDisplay div 안의 a-offscreen span (€39,99 형식)
+        core_m = re.search(
+            r'id=["\']corePriceDisplay_desktop_feature_div["\'][\s\S]{0,2000}?'
+            r'class=["\']a-offscreen["\'][^>]*>([\s\S]{0,30}?)</span>',
+            resp.text, re.IGNORECASE
+        )
+        if core_m:
+            raw_p = re.sub(r'[^\d.,]', '', core_m.group(1))
+            if raw_p:
+                try:
+                    candidate = round(float(raw_p.replace(',', '.')), 2)
+                    if 0 < candidate < 100000:
+                        found_price = candidate
+                except ValueError:
+                    pass
+        # 2순위: a-price-whole + a-price-fraction
         if not found_price:
-            price_patterns = [
-                r'([0-9]+[.,][0-9]{2})\s*€',
-                r'€\s*([0-9]+[.,][0-9]{2})',
-                r'EUR\s*([0-9]+[.,][0-9]{2})',
-                r'"price":\s*"EUR ([0-9]+[.,][0-9]{2})"',
-                r'Preis[^\d]{0,20}([0-9]+[.,][0-9]{2})',
-            ]
-            for pp in price_patterns:
+            ap_m = re.search(
+                r'a-price-whole["\'][^>]*>([0-9]+)[^<]*</span>[\s\S]{0,100}?'
+                r'a-price-fraction["\'][^>]*>([0-9]{2})',
+                resp.text, re.DOTALL
+            )
+            if ap_m:
+                candidate = float(f"{ap_m.group(1)}.{ap_m.group(2)}")
+                if 0 < candidate < 100000:
+                    found_price = candidate
+        # 3순위: 일반 EUR 패턴
+        if not found_price:
+            for pp in [r'([0-9]+[.,][0-9]{2})\s*€', r'€\s*([0-9]+[.,][0-9]{2})',
+                       r'EUR\s*([0-9]+[.,][0-9]{2})', r'"price":\s*"EUR ([0-9]+[.,][0-9]{2})"']:
                 pm = re.search(pp, resp.text)
                 if pm:
                     candidate = round(float(pm.group(1).replace(',', '.')), 2)
-                    if candidate < 100000:
+                    if 0 < candidate < 100000:
                         found_price = candidate
                         break
 
-        # 제품 타이틀 추출 (HTML에서)
+        # 제품 타이틀 추출
         product_title = None
-        # Amazon 제품명: <span id="productTitle">
-        tm = re.search(r'id=["\']productTitle["\'][^>]*>\s*(.*?)\s*</span>', resp.text, re.IGNORECASE | re.DOTALL)
-        if tm:
-            product_title = re.sub(r'\s+', ' ', strip_html(tm.group(1))).strip()
+        # 1순위: id="productTitle" span — 열린 태그에서 500자 잘라 내부 HTML 전체 스트립
+        pt_m = re.search(r'id=["\']productTitle["\'][^>]*>([\s\S]{0,500}?)</span>', resp.text, re.IGNORECASE)
+        if pt_m:
+            raw = re.sub(r'<[^>]+>', '', pt_m.group(1))  # HTML 태그 제거
+            raw = raw.replace('&#x27;', "'").replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&lrm;', '').replace('&#x200F;', '')
+            product_title = re.sub(r'\s+', ' ', raw).strip()
+            if len(product_title) < 3:
+                product_title = None
+        # 2순위: <title> 태그 fallback
         if not product_title:
-            # <title> 태그 fallback (Amazon: "제품명 : Amazon.de: ..." / idealo: "제품명 - idealo")
             title_m = re.search(r'<title[^>]*>(.*?)</title>', resp.text, re.IGNORECASE | re.DOTALL)
             if title_m:
                 raw_title = strip_html(title_m.group(1)).strip()
-                # Amazon/idealo 사이트명 제거
                 for suffix in [': Amazon.de', ': Amazon.com', ' | Amazon', ' - idealo', ' | idealo', ' - Amazon']:
                     if suffix.lower() in raw_title.lower():
                         raw_title = raw_title[:raw_title.lower().index(suffix.lower())].strip()
