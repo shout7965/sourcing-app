@@ -1437,7 +1437,7 @@ def export_excel():
             w('추가이미지', '\n'.join(uploaded_images[1:5]))
 
         # ── 상세설명: Claude 한국어 번역/요약
-        desc_html = _generate_korean_description(product_name, page_text, page_images, item)
+        desc_html = _generate_korean_description(product_name, '', reg_images, item)
         w('상세설명', desc_html)
 
         # ── 선택 필드
