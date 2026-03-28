@@ -6,7 +6,7 @@ import requests
 import anthropic
 import openpyxl
 import firebase_admin
-from firebase_admin import credentials, firestore as fb_fs
+from firebase_admin import credentials, firestore as fb_fs, storage as fb_storage
 from datetime import datetime, date
 from flask import Flask, send_file, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -35,9 +35,10 @@ claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 # ── Firebase 초기화 ────────────────────────────────────────────────────────
 FIREBASE_ENABLED = False
 db = None
+STORAGE_BUCKET = ''
 
 def init_firebase():
-    global FIREBASE_ENABLED, db
+    global FIREBASE_ENABLED, db, STORAGE_BUCKET
     sa_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
     if not sa_json:
         print("[Firebase] FIREBASE_SERVICE_ACCOUNT_JSON 미설정 → Firestore 기능 비활성화")
@@ -45,11 +46,14 @@ def init_firebase():
     try:
         sa_dict = json.loads(sa_json)
         cred = credentials.Certificate(sa_dict)
+        project_id = sa_dict.get('project_id', '')
+        bucket_name = f"{project_id}.appspot.com"
         if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
         db = fb_fs.client()
         FIREBASE_ENABLED = True
-        print("[Firebase] 초기화 성공")
+        STORAGE_BUCKET = bucket_name
+        print(f"[Firebase] 초기화 성공 (Storage: {bucket_name})")
     except Exception as e:
         print(f"[Firebase] 초기화 실패: {e}")
 
@@ -1136,37 +1140,57 @@ CLOUDINARY_CLOUD = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
 CLOUDINARY_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', '')
 
 def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
-    """외부 이미지 URL을 Cloudinary에 업로드하고 CDN URL 반환.
-    Cloudinary 미설정 시 원본 URL 반환."""
+    """외부 이미지 URL을 Firebase Storage에 업로드하고 공개 URL 반환.
+    Firebase 미설정 시 Cloudinary 시도, 둘 다 없으면 원본 URL 반환."""
     if not img_url or not img_url.startswith('http'):
         return img_url
-    if not CLOUDINARY_CLOUD or not CLOUDINARY_PRESET:
-        return img_url  # Cloudinary 미설정 → 원본 URL 그대로 사용
-    try:
-        folder = f"sourcing/{doc_id}"
-        resp = requests.post(
-            f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload",
-            data={
-                'file': img_url,           # URL 직접 전달 (Cloudinary가 fetch)
-                'upload_preset': CLOUDINARY_PRESET,
-                'folder': folder,
-                'public_id': f"img_{idx}",
-                'overwrite': 'true',
-            },
-            timeout=30,
-        )
-        result = resp.json()
-        if 'secure_url' in result:
-            # Naver 권장: 1000x1000, 흰 배경
-            url = result['secure_url']
-            # Cloudinary 변환: 1000x1000 패딩(흰배경) 자동 적용
-            url = url.replace('/upload/', '/upload/c_pad,b_white,w_1000,h_1000,f_jpg/')
-            return url
-        print(f"[Cloudinary] 업로드 실패: {result.get('error', result)}")
-        return img_url
-    except Exception as e:
-        print(f"[Cloudinary] 오류 {img_url[:60]}: {e}")
-        return img_url
+
+    # ── 1) Firebase Storage 업로드 (우선)
+    if FIREBASE_ENABLED and STORAGE_BUCKET:
+        try:
+            img_resp = requests.get(img_url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/webp,image/apng,image/*,*/*'
+            }, timeout=15)
+            if img_resp.status_code == 200:
+                content_type = img_resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
+                ext = 'jpg' if 'jpeg' in content_type or 'jpg' in content_type else content_type.split('/')[-1]
+                blob_path = f"sourcing/{doc_id}/img_{idx}.{ext}"
+                bucket = fb_storage.bucket()
+                blob = bucket.blob(blob_path)
+                blob.upload_from_string(img_resp.content, content_type=content_type)
+                blob.make_public()
+                pub_url = blob.public_url
+                print(f"[Firebase Storage] 업로드 성공: {pub_url[:80]}")
+                return pub_url
+        except Exception as e:
+            print(f"[Firebase Storage] 오류 {img_url[:60]}: {e}")
+
+    # ── 2) Cloudinary (Firebase 실패 시)
+    if CLOUDINARY_CLOUD and CLOUDINARY_PRESET:
+        try:
+            folder = f"sourcing/{doc_id}"
+            resp = requests.post(
+                f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload",
+                data={
+                    'file': img_url,
+                    'upload_preset': CLOUDINARY_PRESET,
+                    'folder': folder,
+                    'public_id': f"img_{idx}",
+                    'overwrite': 'true',
+                },
+                timeout=30,
+            )
+            result = resp.json()
+            if 'secure_url' in result:
+                url = result['secure_url']
+                url = url.replace('/upload/', '/upload/c_pad,b_white,w_1000,h_1000,f_jpg/')
+                return url
+            print(f"[Cloudinary] 업로드 실패: {result.get('error', result)}")
+        except Exception as e:
+            print(f"[Cloudinary] 오류 {img_url[:60]}: {e}")
+
+    return img_url
 
 
 def _fetch_product_page_data(url: str):
@@ -1399,10 +1423,12 @@ def export_excel():
         else:
             country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
         origin = ORIGIN_CODE.get(country_key, '0276')  # 기본: 독일
+        print(f"[Excel] 원산지: country={repr(country)} → key={repr(country_key)} → code={repr(origin)} col={origin_col}")
         if origin_col:
             c = ws.cell(row=row_num, column=origin_col)
-            c.number_format = origin_nf
-            c.value = origin
+            c.number_format = '@'
+            c.value = str(origin)
+            print(f"[Excel] 원산지코드 기입: row={row_num} col={origin_col} val={repr(c.value)}")
 
         # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
