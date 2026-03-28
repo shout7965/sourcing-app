@@ -766,9 +766,11 @@ def search():
                       if len(t) >= 2 and t not in SOURCING_STOPWORDS]
 
     def item_matches(item):
-        full = strip_html(item.get("title", "") + " " + item.get("description", "")).lower()
-        kw_ok = all(t in full for t in keyword_tokens) if keyword_tokens else True
-        jikgu_ok = '직구' in full
+        title = strip_html(item.get("title", "")).lower()
+        full  = title + " " + strip_html(item.get("description", "")).lower()
+        kw_ok    = all(t in full for t in keyword_tokens) if keyword_tokens else True
+        # 직구는 반드시 제목에 있어야 함 — 본문 비교 문구·해시태그만 있는 글 제외
+        jikgu_ok = '직구' in title or '해외구매' in title
         return kw_ok and jikgu_ok
 
     all_items = [i for i in all_items if item_matches(i)]
