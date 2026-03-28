@@ -1604,34 +1604,29 @@ def fetch_weight():
         # 소싱처 이미지 추출 (Amazon 전용)
         page_images = []
         if 'amazon.' in url:
-            # 1순위: colorImages JS 데이터 (메인+서브 전체 갤러리)
-            color_m = re.search(r"'colorImages'\s*:\s*\{\s*'initial'\s*:\s*(\[[\s\S]{0,8000}?\])\s*\}", resp.text)
-            if color_m:
+            # 메인 이미지
+            m_img = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', resp.text)
+            if m_img:
                 try:
-                    imgs_data = json.loads(color_m.group(1))
-                    for img_data in imgs_data:
-                        hi = img_data.get('hiRes') or img_data.get('large') or ''
-                        if hi and hi.startswith('http') and hi not in page_images:
-                            page_images.append(hi)
+                    img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
+                    base_best = {}
+                    for full_url, dims in img_dict.items():
+                        base = re.sub(r'\._[A-Z0-9_,]+_\.', '.', full_url)
+                        w = dims[0] if dims else 0
+                        if base not in base_best or w > base_best[base][1]:
+                            base_best[base] = (full_url, w)
+                    for u, _ in sorted(base_best.values(), key=lambda x: x[1], reverse=True):
+                        page_images.append(u)
                 except Exception:
                     pass
-            # 2순위: 메인 이미지 (colorImages 없을 때)
-            if not page_images:
-                m_img = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', resp.text)
-                if m_img:
-                    try:
-                        img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
-                        base_best = {}
-                        for full_url, dims in img_dict.items():
-                            base = re.sub(r'\._[A-Z0-9_,]+_\.', '.', full_url)
-                            w = dims[0] if dims else 0
-                            if base not in base_best or w > base_best[base][1]:
-                                base_best[base] = (full_url, w)
-                        for u, _ in sorted(base_best.values(), key=lambda x: x[1], reverse=True):
-                            page_images.append(u)
-                    except Exception:
-                        pass
-        page_images = list(dict.fromkeys(page_images))[:5]
+            # 서브 이미지: 썸네일 스트립에서 고해상도 변환
+            seen_ids = set(re.search(r'/images/I/([^.]+)', u).group(1) for u in page_images if re.search(r'/images/I/([^.]+)', u))
+            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/([A-Za-z0-9%+_-]+)\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', resp.text):
+                img_id = m2.group(1)
+                if img_id not in seen_ids:
+                    seen_ids.add(img_id)
+                    page_images.append(f'https://m.media-amazon.com/images/I/{img_id}.{m2.group(2)}')
+        page_images = page_images[:5]
         # Cloudinary에 업로드해서 안정적인 CDN URL로 변환
         doc_id = candidate_id
         uploaded = []
