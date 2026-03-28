@@ -6,7 +6,7 @@ import requests
 import anthropic
 import openpyxl
 import firebase_admin
-from firebase_admin import credentials, firestore as fb_fs, storage as fb_storage
+from firebase_admin import credentials, firestore as fb_fs
 from datetime import datetime, date
 from flask import Flask, send_file, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -45,9 +45,8 @@ def init_firebase():
     try:
         sa_dict = json.loads(sa_json)
         cred = credentials.Certificate(sa_dict)
-        bucket_name = os.environ.get('FIREBASE_STORAGE_BUCKET') or f"{sa_dict.get('project_id', '')}.appspot.com"
         if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
+            firebase_admin.initialize_app(cred)
         db = fb_fs.client()
         FIREBASE_ENABLED = True
         print("[Firebase] 초기화 성공")
@@ -1126,27 +1125,40 @@ def delete_product_registration(doc_id):
         return jsonify({"error": str(e)}), 500
 
 
+CLOUDINARY_CLOUD = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+CLOUDINARY_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', '')
+
 def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
-    """외부 이미지 URL을 Firebase Storage에 업로드하고 공개 URL 반환.
-    실패 시 원본 URL 반환."""
+    """외부 이미지 URL을 Cloudinary에 업로드하고 CDN URL 반환.
+    Cloudinary 미설정 시 원본 URL 반환."""
     if not img_url or not img_url.startswith('http'):
         return img_url
+    if not CLOUDINARY_CLOUD or not CLOUDINARY_PRESET:
+        return img_url  # Cloudinary 미설정 → 원본 URL 그대로 사용
     try:
-        bucket = fb_storage.bucket()
-        resp = requests.get(img_url, timeout=10, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        })
-        if resp.status_code != 200:
-            return img_url
-        content_type = resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
-        ext = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif'}.get(content_type, 'jpg')
-        path = f'product_images/{doc_id}/img_{idx}.{ext}'
-        blob = bucket.blob(path)
-        blob.upload_from_string(resp.content, content_type=content_type)
-        blob.make_public()
-        return blob.public_url
+        folder = f"sourcing/{doc_id}"
+        resp = requests.post(
+            f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload",
+            data={
+                'file': img_url,           # URL 직접 전달 (Cloudinary가 fetch)
+                'upload_preset': CLOUDINARY_PRESET,
+                'folder': folder,
+                'public_id': f"img_{idx}",
+                'overwrite': 'true',
+            },
+            timeout=30,
+        )
+        result = resp.json()
+        if 'secure_url' in result:
+            # Naver 권장: 1000x1000, 흰 배경
+            url = result['secure_url']
+            # Cloudinary 변환: 1000x1000 패딩(흰배경) 자동 적용
+            url = url.replace('/upload/', '/upload/c_pad,b_white,w_1000,h_1000/')
+            return url
+        print(f"[Cloudinary] 업로드 실패: {result.get('error', result)}")
+        return img_url
     except Exception as e:
-        print(f"[Storage] 업로드 실패 {img_url[:60]}: {e}")
+        print(f"[Cloudinary] 오류 {img_url[:60]}: {e}")
         return img_url
 
 
