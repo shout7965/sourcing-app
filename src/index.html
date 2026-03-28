@@ -1043,7 +1043,7 @@ function renderAiKeywords(data) {
       <div class="ai-kw-cat">${escHtml(kw.category)}</div>
       <div class="ai-kw-reason">${escHtml(kw.reason)}</div>
       <div class="ai-kw-query">🔍 ${escHtml(kw.search_query)}</div>
-      <button class="ai-kw-action" data-query="${escHtml(kw.search_query)}" onclick="startFromAiKeyword(this.dataset.query)">이 키워드로 소싱 시작 →</button>
+      <button class="ai-kw-action" data-query="${escHtml(kw.keyword)}" onclick="startFromAiKeyword(this.dataset.query)">이 키워드로 소싱 시작 →</button>
     </div>
   `).join('');
   el.innerHTML = `
