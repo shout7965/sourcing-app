@@ -1,8 +1,10 @@
 import os
 import re
+import io
 import json
 import requests
 import anthropic
+import openpyxl
 import firebase_admin
 from firebase_admin import credentials, firestore as fb_fs
 from datetime import datetime, date
@@ -1123,10 +1125,6 @@ def delete_product_registration(doc_id):
 @app.route("/api/export-excel", methods=["POST"])
 def export_excel():
     """선택된 상품등록대장 항목을 네이버 스마트스토어 일괄등록 Excel로 내보내기"""
-    import io
-    import openpyxl
-    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-
     if not FIREBASE_ENABLED:
         return jsonify({"error": "Firebase 미설정"}), 503
 
@@ -1252,9 +1250,8 @@ def export_excel():
     wb.save(output)
     output.seek(0)
 
-    from flask import send_file as _send_file
     today = datetime.now().strftime('%Y%m%d')
-    return _send_file(
+    return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
