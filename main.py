@@ -1340,6 +1340,31 @@ JSON 형식으로만 응답하세요."""
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/ask", methods=["POST"])
+def ask_claude():
+    data     = request.get_json()
+    question = (data.get("question") or "").strip()
+    if not question:
+        return jsonify({"error": "질문을 입력해주세요"}), 400
+    try:
+        resp = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1000,
+            messages=[{
+                "role": "user",
+                "content": (
+                    "당신은 해외 구매대행/직구 소싱 전문가 어시스턴트입니다. "
+                    "아래 질문에 핵심만 간결하게 한국어로 답해주세요. "
+                    "불필요한 서론 없이 바로 답변하세요.\n\n"
+                    f"질문: {question}"
+                ),
+            }],
+        )
+        return jsonify({"answer": resp.content[0].text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 def main():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 80)))
 

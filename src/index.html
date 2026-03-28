@@ -2879,5 +2879,147 @@ function showToast(msg, isErr) {
   setTimeout(() => t.classList.remove('show'), 3500);
 }
 </script>
+<!-- ── Claude 빠른 질문 위젯 ── -->
+<style>
+  #claudeWidget {
+    position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  }
+  #claudePanel {
+    width: 340px; background: #1a1a2e; border: 1px solid #2d3748;
+    border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    display: none; flex-direction: column; overflow: hidden;
+    max-height: 480px;
+  }
+  #claudePanel.open { display: flex; }
+  .cp-header {
+    background: linear-gradient(135deg, #4a6cf7, #7c3aed);
+    padding: 10px 14px; display: flex; align-items: center;
+    justify-content: space-between;
+  }
+  .cp-header span { color: white; font-size: 0.85rem; font-weight: 700; }
+  .cp-close {
+    background: none; border: none; color: rgba(255,255,255,0.7);
+    font-size: 1.1rem; cursor: pointer; padding: 0 2px; line-height:1;
+  }
+  .cp-close:hover { color: white; }
+  .cp-messages {
+    flex: 1; overflow-y: auto; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 80px;
+  }
+  .cp-msg-q {
+    align-self: flex-end; background: #4a6cf7; color: white;
+    padding: 7px 11px; border-radius: 12px 12px 3px 12px;
+    font-size: 0.82rem; max-width: 85%; line-height: 1.4; white-space: pre-wrap;
+  }
+  .cp-msg-a {
+    align-self: flex-start; background: #2d3748; color: #e2e8f0;
+    padding: 7px 11px; border-radius: 12px 12px 12px 3px;
+    font-size: 0.82rem; max-width: 95%; line-height: 1.55; white-space: pre-wrap;
+  }
+  .cp-msg-a.loading { color: #718096; font-style: italic; }
+  .cp-input-row {
+    padding: 10px 12px; border-top: 1px solid #2d3748;
+    display: flex; gap: 6px;
+  }
+  .cp-input {
+    flex: 1; background: #2d3748; border: 1px solid #4a5568;
+    border-radius: 8px; color: #e2e8f0; font-size: 0.82rem;
+    padding: 7px 10px; outline: none; resize: none; height: 60px;
+    font-family: inherit;
+  }
+  .cp-input:focus { border-color: #4a6cf7; }
+  .cp-input::placeholder { color: #4a5568; }
+  .cp-send {
+    background: #4a6cf7; color: white; border: none;
+    border-radius: 8px; padding: 0 12px; cursor: pointer;
+    font-size: 0.82rem; font-weight: 600; transition: opacity 0.15s;
+    align-self: flex-end; height: 36px;
+  }
+  .cp-send:hover { opacity: 0.85; }
+  .cp-send:disabled { opacity: 0.5; cursor: default; }
+  #claudeToggle {
+    background: linear-gradient(135deg, #4a6cf7, #7c3aed);
+    color: white; border: none; border-radius: 50px;
+    padding: 10px 16px; cursor: pointer; font-size: 0.85rem;
+    font-weight: 700; box-shadow: 0 4px 16px rgba(74,108,247,0.45);
+    display: flex; align-items: center; gap: 6px; transition: opacity 0.15s;
+  }
+  #claudeToggle:hover { opacity: 0.9; }
+</style>
+
+<div id="claudeWidget">
+  <div id="claudePanel">
+    <div class="cp-header">
+      <span>✨ Claude에게 질문</span>
+      <button class="cp-close" onclick="toggleClaude()">✕</button>
+    </div>
+    <div class="cp-messages" id="cpMessages">
+      <div class="cp-msg-a">안녕하세요! 구매대행/직구 관련 궁금한 것 바로 물어보세요 😊</div>
+    </div>
+    <div class="cp-input-row">
+      <textarea class="cp-input" id="cpInput"
+        placeholder="예: 분유 구매대행 판매해도 되나요?"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cpSend()}"></textarea>
+      <button class="cp-send" id="cpSendBtn" onclick="cpSend()">전송</button>
+    </div>
+  </div>
+  <button id="claudeToggle" onclick="toggleClaude()">
+    <span>✨</span> Claude
+  </button>
+</div>
+
+<script>
+function toggleClaude() {
+  const panel = document.getElementById('claudePanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    setTimeout(() => document.getElementById('cpInput').focus(), 50);
+  }
+}
+
+async function cpSend() {
+  const input   = document.getElementById('cpInput');
+  const sendBtn = document.getElementById('cpSendBtn');
+  const msgs    = document.getElementById('cpMessages');
+  const question = input.value.trim();
+  if (!question) return;
+
+  // 질문 말풍선
+  const qEl = document.createElement('div');
+  qEl.className = 'cp-msg-q';
+  qEl.textContent = question;
+  msgs.appendChild(qEl);
+
+  // 로딩 말풍선
+  const aEl = document.createElement('div');
+  aEl.className = 'cp-msg-a loading';
+  aEl.textContent = '답변 생성 중...';
+  msgs.appendChild(aEl);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  input.value = '';
+  sendBtn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question}),
+    });
+    const data = await resp.json();
+    aEl.classList.remove('loading');
+    aEl.textContent = data.answer || data.error || '오류가 발생했습니다.';
+  } catch (e) {
+    aEl.classList.remove('loading');
+    aEl.textContent = '네트워크 오류: ' + e.message;
+  } finally {
+    sendBtn.disabled = false;
+    msgs.scrollTop = msgs.scrollHeight;
+    input.focus();
+  }
+}
+</script>
 </body>
 </html>
