@@ -996,7 +996,7 @@ def generate_product_name():
     elif country and country != '-':
         sourcing_tag = '유럽직구'
 
-    prompt = f"""네이버 스마트스토어/쿠팡 등록용 SEO 상품명을 25자 버전과 100자 버전으로 작성해주세요.
+    prompt = f"""네이버 스마트스토어/쿠팡 등록용 SEO 상품명을 50자 버전과 100자 버전으로 작성해주세요.
 
 ━━ [PRIMARY] 소싱처 제품 정보 ━━
 - 제품 타이틀: {product_title_url or '(미추출)'}
@@ -1026,7 +1026,7 @@ def generate_product_name():
 6. 특수문자 최소화 (공백·영문·한글·숫자·x·/·% 허용)
 
 반드시 아래 형식으로만 반환 (설명·이유 없이):
-25자: [25자 이하]
+50자: [50자 이하]
 100자: [100자 이하, 꽉 채운 버전]"""
 
     try:
@@ -1038,15 +1038,15 @@ def generate_product_name():
         raw = response.content[0].text.strip()
         name_50 = name_100 = ''
         for line in raw.splitlines():
-            if line.startswith('25자:'):
-                name_50  = line[len('25자:'):].strip()
+            if line.startswith('50자:'):
+                name_50  = line[len('50자:'):].strip()
             elif line.startswith('100자:'):
                 name_100 = line[len('100자:'):].strip()
         # fallback: 파싱 실패 시 전체 텍스트를 100자로
         if not name_100:
             name_100 = raw.split('\n')[0].strip()
         if not name_50:
-            name_50  = name_100[:25]
+            name_50  = name_100[:50]
         return jsonify({"name_50": name_50, "name_100": name_100})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -1359,7 +1359,7 @@ function renderRegistrations(items) {
     const country     = item.country || extractCountry(item.product_url || '');
     const productUrl  = item.product_url || '';
     const nameHtml = (item.name_50 || item.name_100)
-      ? `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">25자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(item.name_50||'')}</span></div>` +
+      ? `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(item.name_50||'')}</span></div>` +
         `<div><span style="font-size:0.65rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px">100자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_100" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #bee3f8;cursor:text;padding:0 2px">${escHtml(item.name_100||'')}</span></div>`
       : escHtml(item.product_name_display || [item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' ') || '-');
     // 저장 시점 환율 기준 면세가 우선, 없으면 현재 환율로 재계산
@@ -1633,7 +1633,7 @@ async function generateProductName(id) {
       const n100 = data.name_100 || '';
       regItemsCache[id] = {...src, name_50: n50, name_100: n100, product_name_display: n100};
       nameEl.innerHTML =
-        `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">25자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(n50)}</span></div>` +
+        `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(n50)}</span></div>` +
         `<div><span style="font-size:0.65rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px">100자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_100" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #bee3f8;cursor:text;padding:0 2px">${escHtml(n100)}</span></div>`;
       await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
