@@ -1477,7 +1477,9 @@ def export_excel():
 @app.route("/api/fetch-weight", methods=["POST"])
 def fetch_weight():
     """Amazon.de / idealo 제품 페이지에서 무게+가격+타이틀 추출"""
-    url = request.get_json().get('url', '').strip()
+    req_data = request.get_json()
+    url = req_data.get('url', '').strip()
+    candidate_id = req_data.get('candidate_id', 'tmp')
     if not url or not url.startswith('http'):
         return jsonify({"weight": None, "error": "유효한 URL이 아닙니다"}), 400
     try:
@@ -1605,6 +1607,15 @@ def fetch_weight():
                 if large not in page_images:
                     page_images.append(large)
         page_images = list(dict.fromkeys(page_images))[:5]
+        # Cloudinary에 업로드해서 안정적인 CDN URL로 변환
+        doc_id = candidate_id
+        uploaded = []
+        for i, img in enumerate(page_images):
+            cdn = _upload_image_to_storage(img, doc_id, i)
+            if cdn:
+                uploaded.append(cdn)
+        if uploaded:
+            page_images = uploaded
 
         # 제품 타이틀 추출
         product_title = None
