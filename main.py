@@ -1389,10 +1389,14 @@ def export_excel():
         # ── 필수: 재고수량
         w('재고수량', 100)
 
-        # ── 필수: 원산지코드 (이모지 제거 후 매핑)
-        country      = item.get('country', '') or ''
-        country_bare = re.sub(r'[^\w가-힣a-zA-Z]', '', country).strip()  # 이모지·공백 제거
-        origin = ORIGIN_CODE.get(country_bare, '0001')
+        # ── 필수: 원산지코드 (한글 우선 추출, 이모지 안전하게 제거)
+        country = item.get('country', '') or ''
+        korean_m = re.search(r'[가-힣]+', country)
+        if korean_m:
+            country_key = korean_m.group(0)
+        else:
+            country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
+        origin = ORIGIN_CODE.get(country_key, '0001')
         w('원산지코드', origin)
 
         # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
@@ -1403,22 +1407,24 @@ def export_excel():
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
-        # ── 이미지: 제품URL fetch 우선, 없으면 저장된 이미지 fallback
-        page_images, page_text = _fetch_product_page_data(product_url) if product_url else ([], '')
-        fallback_img = item.get('shopping_image') or item.get('blog_image') or item.get('thumbnail') or ''
-        if not page_images and fallback_img:
-            page_images = [fallback_img]
+        # ── 이미지: reg_images 우선, 없으면 shopping_image → blog_image → thumbnail 순 fallback (최대 5개)
+        reg_images = item.get('reg_images') or []
+        if not reg_images:
+            reg_images = [x for x in [
+                item.get('shopping_image'), item.get('blog_image'), item.get('thumbnail')
+            ] if x and x.startswith('http')]
+        reg_images = list(dict.fromkeys(reg_images))[:5]  # 중복제거, 최대 5개
 
-        # 이미지를 Firebase Storage에 업로드 (Naver가 접근 가능한 영구 URL로 변환)
         uploaded_images = []
-        for idx, img_url in enumerate(page_images[:10]):
+        for idx, img_url in enumerate(reg_images):
             pub_url = _upload_image_to_storage(img_url, item.get('id', f'item_{row_num}'), idx)
-            uploaded_images.append(pub_url)
+            if pub_url:
+                uploaded_images.append(pub_url)
 
         if uploaded_images:
             w('대표이미지', uploaded_images[0])
         if len(uploaded_images) > 1:
-            w('추가이미지', '\n'.join(uploaded_images[1:]))
+            w('추가이미지', '\n'.join(uploaded_images[1:5]))
 
         # ── 상세설명: Claude 한국어 번역/요약
         desc_html = _generate_korean_description(product_name, page_text, page_images, item)

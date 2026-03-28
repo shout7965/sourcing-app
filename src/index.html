@@ -819,6 +819,7 @@
               <th>소싱국가</th>
               <th>카테고리</th>
               <th style="min-width:120px">소싱처</th>
+              <th style="min-width:160px">이미지</th>
               <th style="min-width:180px">소싱처 상품명</th>
               <th style="min-width:200px">등록상품명 <span style="font-size:0.65rem;color:#63b3ed;font-weight:400">AI생성</span></th>
               <th>N스토어가</th>
@@ -1444,6 +1445,7 @@ function renderRegistrations(items) {
       <td style="white-space:nowrap">${country}</td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
       <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
+      <td style="min-width:160px;vertical-align:top">${renderRegImages(id, item)}</td>
       <td style="min-width:180px"><span contenteditable="true" data-id="${escHtml(id)}" data-field="product_title_url" onblur="saveRegNameEdit(this)" style="display:block;font-size:0.72rem;color:#4a5568;outline:none;border:1px dashed #e2e8f0;border-radius:4px;padding:3px 5px;min-height:22px;cursor:text" title="소싱처 원본 상품명 입력">${escHtml(item.product_title_url || '')}</span></td>
       <td style="min-width:200px">
         <div id="regname-${escHtml(id)}" style="font-size:0.78rem;color:#2d3748;line-height:1.5">${nameHtml}</div>
@@ -1657,6 +1659,36 @@ async function saveRegNameEdit(el) {
       body: JSON.stringify({[field]: val}),
     });
   } catch(e) { showToast('저장 실패', true); }
+}
+
+function renderRegImages(id, item) {
+  // reg_images 없으면 저장된 이미지들로 초기화 (최대 5개)
+  if (!item.reg_images) {
+    const imgs = [item.shopping_image, item.blog_image, item.thumbnail].filter(Boolean);
+    const unique = [...new Set(imgs)].slice(0, 5);
+    item.reg_images = unique;
+    if (regItemsCache[id]) regItemsCache[id].reg_images = unique;
+  }
+  const imgs = item.reg_images || [];
+  if (!imgs.length) return '<span style="color:#a0aec0;font-size:0.72rem">없음</span>';
+  return `<div id="reg-imgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start">` +
+    imgs.map((url, i) => `
+      <div style="position:relative;display:inline-block">
+        <img src="${escHtml(url)}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;border:${i===0?'2px solid #4a6cf7':'1px solid #e2e8f0'}" title="${i===0?'대표이미지':'추가이미지 '+(i)}">
+        <button onclick="deleteRegImage('${escHtml(id)}',${i})" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#e53e3e;color:white;border:none;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0">×</button>
+      </div>`).join('') +
+    `</div>`;
+}
+
+async function deleteRegImage(id, index) {
+  const item = regItemsCache[id];
+  if (!item) return;
+  item.reg_images = (item.reg_images || []).filter((_, i) => i !== index);
+  document.getElementById(`reg-imgs-${id}`).outerHTML = renderRegImages(id, item);
+  await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reg_images: item.reg_images}),
+  });
 }
 
 async function generateProductName(id) {
