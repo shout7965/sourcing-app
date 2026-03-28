@@ -1139,7 +1139,7 @@ def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
     if not img_url or not img_url.startswith('http'):
         return img_url
     if not CLOUDINARY_CLOUD or not CLOUDINARY_PRESET:
-        return img_url  # Cloudinary 미설정 → 원본 URL 그대로 사용
+        return ''  # Cloudinary 미설정 → 원본 URL은 Naver가 접근 불가하므로 빈 값
     try:
         folder = f"sourcing/{doc_id}"
         resp = requests.post(
@@ -1158,7 +1158,7 @@ def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
             # Naver 권장: 1000x1000, 흰 배경
             url = result['secure_url']
             # Cloudinary 변환: 1000x1000 패딩(흰배경) 자동 적용
-            url = url.replace('/upload/', '/upload/c_pad,b_white,w_1000,h_1000/')
+            url = url.replace('/upload/', '/upload/c_pad,b_white,w_1000,h_1000,f_jpg/')
             return url
         print(f"[Cloudinary] 업로드 실패: {result.get('error', result)}")
         return img_url
