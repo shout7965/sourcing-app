@@ -758,6 +758,8 @@ def search():
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
     keyword_lower = keyword.lower()
+    all_items = [i for i in all_items
+                 if keyword_lower in strip_html(i.get("title","") + " " + i.get("description","")).lower()]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
@@ -1288,7 +1290,7 @@ def api_ai_niche_ideas():
 - category: 카테고리
 - sourcing_country: 가장 저렴하게 살 수 있는 나라/플랫폼 (예: "아마존 미국", "알리익스프레스", "라쿠텐 일본", "이베이", "독일 아마존", "1688")
 - sourcing_reason: 소싱하면 좋은 이유 (1문장)
-- search_keyword: 반드시 한국어만 사용. 네이버 블로그 검색용이므로 영어 사용 시 검색 불가. 핵심 제품명만 (예 O: "자동 옷건조기", "LED 라인 조명", "샤워헤드" / 예 X: "electric dryer", "LED strip light")
+- search_keyword: 반드시 한국어만. 네이버 블로그에서 한국인이 실제로 검색하는 단어여야 함. 너무 생소하거나 영어식 표현 금지. (예 O: "수면 소음기", "샤워헤드", "공기청정기" / 예 X: "백노이즈 머신", "electric dryer", "acoustic panel")
 - tips: 이 시나리오 소싱 전략 팁 (2~3문장)
 
 JSON 형식으로만 응답하세요."""
