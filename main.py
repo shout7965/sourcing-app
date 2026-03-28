@@ -1604,26 +1604,33 @@ def fetch_weight():
         # 소싱처 이미지 추출 (Amazon 전용)
         page_images = []
         if 'amazon.' in url:
-            m_img = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', resp.text)
-            if m_img:
+            # 1순위: colorImages JS 데이터 (메인+서브 전체 갤러리)
+            color_m = re.search(r"'colorImages'\s*:\s*\{\s*'initial'\s*:\s*(\[[\s\S]{0,8000}?\])\s*\}", resp.text)
+            if color_m:
                 try:
-                    img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
-                    # 같은 이미지의 여러 사이즈 → base URL 기준 중복 제거, 가장 큰 사이즈만 사용
-                    base_best = {}  # base_url → (full_url, width)
-                    for full_url, dims in img_dict.items():
-                        base = re.sub(r'\._[A-Z0-9_,]+_\.', '.', full_url)
-                        w = dims[0] if dims else 0
-                        if base not in base_best or w > base_best[base][1]:
-                            base_best[base] = (full_url, w)
-                    sorted_imgs = sorted(base_best.values(), key=lambda x: x[1], reverse=True)
-                    page_images += [u for u, _ in sorted_imgs]
+                    imgs_data = json.loads(color_m.group(1))
+                    for img_data in imgs_data:
+                        hi = img_data.get('hiRes') or img_data.get('large') or ''
+                        if hi and hi.startswith('http') and hi not in page_images:
+                            page_images.append(hi)
                 except Exception:
                     pass
-            # 추가 이미지: 사이즈 suffix 제거 후 중복 제거
-            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/([A-Za-z0-9%+_-]+)\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', resp.text):
-                large = f'https://m.media-amazon.com/images/I/{m2.group(1)}.{m2.group(2)}'
-                if large not in page_images:
-                    page_images.append(large)
+            # 2순위: 메인 이미지 (colorImages 없을 때)
+            if not page_images:
+                m_img = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', resp.text)
+                if m_img:
+                    try:
+                        img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
+                        base_best = {}
+                        for full_url, dims in img_dict.items():
+                            base = re.sub(r'\._[A-Z0-9_,]+_\.', '.', full_url)
+                            w = dims[0] if dims else 0
+                            if base not in base_best or w > base_best[base][1]:
+                                base_best[base] = (full_url, w)
+                        for u, _ in sorted(base_best.values(), key=lambda x: x[1], reverse=True):
+                            page_images.append(u)
+                    except Exception:
+                        pass
         page_images = list(dict.fromkeys(page_images))[:5]
         # Cloudinary에 업로드해서 안정적인 CDN URL로 변환
         doc_id = candidate_id
