@@ -994,6 +994,15 @@ function calcEurolifeFees(eurNoVat, eurTotal, rate) {
   const agentFee    = eurNoVat <= 30 ? 6000 : eurNoVat <= 50 ? 8000 : 10000;
   return { shoppingFee, agentFee };
 }
+// 소액 면세 포함 관세+부가세 계산 (USD 150 이하면 모두 0)
+// cifKrw: CIF 원화 금액(관세가격), ftaRate: FTA 관세율(%), rate: 원/달러 환율
+function calcCustomsDuty(cifKrw, ftaRate, rate) {
+  const threshold = 150 * (rate || 1450); // USD 150 기준 원화
+  if (cifKrw <= threshold) return { customs: 0, vat10: 0 };
+  const customs = Math.round(cifKrw * (ftaRate || 0) / 100);
+  const vat10   = Math.round((cifKrw + customs) * 0.1);
+  return { customs, vat10 };
+}
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
 let currentUser   = null;
@@ -1280,16 +1289,17 @@ async function moveToRegister() {
     if (!item) return null;
     const country   = extractCountry(item.product_url || '');
     const ftaInfo   = getFtaInfo(country);
-    // 관세+부가세 기본 계산 (최신 환율 + FTA 협정 관세율 적용)
+    // UI에서 수정된 배송비 우선 반영 (weight 기반 자동계산값 포함)
+    const shipEl      = document.getElementById(`ship-${id}`);
+    const shipFee     = shipEl ? (parseFloat(shipEl.value) || 0) : (item.shipping_fee || 0);
     const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : 0;
-    const shipFee     = item.shipping_fee || 0;
     const cifKrw      = vatPriceKrw + shipFee;
-    const customs     = Math.round(cifKrw * ftaInfo.rate / 100);
-    const vat10       = Math.round((cifKrw + customs) * 0.1);
+    const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
     return {
       ...item,
       country,
       exchange_rate:    rate,
+      shipping_fee:     shipFee,
       cif_krw:          cifKrw,
       fta:              ftaInfo.fta,
       fta_agreement:    ftaInfo.agreement,
@@ -1369,9 +1379,11 @@ function renderRegistrations(items) {
       : (item.cost_price || 0);
     const shipFee        = item.shipping_fee || 0;
     const sourcePriceKrw = item.price_eur ? Math.round(item.price_eur * rate) : null;
-    const customs        = item.customs_amt  || 0;
-    const vat10          = item.vat10_amt    || 0;
     const fta            = item.fta;
+    // 소액 면세 재검토: 저장된 관세/부가세 대신 실시간 재계산 (USD 150 기준)
+    const cifKrw         = vatPriceKrw + shipFee;
+    const ftaRate        = item.customs_rate ?? 0;
+    const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaRate, rate);
     // 유로라이프 수수료 (소싱후보 calcMarginLive와 동일 기준)
     const eurNoVat       = item.price_eur ? item.price_eur / (1 + parseFloat(item.vat_type || '19') / 100) : 0;
     const { shoppingFee, agentFee } = item.price_eur
@@ -1530,8 +1542,7 @@ async function saveRegSourcePrice(id) {
   const ftaInfo  = getFtaInfo(country);
   const vatPrice = Math.round((eur / (1 + parseFloat(vat) / 100)) * rate);
   const cif      = vatPrice + ship;
-  const customs  = Math.round(cif * ftaInfo.rate / 100);
-  const vat10    = Math.round((cif + customs) * 0.1);
+  const { customs, vat10 } = calcCustomsDuty(cif, ftaInfo.rate, rate);
   const payload  = {
     product_url: url, price_eur: eur, vat_type: vat, exchange_rate: rate,
     weight_kg: weight, shipping_fee: ship, country,
@@ -1682,7 +1693,9 @@ async function updateRegPrice(id, type, val, calcVal) {
     const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : (item.cost_price || 0);
     const eurNoVat2   = item.price_eur ? item.price_eur / (1 + parseFloat(item.vat_type || '19') / 100) : 0;
     const { shoppingFee: sf2, agentFee: af2 } = item.price_eur ? calcEurolifeFees(eurNoVat2, item.price_eur, rate) : { shoppingFee: 0, agentFee: 0 };
-    const totalCost   = vatPriceKrw + (item.shipping_fee || 0) + (item.customs_amt || 0) + (item.vat10_amt || 0) + sf2 + af2;
+    const shipFee2  = item.shipping_fee || 0;
+    const { customs: c2, vat10: v2 } = calcCustomsDuty(vatPriceKrw + shipFee2, item.customs_rate ?? 0, rate);
+    const totalCost   = vatPriceKrw + shipFee2 + c2 + v2 + sf2 + af2;
     const naverEff    = price || calcVal;
     const netMargin   = naverEff - totalCost;
     const returnRate  = naverEff ? (netMargin / naverEff * 100).toFixed(1) : null;
@@ -2966,7 +2979,13 @@ function calcMarginLive(id) {
 
   const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
   const { shoppingFee, agentFee } = calcEurolifeFees(eurNoVat, eur, rate);
-  const cost = Math.round(eurNoVat * rate + ship + shoppingFee + agentFee);
+  // 소액 면세(USD 150) 포함 관세+부가세 (EU FTA = 관세율 0%, 소액이면 부가세도 0)
+  const candItem  = candItemsCache[id] || {};
+  const country   = candItem.country || extractCountry(candItem.product_url || '');
+  const ftaInfo   = getFtaInfo(country);
+  const cifKrw    = Math.round(eurNoVat * rate) + ship;
+  const { customs: cLive, vat10: vLive } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
+  const cost = Math.round(eurNoVat * rate + ship + shoppingFee + agentFee + cLive + vLive);
 
   const feesEl = document.getElementById(`fees-${id}`);
   if (feesEl) {
