@@ -756,19 +756,12 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 네이버 검색 스타일 필터:
-    # 1) 키워드 토큰 중 하나 이상이 제목에 포함 (단어 단위 매칭 — 영문/한글 혼용 대응)
-    # 2) 제목 또는 내용에 '직구' 포함
+    # 네이버 API가 이미 키워드 기반으로 필터링한 결과이므로
+    # 제목 키워드 재필터는 하지 않고 '직구' 포함 여부만 확인
+    # (영문/한글 혼용 키워드에서 이중필터가 오히려 관련 결과를 제거하는 문제 방지)
     keyword_lower = keyword.lower()
-    keyword_tokens = [t for t in keyword_lower.split() if len(t) >= 2]
-    def title_has_keyword(item):
-        title = strip_html(item.get("title", "")).lower()
-        if not keyword_tokens:
-            return keyword_lower in title
-        return any(t in title for t in keyword_tokens)
     all_items = [i for i in all_items
-                 if title_has_keyword(i)
-                 and '직구' in (strip_html(i.get("title", "")) + strip_html(i.get("description", "")))]
+                 if '직구' in (strip_html(i.get("title", "")) + strip_html(i.get("description", "")))]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
