@@ -2692,7 +2692,11 @@ function renderCandidates(items) {
       <td>${modeTag}<span class="badge badge-brand">${escHtml(item.keyword||'-')}</span></td>
       <td>${item.brand_name ? `<span class="badge badge-brand">${escHtml(item.brand_name)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td style="min-width:90px">
-        ${item.product_name ? `<div style="font-weight:500">${escHtml(item.product_name)}</div>` : '<span style="color:#a0aec0">-</span>'}
+        ${item.product_name ? `<div style="font-weight:500">${escHtml(
+          (item.brand_name && !item.product_name.toLowerCase().includes(item.brand_name.toLowerCase()))
+            ? item.brand_name + ' ' + item.product_name
+            : item.product_name
+        )}</div>` : '<span style="color:#a0aec0">-</span>'}
         ${item.product_name_en ? `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(item.product_name_en)}</div>` : ''}
       </td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
