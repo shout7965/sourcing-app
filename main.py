@@ -1141,7 +1141,7 @@ def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
     if not img_url or not img_url.startswith('http'):
         return img_url
     if not CLOUDINARY_CLOUD or not CLOUDINARY_PRESET:
-        return ''  # Cloudinary 미설정 → 원본 URL은 Naver가 접근 불가하므로 빈 값
+        return img_url  # Cloudinary 미설정 → 원본 URL 그대로 사용
     try:
         folder = f"sourcing/{doc_id}"
         resp = requests.post(
