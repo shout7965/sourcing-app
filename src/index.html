@@ -503,6 +503,78 @@
       position: absolute; top: 20px; right: 24px;
       color: white; font-size: 2rem; cursor: pointer; line-height: 1;
     }
+
+    /* ── AI 도우미 탭 ── */
+    .ai-section { margin-bottom: 8px; }
+    .ai-section-title { font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+    .ai-section-desc  { font-size: 0.85rem; color: #a0aec0; margin-bottom: 14px; }
+    .ai-cat-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .ai-cat-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid #4a5568;
+      background: #2d3748; color: #cbd5e0; font-size: 0.82rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .ai-cat-btn:hover  { border-color: #4a6cf7; color: #fff; }
+    .ai-cat-btn.active { background: #4a6cf7; border-color: #4a6cf7; color: #fff; font-weight: 600; }
+    .ai-niche-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid #276749;
+      background: #1c4532; color: #9ae6b4; font-size: 0.82rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .ai-niche-btn:hover { background: #276749; color: #fff; }
+
+    /* 키워드 결과 카드 */
+    .ai-keyword-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px; margin-top: 16px; }
+    .ai-kw-card {
+      background: #1e2a3a; border: 1px solid #2d3748; border-radius: 10px;
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .ai-kw-card:hover { border-color: #4a6cf7; }
+    .ai-kw-top { display: flex; align-items: center; gap: 8px; }
+    .ai-kw-name { font-size: 1rem; font-weight: 700; color: #e2e8f0; }
+    .ai-kw-pot { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .pot-high   { background: #276749; color: #9ae6b4; }
+    .pot-mid    { background: #744210; color: #fbd38d; }
+    .pot-low    { background: #3c3c3c; color: #a0aec0; }
+    .ai-kw-cat  { font-size: 0.75rem; color: #718096; }
+    .ai-kw-reason { font-size: 0.82rem; color: #a0aec0; line-height: 1.5; }
+    .ai-kw-query { font-size: 0.78rem; color: #4a6cf7; font-family: monospace; }
+    .ai-kw-action {
+      margin-top: 4px; padding: 6px 0; border-radius: 6px; border: 1px solid #4a6cf7;
+      background: transparent; color: #4a6cf7; font-size: 0.8rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .ai-kw-action:hover { background: #4a6cf7; color: #fff; }
+
+    .ai-trend-box {
+      background: #1a2332; border-left: 3px solid #4a6cf7;
+      padding: 12px 16px; border-radius: 0 8px 8px 0;
+      font-size: 0.85rem; color: #a0aec0; line-height: 1.6; margin-bottom: 16px;
+    }
+
+    /* 틈새 아이디어 결과 테이블 */
+    .ai-niche-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.83rem; }
+    .ai-niche-table th {
+      background: #1a2332; color: #718096; font-weight: 600;
+      padding: 8px 12px; text-align: left; border-bottom: 1px solid #2d3748;
+    }
+    .ai-niche-table td {
+      padding: 9px 12px; border-bottom: 1px solid #1a2332; color: #cbd5e0; vertical-align: top;
+    }
+    .ai-niche-table tr:hover td { background: #1e2a3a; }
+    .ai-niche-kw-btn {
+      padding: 3px 10px; border-radius: 4px; border: 1px solid #276749;
+      background: transparent; color: #9ae6b4; font-size: 0.75rem; cursor: pointer;
+      white-space: nowrap;
+    }
+    .ai-niche-kw-btn:hover { background: #276749; }
+    .ai-tips-box {
+      background: #1a2332; border-left: 3px solid #276749;
+      padding: 12px 16px; border-radius: 0 8px 8px 0;
+      font-size: 0.85rem; color: #a0aec0; line-height: 1.6; margin-top: 16px;
+    }
+    .ai-loading { text-align: center; padding: 40px; color: #718096; font-size: 0.9rem; }
+    .ai-error   { padding: 16px; background: #2d1515; border-radius: 8px; color: #fc8181; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -523,6 +595,7 @@
     <button class="tab-btn active" id="tab-projects" onclick="switchTab('projects')">프로젝트</button>
     <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
     <button class="tab-btn" id="tab-register" onclick="switchTab('register')">상품등록대장</button>
+    <button class="tab-btn" id="tab-ai" onclick="switchTab('ai')">✨ AI 도우미</button>
   </nav>
 </header>
 
@@ -726,6 +799,64 @@
   </div>
 </div>
 
+<!-- ══ AI 도우미 탭 ══ -->
+<div id="aiTab" class="tab-content" style="flex-direction:column;overflow-y:auto">
+  <div class="container" style="max-width:960px;padding:24px 16px">
+
+    <!-- 키워드 추천 섹션 -->
+    <div class="ai-section">
+      <h2 class="ai-section-title">소싱 키워드 추천</h2>
+      <p class="ai-section-desc">카테고리를 선택하거나 힌트를 입력하면 AI가 소싱 가능성 높은 키워드를 추천합니다.</p>
+      <div class="ai-cat-row">
+        <button class="ai-cat-btn active" onclick="selectCat(this,'전체')">전체</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'전자제품')">전자제품</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'뷰티/화장품')">뷰티</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'패션/의류')">패션</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'주방/생활')">주방</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'스포츠/아웃도어')">스포츠</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'육아/유아용품')">육아</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'반려동물')">반려동물</button>
+        <button class="ai-cat-btn" onclick="selectCat(this,'건강/영양제')">건강</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="aiKeywordHint" class="modal-input" style="margin:0;flex:1"
+          placeholder="추가 힌트 (선택) — 예: 독일 프리미엄 브랜드, 20대 여성 타겟 등"
+          onkeydown="if(event.key==='Enter')runAiKeywords()" />
+        <button class="btn-modal-ok" id="btnAiKeywords" onclick="runAiKeywords()"
+          style="white-space:nowrap;padding:0 20px">AI 추천받기</button>
+      </div>
+      <div id="aiKeywordResult"></div>
+    </div>
+
+    <div style="height:2px;background:#2d3748;margin:32px 0"></div>
+
+    <!-- 틈새 아이디어 섹션 -->
+    <div class="ai-section">
+      <h2 class="ai-section-title">틈새 소싱 아이디어</h2>
+      <p class="ai-section-desc">상황을 입력하면 AI가 해외직구로 소싱하면 유리한 틈새 아이템을 발굴합니다.</p>
+      <div class="ai-cat-row">
+        <button class="ai-niche-btn" onclick="setNiche('카페 창업')">☕ 카페 창업</button>
+        <button class="ai-niche-btn" onclick="setNiche('집 인테리어 리모델링')">🏠 인테리어</button>
+        <button class="ai-niche-btn" onclick="setNiche('식당 개업')">🍽️ 식당 개업</button>
+        <button class="ai-niche-btn" onclick="setNiche('캠핑 입문')">⛺ 캠핑</button>
+        <button class="ai-niche-btn" onclick="setNiche('홈 오피스 구축')">💻 홈오피스</button>
+        <button class="ai-niche-btn" onclick="setNiche('신생아 육아 준비')">👶 신생아 육아</button>
+        <button class="ai-niche-btn" onclick="setNiche('반려견 입양 준비')">🐶 반려견</button>
+        <button class="ai-niche-btn" onclick="setNiche('헬스장 홈짐 구축')">🏋️ 홈짐</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="aiNicheInput" class="modal-input" style="margin:0;flex:1"
+          placeholder="시나리오 직접 입력 — 예: 네일샵 창업, 유튜브 스튜디오 세팅 등"
+          onkeydown="if(event.key==='Enter')runAiNiche()" />
+        <button class="btn-modal-ok" id="btnAiNiche" onclick="runAiNiche()"
+          style="white-space:nowrap;padding:0 20px">아이디어 받기</button>
+      </div>
+      <div id="aiNicheResult"></div>
+    </div>
+
+  </div>
+</div>
+
 <!-- 하단 액션 바 -->
 <div class="action-bar" id="actionBar">
   <div class="action-bar-info"><strong id="selectedCount">0</strong>개 항목 선택됨</div>
@@ -841,11 +972,122 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab'};
+  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab', ai: 'aiTab'};
   document.getElementById(tabMap[tab] || 'projectsTab').classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'candidates') loadCandidates();
   if (tab === 'register')   loadRegistrations();
+}
+
+// ── AI 도우미 ──────────────────────────────────────────────────────────────
+let aiSelectedCat = '전체';
+
+function selectCat(btn, cat) {
+  document.querySelectorAll('.ai-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  aiSelectedCat = cat;
+}
+
+function setNiche(scenario) {
+  document.getElementById('aiNicheInput').value = scenario;
+}
+
+async function runAiKeywords() {
+  const hint   = document.getElementById('aiKeywordHint').value.trim();
+  const btn    = document.getElementById('btnAiKeywords');
+  const result = document.getElementById('aiKeywordResult');
+  btn.disabled = true;
+  btn.textContent = 'AI 분석 중...';
+  result.innerHTML = '<div class="ai-loading">✨ AI가 키워드를 분석 중입니다...</div>';
+  try {
+    const resp = await fetch('/api/ai-keywords', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({category: aiSelectedCat, custom: hint}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '오류 발생');
+    renderAiKeywords(data);
+  } catch(e) {
+    result.innerHTML = `<div class="ai-error">오류: ${escHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI 추천받기';
+  }
+}
+
+function renderAiKeywords(data) {
+  const el = document.getElementById('aiKeywordResult');
+  const potClass = p => p === '높음' ? 'pot-high' : p === '중간' ? 'pot-mid' : 'pot-low';
+  const cards = (data.keywords || []).map(kw => `
+    <div class="ai-kw-card">
+      <div class="ai-kw-top">
+        <span class="ai-kw-name">${escHtml(kw.keyword)}</span>
+        <span class="ai-kw-pot ${potClass(kw.potential)}">${escHtml(kw.potential)}</span>
+      </div>
+      <div class="ai-kw-cat">${escHtml(kw.category)}</div>
+      <div class="ai-kw-reason">${escHtml(kw.reason)}</div>
+      <div class="ai-kw-query">🔍 ${escHtml(kw.search_query)}</div>
+      <button class="ai-kw-action" onclick="startFromAiKeyword(${JSON.stringify(escHtml(kw.keyword))})">이 키워드로 소싱 시작 →</button>
+    </div>
+  `).join('');
+  el.innerHTML = `
+    ${data.trend_summary ? `<div class="ai-trend-box">📊 ${escHtml(data.trend_summary)}</div>` : ''}
+    <div class="ai-keyword-grid">${cards}</div>
+  `;
+}
+
+async function runAiNiche() {
+  const scenario = document.getElementById('aiNicheInput').value.trim();
+  if (!scenario) { showToast('시나리오를 입력해주세요', true); return; }
+  const btn    = document.getElementById('btnAiNiche');
+  const result = document.getElementById('aiNicheResult');
+  btn.disabled = true;
+  btn.textContent = '분석 중...';
+  result.innerHTML = '<div class="ai-loading">✨ AI가 틈새 아이템을 발굴 중입니다...</div>';
+  try {
+    const resp = await fetch('/api/ai-niche-ideas', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({scenario}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '오류 발생');
+    renderAiNiche(data);
+  } catch(e) {
+    result.innerHTML = `<div class="ai-error">오류: ${escHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '아이디어 받기';
+  }
+}
+
+function renderAiNiche(data) {
+  const el    = document.getElementById('aiNicheResult');
+  const rows  = (data.items || []).map((item, i) => `
+    <tr>
+      <td style="color:#718096;font-size:0.75rem">${i+1}</td>
+      <td><strong>${escHtml(item.item_name_ko)}</strong><br><span style="color:#718096;font-size:0.75rem">${escHtml(item.item_name_en)}</span></td>
+      <td>${escHtml(item.category)}</td>
+      <td style="color:#a0aec0">${escHtml(item.sourcing_reason)}</td>
+      <td><button class="ai-niche-kw-btn" onclick="startFromAiKeyword(${JSON.stringify(escHtml(item.search_keyword))})">${escHtml(item.search_keyword)}</button></td>
+    </tr>
+  `).join('');
+  el.innerHTML = `
+    <table class="ai-niche-table">
+      <thead><tr><th>#</th><th>아이템</th><th>카테고리</th><th>소싱 이유</th><th>검색 키워드</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${data.tips ? `<div class="ai-tips-box">💡 ${escHtml(data.tips)}</div>` : ''}
+  `;
+}
+
+function startFromAiKeyword(keyword) {
+  // 프로젝트 탭으로 이동 후 새 프로젝트 모달 오픈
+  switchTab('projects');
+  document.getElementById('newProjectName').value = keyword;
+  document.getElementById('newProjectModal').style.display = 'flex';
+  document.getElementById('newProjectName').focus();
 }
 
 // ── 환율 (이동 시점에 자동 조회) ──────────────────────────────────────────

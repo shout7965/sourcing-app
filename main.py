@@ -583,6 +583,30 @@ class ExtractedProduct(BaseModel):
 class AllProductsResult(BaseModel):
     products: List[ExtractedProduct]
 
+# ── AI 소싱 도우미 모델 ────────────────────────────────────────────────────
+class KeywordItem(BaseModel):
+    keyword: str
+    category: str
+    reason: str
+    search_query: str
+    potential: str  # "높음" / "중간" / "낮음"
+
+class AIKeywordResult(BaseModel):
+    keywords: List[KeywordItem]
+    trend_summary: str
+
+class NicheItem(BaseModel):
+    item_name_ko: str
+    item_name_en: str
+    category: str
+    sourcing_reason: str
+    search_keyword: str
+
+class NicheIdeaResult(BaseModel):
+    scenario: str
+    items: List[NicheItem]
+    tips: str
+
 @app.route("/api/extract-all-products", methods=["POST"])
 def extract_all_products():
     """블로그 풀텍스트에서 언급된 모든 개별 상품 추출 (하울 포스트 대응)"""
@@ -1204,6 +1228,78 @@ def fetch_weight():
         return jsonify({"weight": None, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
     except Exception as e:
         return jsonify({"weight": None, "error": str(e)}), 500
+
+
+# ── AI 소싱 도우미 엔드포인트 ──────────────────────────────────────────────
+@app.route('/api/ai-keywords', methods=['POST'])
+def api_ai_keywords():
+    data     = request.get_json() or {}
+    category = data.get('category', '전체').strip()
+    custom   = data.get('custom', '').strip()
+
+    cat_hint = f"카테고리: {category}" if category != '전체' else "카테고리: 전 분야"
+    custom_hint = f"\n추가 힌트: {custom}" if custom else ""
+
+    prompt = f"""당신은 한국 해외직구 구매대행 전문가입니다.
+{cat_hint}{custom_hint}
+
+아래 조건으로 소싱 키워드 15개를 추천하세요:
+- 네이버 블로그/카페에서 직구 후기 검색 시 실제 결과가 많이 나올 키워드
+- 마진율이 높고 국내가보다 해외가가 유리한 제품
+- 구체적인 브랜드명/모델명 포함 권장
+- keyword: 검색 핵심어 (짧게, 예: "다이슨 에어랩")
+- search_query: 실제 검색에 쓸 전체 쿼리 (예: "다이슨 에어랩 직구 후기")
+- potential: 소싱 매력도 ("높음"/"중간"/"낮음")
+- reason: 추천 이유 (1~2문장)
+- trend_summary: 전반적인 트렌드 요약 (2~3문장)
+
+JSON 형식으로만 응답하세요."""
+
+    try:
+        result = claude.messages.parse(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=AIKeywordResult,
+        )
+        return jsonify(result.parsed_output.model_dump())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/ai-niche-ideas', methods=['POST'])
+def api_ai_niche_ideas():
+    data     = request.get_json() or {}
+    scenario = data.get('scenario', '').strip()
+    if not scenario:
+        return jsonify({"error": "scenario 필드가 필요합니다"}), 400
+
+    prompt = f"""당신은 한국 해외직구 구매대행 전문가입니다.
+
+시나리오: "{scenario}"
+
+이 상황에서 필요한 물품 중 해외직구로 소싱하면 유리한 아이템 20개를 추천하세요.
+- 일반인이 자주 생각하지 못하는 틈새 아이템 위주
+- 국내 대비 해외가가 훨씬 저렴한 것 우선
+- item_name_ko: 한국어 상품명
+- item_name_en: 영문명 또는 모델명
+- category: 카테고리
+- sourcing_reason: 소싱하면 좋은 이유 (1문장)
+- search_keyword: 네이버 직구 후기 검색용 키워드
+- tips: 이 시나리오 소싱 전략 팁 (2~3문장)
+
+JSON 형식으로만 응답하세요."""
+
+    try:
+        result = claude.messages.parse(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=NicheIdeaResult,
+        )
+        return jsonify(result.parsed_output.model_dump())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 def main():
