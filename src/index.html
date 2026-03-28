@@ -2456,7 +2456,7 @@ function renderCandidates(items) {
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
-      <td>${navPrice ? `<span class="shopping-price">${formatPrice(navPrice)}</span>` : '-'}${item.shopping_link ? `<br><a class="btn-shop" href="${escHtml(item.shopping_link)}" target="_blank" rel="noopener">쇼핑</a>` : ''}</td>
+      <td id="specs-cell-${escHtml(id)}" style="min-width:140px">${renderSpecsCell(item)}</td>
       <td style="text-align:center">${hasMrg ? `<span style="font-weight:700;color:${mrgColor}">${mrgRate}%</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="blog-title" style="min-width:140px">${item.link ? `<a href="${escHtml(item.link)}" target="_blank" rel="noopener">${escHtml(item.title||'-')}</a>` : escHtml(item.title||'-')}</td>
       <td>
@@ -2594,6 +2594,73 @@ function renderCandidates(items) {
       else calcMarginLive(item.id);
     }
   });
+
+  // 스펙 미조회 항목 자동 조회
+  autoLoadMissingSpecs(items);
+}
+
+// ── 네이버 쇼핑 스펙 조회 ─────────────────────────────────────────────────
+function renderSpecsCell(item) {
+  const specs = item.shopping_specs;
+  if (!specs) {
+    // 아직 미조회 → 자동 조회 예약
+    return `<div id="specs-inner-${escHtml(item.id)}" style="color:#a0aec0;font-size:0.75rem">대기중...</div>`;
+  }
+  if (specs.length === 0) {
+    return `<div style="display:flex;align-items:center;gap:4px">
+      <span style="color:#a0aec0;font-size:0.75rem">결과없음</span>
+      <button class="btn-icon" style="padding:1px 5px;font-size:0.68rem" onclick="loadSpecs('${escHtml(item.id)}','${escHtml(item.product_name||'')}','${escHtml(item.product_name_en||'')}','${escHtml(item.brand_name||'')}')">🔄</button>
+    </div>`;
+  }
+  const minPrice = Math.min(...specs.map(s => s.price));
+  const rows = specs.map(s => {
+    const isMin = s.price === minPrice;
+    const priceHtml = `<span style="font-weight:${isMin?'700':'400'};color:${isMin?'#276749':'#2d3748'}">${formatPrice(s.price)}</span>`;
+    return `<tr>
+      <td style="padding:1px 4px 1px 0;font-size:0.72rem;color:#4a5568;white-space:nowrap">${escHtml(s.spec)}</td>
+      <td style="padding:1px 0;white-space:nowrap">${s.link ? `<a href="${escHtml(s.link)}" target="_blank" rel="noopener" style="text-decoration:none">${priceHtml}</a>` : priceHtml}</td>
+      ${isMin ? `<td style="padding:1px 4px;font-size:0.65rem;color:#48bb78">최저</td>` : '<td></td>'}
+    </tr>`;
+  }).join('');
+  return `<div>
+    <table style="border-collapse:collapse;width:100%">${rows}</table>
+    <button class="btn-icon" style="margin-top:3px;padding:1px 6px;font-size:0.68rem" onclick="loadSpecs('${escHtml(item.id)}','${escHtml(item.product_name||'')}','${escHtml(item.product_name_en||'')}','${escHtml(item.brand_name||'')}')">🔄 새로고침</button>
+  </div>`;
+}
+
+async function loadSpecs(id, productName, productNameEn, brandName) {
+  const cell = document.getElementById(`specs-cell-${id}`);
+  if (cell) cell.innerHTML = `<span style="color:#a0aec0;font-size:0.75rem">조회중...</span>`;
+  try {
+    const resp = await fetch('/api/naver-shopping-specs', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        candidate_id: id,
+        product_name: productName,
+        product_name_en: productNameEn,
+        brand_name: brandName,
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      if (cell) cell.innerHTML = `<span style="color:#fc8181;font-size:0.75rem">${escHtml(data.error)}</span>`;
+      return;
+    }
+    // 캐시 업데이트
+    if (candItemsCache[id]) candItemsCache[id].shopping_specs = data.specs;
+    if (cell) cell.innerHTML = renderSpecsCell({id, ...candItemsCache[id], shopping_specs: data.specs});
+  } catch(e) {
+    if (cell) cell.innerHTML = `<span style="color:#fc8181;font-size:0.75rem">오류</span>`;
+  }
+}
+
+// 스펙 미조회 항목 자동 조회 (순차, 0.5초 간격)
+async function autoLoadMissingSpecs(items) {
+  const needLoad = items.filter(i => !i.shopping_specs && (i.product_name || i.product_name_en));
+  for (const item of needLoad) {
+    await loadSpecs(item.id, item.product_name||'', item.product_name_en||'', item.brand_name||'');
+    await new Promise(r => setTimeout(r, 500));
+  }
 }
 
 async function updateStatus(docId, status) {

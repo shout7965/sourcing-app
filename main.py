@@ -213,6 +213,15 @@ class ReviewItem(BaseModel):
 class ExtractionResult(BaseModel):
     items: List[ReviewItem]
 
+class SpecItem(BaseModel):
+    spec:   str                 # 예: "200g 1개", "200g 2팩", "500g 1봉"
+    price:  int                 # 최저가 (원)
+    seller: Optional[str] = None
+    link:   Optional[str] = None
+
+class SpecResult(BaseModel):
+    specs: List[SpecItem]
+
 # ── 라우트 ────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -1338,6 +1347,90 @@ JSON 형식으로만 응답하세요."""
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/naver-shopping-specs", methods=["POST"])
+def naver_shopping_specs():
+    data            = request.get_json()
+    candidate_id    = data.get("candidate_id", "")
+    product_name    = (data.get("product_name")    or "").strip()
+    product_name_en = (data.get("product_name_en") or "").strip()
+    brand_name      = (data.get("brand_name")      or "").strip()
+
+    # 검색 쿼리: 영문명 우선, 없으면 한국어
+    query = product_name_en or product_name
+    if not query:
+        return jsonify({"error": "상품명이 없습니다."}), 400
+    if brand_name and brand_name.lower() not in query.lower():
+        query = f"{brand_name} {query}"
+
+    naver_headers = {
+        "X-Naver-Client-Id":     NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+    }
+
+    try:
+        resp = requests.get(
+            "https://openapi.naver.com/v1/search/shop.json",
+            headers=naver_headers,
+            params={"query": query, "display": 30, "sort": "asc"},
+            timeout=10,
+        )
+        raw_items = resp.json().get("items", []) if resp.status_code == 200 else []
+    except Exception:
+        raw_items = []
+
+    increment_usage(1)
+
+    if not raw_items:
+        return jsonify({"specs": [], "product_match": query, "total": 0})
+
+    items_text = ""
+    for i, it in enumerate(raw_items, 1):
+        title  = strip_html(it.get("title", ""))
+        price  = it.get("lprice", 0)
+        mall   = strip_html(it.get("mallName", ""))
+        link   = it.get("link", "")
+        items_text += f"[{i}] {title} | {price}원 | {mall} | {link}\n"
+
+    try:
+        response = claude.messages.parse(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": f"""네이버 쇼핑에서 '{query}' 검색 결과 {len(raw_items)}개입니다.
+
+스펙(중량/수량/팩수)별로 그룹화하여 각 스펙의 최저가 상품 1개만 추출하세요.
+
+규칙:
+- spec: "200g 1개", "200g 2팩", "500g", "1kg 3팩" 등 명확하게
+- price: 해당 스펙 중 가장 낮은 가격(원 정수)
+- seller: mallName
+- link: 해당 상품 링크 그대로
+- 스펙 불분명하거나 명백히 관련 없는 상품 제외
+- 중복 스펙은 최저가 1개만
+
+상품 목록:
+{items_text}"""}],
+            output_format=SpecResult,
+        )
+        specs = [
+            {"spec": s.spec, "price": s.price, "seller": s.seller or "", "link": s.link or ""}
+            for s in response.parsed_output.specs
+        ]
+    except Exception as e:
+        return jsonify({"error": f"Claude 분석 오류: {str(e)}"}), 500
+
+    # Firestore 저장
+    if candidate_id and FIREBASE_ENABLED:
+        try:
+            db.collection('sourcing_candidates').document(candidate_id).update({
+                'shopping_specs':         specs,
+                'shopping_specs_updated': fb_fs.SERVER_TIMESTAMP,
+            })
+        except Exception as e:
+            print(f"[Firestore] specs 저장 실패: {e}")
+
+    return jsonify({"specs": specs, "product_match": query, "total": len(raw_items)})
 
 
 @app.route("/api/ask", methods=["POST"])
