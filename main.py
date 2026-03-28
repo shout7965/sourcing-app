@@ -1308,6 +1308,18 @@ def export_excel():
         '영국': '0826', '프랑스': '0250', '이탈리아': '0380', '스페인': '0724',
         '캐나다': '0124', '호주': '0036', '네덜란드': '0528', '스위스': '0756',
         '오스트리아': '0040', '벨기에': '0056', '폴란드': '0616',
+        'Germany': '0276', 'USA': '0840', 'Japan': '0392', 'China': '0156',
+    }
+
+    # 카테고리 자동 매핑 (앱 카테고리 → 네이버 카테고리코드)
+    CATEGORY_CODE = {
+        '식품':    50001921,  # 식품 > 과자/베이커리 > 기타과자
+        '의류':    50000803,  # 패션의류 > 여성의류 > 티셔츠
+        '신발':    50003839,  # 패션잡화 > 여성신발 > 운동화 > 워킹화
+        '가방':    50000639,  # 패션잡화 > 여성가방 > 숄더백
+        '전자제품': 50001579,  # 디지털/가전 > PC액세서리 > 기타PC액세서리
+        '화장품':  50000440,  # 화장품/미용 > 스킨케어 > 크림
+        '기타':    50001921,  # 식품 > 과자/베이커리 > 기타과자 (fallback)
     }
 
     # 템플릿 로드
@@ -1370,14 +1382,21 @@ def export_excel():
         # ── 필수: 재고수량
         w('재고수량', 100)
 
-        # ── 필수: 원산지코드 (이모지 제거 후 매핑)
+        # ── 필수: 원산지코드 (이모지 제거 후 매핑, 셀서식 텍스트 강제)
         country      = item.get('country', '') or ''
-        country_bare = re.sub(r'[^\w가-힣]', '', country).strip()  # 이모지·공백 제거
+        country_bare = re.sub(r'[^\w가-힣a-zA-Z]', '', country).strip()  # 이모지·공백 제거
         origin = ORIGIN_CODE.get(country_bare, '0001')
-        w('원산지코드', origin)
+        orig_col = col_idx('원산지코드')
+        if orig_col:
+            cell = ws.cell(row=row_num, column=orig_col)
+            cell.value = origin
+            cell.number_format = '@'  # 텍스트 형식 → 앞자리 0 보존
 
-        # ── 카테고리 (저장된 naver_category 필드 우선, 없으면 빈칸)
+        # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
+        if not naver_cat:
+            app_cat = item.get('category', '') or ''
+            naver_cat = CATEGORY_CODE.get(app_cat)
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
