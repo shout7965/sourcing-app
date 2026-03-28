@@ -1353,8 +1353,8 @@ async function loadRegistrations() {
   }
 }
 
-// 네이버/쿠팡 수수료 (결제수수료 포함)
-const NAVER_FEE  = 0.0585; // 스마트스토어 5.85%
+// 네이버/쿠팡 수수료
+const NAVER_FEE  = 0.035; // 스마트스토어 3.5% (소싱후보와 동일 기준)
 const COUPANG_FEE = 0.10;  // 쿠팡 10%
 const TARGET_MARGIN = 10000; // 목표마진 기본 10,000원
 
@@ -1400,7 +1400,8 @@ function renderRegistrations(items) {
     const naverEff     = naverSaved   || naverCalc;
     const coupangEff   = coupangSaved || coupangCalc;
 
-    const netMargin  = naverEff && totalCost ? naverEff - totalCost : null;
+    const naverFeeAmt = naverEff ? Math.round(naverEff * NAVER_FEE) : 0;
+    const netMargin  = naverEff && totalCost ? naverEff - naverFeeAmt - totalCost : null;
     const returnRate = netMargin !== null && naverEff ? (netMargin / naverEff * 100).toFixed(1) : null;
     const marginColor = netMargin !== null ? (netMargin > 0 ? '#276749' : '#c53030') : '#718096';
 
@@ -1697,7 +1698,8 @@ async function updateRegPrice(id, type, val, calcVal) {
     const { customs: c2, vat10: v2 } = calcCustomsDuty(vatPriceKrw + shipFee2, item.customs_rate ?? 0, rate);
     const totalCost   = vatPriceKrw + shipFee2 + c2 + v2 + sf2 + af2;
     const naverEff    = price || calcVal;
-    const netMargin   = naverEff - totalCost;
+    const naverFeeAmt2 = Math.round(naverEff * NAVER_FEE);
+    const netMargin   = naverEff - naverFeeAmt2 - totalCost;
     const returnRate  = naverEff ? (netMargin / naverEff * 100).toFixed(1) : null;
     const marginEl    = document.getElementById(`margin-${id}`);
     const rateEl      = document.getElementById(`rate-${id}`);
