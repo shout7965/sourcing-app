@@ -2638,6 +2638,10 @@ async function loadCandidates() {
           ? '<div style="color:#c53030;font-weight:600">Firebase 미설정</div><div style="margin-top:8px;font-size:0.82rem">FIREBASE_SERVICE_ACCOUNT_JSON 환경변수를 설정해주세요.</div>'
           : '저장된 소싱 후보가 없습니다.<br>검색 후 관심 항목을 선택해 저장하세요.';
       document.getElementById('candCount').textContent = '';
+      document.getElementById('candStats').style.display = 'none';
+      ['statTotal','statPending','statGood','statPass','statGonggu','statMine'].forEach(id => {
+        document.getElementById(id).textContent = '0';
+      });
       return;
     }
     document.getElementById('candCount').textContent = `총 ${data.items.length}개`;
