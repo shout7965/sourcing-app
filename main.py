@@ -757,11 +757,17 @@ def search():
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
     # 네이버 검색 스타일 필터:
-    # 1) 제목에 keyword 포함 (필수 - 핵심 주제 확인)
-    # 2) 제목 또는 내용에 '직구' 포함 (완화 - 내용에만 있어도 OK)
+    # 1) 키워드 토큰 중 하나 이상이 제목에 포함 (단어 단위 매칭 — 영문/한글 혼용 대응)
+    # 2) 제목 또는 내용에 '직구' 포함
     keyword_lower = keyword.lower()
+    keyword_tokens = [t for t in keyword_lower.split() if len(t) >= 2]
+    def title_has_keyword(item):
+        title = strip_html(item.get("title", "")).lower()
+        if not keyword_tokens:
+            return keyword_lower in title
+        return any(t in title for t in keyword_tokens)
     all_items = [i for i in all_items
-                 if keyword_lower in strip_html(i.get("title", "")).lower()
+                 if title_has_keyword(i)
                  and '직구' in (strip_html(i.get("title", "")) + strip_html(i.get("description", "")))]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]

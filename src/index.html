@@ -575,6 +575,12 @@
     }
     .ai-loading { text-align: center; padding: 40px; color: #718096; font-size: 0.9rem; }
     .ai-error   { padding: 16px; background: #2d1515; border-radius: 8px; color: #fc8181; font-size: 0.85rem; }
+    .ai-text-input {
+      padding: 10px 14px; border-radius: 8px; border: 1.5px solid #4a5568;
+      background: #2d3748; color: #e2e8f0; font-size: 0.88rem; outline: none;
+    }
+    .ai-text-input::placeholder { color: #718096; }
+    .ai-text-input:focus { border-color: #4a6cf7; }
   </style>
 </head>
 <body>
@@ -819,7 +825,7 @@
         <button class="ai-cat-btn" onclick="selectCat(this,'건강/영양제')">건강</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input id="aiKeywordHint" class="modal-input" style="margin:0;flex:1"
+        <input id="aiKeywordHint" class="ai-text-input" style="flex:1"
           placeholder="추가 힌트 (선택) — 예: 독일 프리미엄 브랜드, 20대 여성 타겟 등"
           onkeydown="if(event.key==='Enter')runAiKeywords()" />
         <button class="btn-modal-ok" id="btnAiKeywords" onclick="runAiKeywords()"
@@ -845,7 +851,7 @@
         <button class="ai-niche-btn" onclick="setNiche('헬스장 홈짐 구축')">🏋️ 홈짐</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input id="aiNicheInput" class="modal-input" style="margin:0;flex:1"
+        <input id="aiNicheInput" class="ai-text-input" style="flex:1"
           placeholder="시나리오 직접 입력 — 예: 네일샵 창업, 유튜브 스튜디오 세팅 등"
           onkeydown="if(event.key==='Enter')runAiNiche()" />
         <button class="btn-modal-ok" id="btnAiNiche" onclick="runAiNiche()"
