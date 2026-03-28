@@ -899,8 +899,12 @@ def get_candidates():
         return jsonify({"items": [], "firebase": False,
                         "error": "Firebase 미설정 — FIREBASE_SERVICE_ACCOUNT_JSON 환경변수를 확인해주세요."})
     try:
-        # order_by 없이 전체 조회 후 Python에서 정렬 (Firestore 인덱스 불필요)
-        docs = db.collection('sourcing_candidates').limit(500).stream()
+        user = session.get('user')
+        # 로그인 유저의 항목만 조회 (saved_by 필터)
+        query = db.collection('sourcing_candidates')
+        if user:
+            query = query.where('saved_by', '==', user)
+        docs = query.limit(500).stream()
         items = []
         for doc in docs:
             d = doc.to_dict()
@@ -1018,8 +1022,9 @@ def generate_product_name():
 글자수 계산: 한글·영문·숫자·공백 모두 1자로 계산 (바이트 아님)
 
 작성 규칙:
-1. 소싱처 제품 타이틀 정보(브랜드·모델명·스펙) 최우선 반영
-2. 용량(ml/g/L), 수량(x N개), 사이즈, 색상 등 스펙 최대한 명시
+1. [최우선] 소싱처 제품 타이틀이 있으면 브랜드·모델명·스펙(용량/수량/사이즈)은 반드시 URL 타이틀 기준으로 작성
+   — 후기 추출 한국명의 스펙과 URL 타이틀 스펙이 다르면 URL 타이틀 스펙을 사용 (후기 스펙 무시)
+2. 용량(ml/g/L/kg), 수량(x N개), 사이즈, 색상 등 스펙 최대한 명시
 3. 블로그 후기에서 소비자가 해당 제품을 특별히 표현한 감성·기능 단어 1~2개 자연스럽게 삽입
    (예: 맛 관련 "입에서 살살 녹는·바삭바삭한", 권위 "미슐랭 세프·성악가 사탕", 대중성 "국민 튼살크림",
     사용감 "좁쌀만큼 써도 개운한·코가뻥", 없으면 생략)
@@ -1382,15 +1387,11 @@ def export_excel():
         # ── 필수: 재고수량
         w('재고수량', 100)
 
-        # ── 필수: 원산지코드 (이모지 제거 후 매핑, 셀서식 텍스트 강제)
+        # ── 필수: 원산지코드 (이모지 제거 후 매핑)
         country      = item.get('country', '') or ''
         country_bare = re.sub(r'[^\w가-힣a-zA-Z]', '', country).strip()  # 이모지·공백 제거
         origin = ORIGIN_CODE.get(country_bare, '0001')
-        orig_col = col_idx('원산지코드')
-        if orig_col:
-            cell = ws.cell(row=row_num, column=orig_col)
-            cell.value = origin
-            cell.number_format = '@'  # 텍스트 형식 → 앞자리 0 보존
+        w('원산지코드', origin)
 
         # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
@@ -1432,24 +1433,8 @@ def export_excel():
         else:
             w('부가세', '과세상품')
 
-        # 배송 기본값
+        # 배송방법
         w('배송방법', '택배, 소포, 등기')
-        w('택배사코드', 'HANJIN')
-        w('배송비유형', '무료')
-        w('기본배송비', 0)
-        w('배송비 결제방식', '선결제')
-        w('반품배송비', 50000)
-        w('교환배송비', 100000)
-
-        # A/S
-        w('A/S 전화번호', '070-4571-6921')
-        w('A/S 안내', '해외 구매 대행 상품으로 A/S는 불가합니다.\n자세한 내용은 상세페이지를 참조해주세요.')
-
-        # 관부가세
-        w('관부가세', '부과 대상 아님')
-
-        # 상품상태
-        w('상품상태', '신상품')
 
     # 파일 저장 후 반환
     output = io.BytesIO()
@@ -1477,13 +1462,24 @@ def fetch_weight():
         if 'amazon.' in url and 'language=' not in url:
             sep = '&' if '?' in url else '?'
             fetch_url = url + sep + 'language=de_DE'
-        resp = requests.get(fetch_url, timeout=8, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
-            "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-            "Accept": "text/html,application/xhtml+xml",
+        resp = requests.get(fetch_url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         })
         if resp.status_code != 200:
             return jsonify({"weight": None, "error": f"페이지 로드 실패 ({resp.status_code})"}), 400
+        # Amazon 봇 차단 감지 (CAPTCHA 또는 Robot Check 페이지)
+        if 'amazon.' in url and (
+            'Robot Check' in resp.text or
+            'Enter the characters you see below' in resp.text or
+            'api-services-support@amazon.com' in resp.text or
+            resp.text.strip().count('<') < 10
+        ):
+            return jsonify({"weight": None, "error": "Amazon 봇 차단 — 브라우저에서 직접 열어 정보를 입력해주세요"}), 400
 
         text = strip_html(resp.text)
 
