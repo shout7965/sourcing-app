@@ -1398,7 +1398,7 @@ def export_excel():
             country_key = korean_m.group(0)
         else:
             country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
-        origin = ORIGIN_CODE.get(country_key, '0001')
+        origin = ORIGIN_CODE.get(country_key, '0276')  # 기본: 독일
         if origin_col:
             c = ws.cell(row=row_num, column=origin_col)
             c.number_format = origin_nf
@@ -1412,17 +1412,13 @@ def export_excel():
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
-        # ── 이미지: Cloudinary 설정 여부에 따라 소싱처 이미지 or 쇼핑 이미지 사용
+        # ── 이미지: reg_images 우선, 없으면 쇼핑 이미지 fallback
         use_cloudinary = bool(CLOUDINARY_CLOUD and CLOUDINARY_PRESET)
         reg_images = item.get('reg_images') or []
-        if use_cloudinary and reg_images:
-            # Cloudinary 있으면 소싱처 이미지 업로드
-            pass
-        else:
-            # Cloudinary 없거나 reg_images 없으면 Naver 쇼핑 이미지(접근 가능) 사용
+        if not reg_images:
             reg_images = [x for x in [
                 item.get('shopping_image'), item.get('blog_image'), item.get('thumbnail')
-            ] if x and x.startswith('http') and 'amazon' not in x]
+            ] if x and x.startswith('http')]
         reg_images = list(dict.fromkeys(reg_images))[:5]
 
         uploaded_images = []
