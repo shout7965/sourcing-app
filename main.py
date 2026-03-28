@@ -831,10 +831,6 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
     results = []
     for i, item in enumerate(all_items, 1):
         ext = extracted_map.get(i)
-        is_review = getattr(ext, 'is_direct_purchase_review', True) if ext else True
-        # Claude가 직구후기 아니라고 판정한 항목 제외 (이어폰/포러너 같은 무관 글 차단)
-        if is_review is False:
-            continue
         results.append({
             "index":                     i,
             "source":                    item.get("_source", "블로그"),
@@ -850,7 +846,7 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "category":                  ext.category                 if ext else None,
             "purchase_source":           ext.purchase_source          if ext else None,
             "price_paid":                ext.price_paid               if ext else None,
-            "is_direct_purchase_review": True,
+            "is_direct_purchase_review": getattr(ext, 'is_direct_purchase_review', True) if ext else True,
         })
 
     return jsonify({
