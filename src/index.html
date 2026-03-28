@@ -3109,10 +3109,34 @@ async function fetchWeight(id) {
     }
     if (got.length) showToast(`자동 추출: ${got.join(', ')}`);
     else showToast((data.error || '정보 없음') + ' — 직접 입력해주세요', true);
-    // 스펙 자동 조회 (product_title 있든 없든 캐시에서 이름 가져와 실행)
-    const cached = candItemsCache[id];
-    if (cached) {
-      await loadSpecs(id, cached.product_name||'', cached.product_name_en||'', cached.brand_name||'');
+    // product_title 있으면 스펙 포함 AI 상품명 자동 생성
+    if (data.product_title) {
+      const item = candItemsCache[id] || {};
+      try {
+        const nameResp = await fetch('/api/generate-product-name', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            brand_name:        item.brand_name       || '',
+            product_name:      item.product_name     || '',
+            product_name_en:   item.product_name_en  || '',
+            category:          item.category         || '',
+            country:           resolveCountry(item),
+            product_url:       item.product_url      || '',
+            product_title_url: data.product_title,
+            review_title:      item.title            || '',
+            review_description:item.description      || '',
+          }),
+        });
+        const nameData = await nameResp.json();
+        if (nameData.name_50 || nameData.name_100) {
+          candItemsCache[id] = {...item, name_50: nameData.name_50||'', name_100: nameData.name_100||''};
+          await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name_50: nameData.name_50||'', name_100: nameData.name_100||''}),
+          });
+          showToast(`AI 상품명 생성: ${nameData.name_50||nameData.name_100}`);
+        }
+      } catch(e) { /* 상품명 생성 실패는 무시 */ }
     }
   } catch (e) {
     showToast('조회 실패: ' + e.message, true);
