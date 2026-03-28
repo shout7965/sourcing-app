@@ -1033,7 +1033,7 @@ function renderAiKeywords(data) {
       <div class="ai-kw-cat">${escHtml(kw.category)}</div>
       <div class="ai-kw-reason">${escHtml(kw.reason)}</div>
       <div class="ai-kw-query">🔍 ${escHtml(kw.search_query)}</div>
-      <button class="ai-kw-action" onclick="startFromAiKeyword(${JSON.stringify(escHtml(kw.search_query))})">이 키워드로 소싱 시작 →</button>
+      <button class="ai-kw-action" data-query="${escHtml(kw.search_query)}" onclick="startFromAiKeyword(this.dataset.query)">이 키워드로 소싱 시작 →</button>
     </div>
   `).join('');
   el.innerHTML = `
@@ -1080,7 +1080,7 @@ function renderAiNiche(data) {
       <td><strong>${escHtml(item.item_name_ko)}</strong><br><span style="color:#718096;font-size:0.75rem">${escHtml(item.item_name_en)}</span></td>
       <td>${escHtml(item.category)}</td>
       <td style="color:#a0aec0">${escHtml(item.sourcing_reason)}</td>
-      <td><button class="ai-niche-kw-btn" onclick="startFromAiKeyword(${JSON.stringify(escHtml(item.search_keyword))})">${escHtml(item.search_keyword)}</button></td>
+      <td><button class="ai-niche-kw-btn" data-query="${escHtml(item.search_keyword)}" onclick="startFromAiKeyword(this.dataset.query)">${escHtml(item.search_keyword)}</button></td>
     </tr>
   `).join('');
   el.innerHTML = `
