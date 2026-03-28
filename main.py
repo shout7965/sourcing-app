@@ -1333,14 +1333,36 @@ def export_excel():
     if not items:
         return jsonify({"error": "내보낼 항목이 없습니다"}), 400
 
-    # 원산지코드 매핑 (ISO 3166-1 numeric 기반 네이버 코드)
+    # 원산지코드 매핑 (Naver originarea 기준 7자리 코드)
     ORIGIN_CODE = {
-        '독일': '0276', '미국': '0840', '일본': '0392', '중국': '0156',
-        '영국': '0826', '프랑스': '0250', '이탈리아': '0380', '스페인': '0724',
-        '캐나다': '0124', '호주': '0036', '네덜란드': '0528', '스위스': '0756',
-        '오스트리아': '0040', '벨기에': '0056', '폴란드': '0616',
-        'Germany': '0276', 'USA': '0840', 'Japan': '0392', 'China': '0156',
+        # 아시아
+        '일본': '0200036', '중국': '0200037', '인도': '0200033',
+        '싱가포르': '0200021', '홍콩': '0200049', '대만': '0200002',
+        '태국': '0200044', '베트남': '0200014', '인도네시아': '0200018',
+        '말레이시아': '0200011', '필리핀': '0200013',
+        # 유럽
+        '독일': '0201005', '영국': '0201035', '이탈리아': '0201038',
+        '프랑스': '0201046', '스페인': '0201025', '네덜란드': '0201002',
+        '스위스': '0201024', '오스트리아': '0201036', '벨기에': '0201017',
+        '폴란드': '0201045', '스웨덴': '0201023', '노르웨이': '0201003',
+        '덴마크': '0201004', '핀란드': '0201047', '포르투갈': '0201044',
+        '그리스': '0201000', '체코': '0201040', '헝가리': '0201048',
+        '루마니아': '0201049', '불가리아': '0201021', '슬로바키아': '0201026',
+        '크로아티아': '0201041', '슬로베니아': '0201027', '에스토니아': '0201034',
+        '라트비아': '0201006', '리투아니아': '0201009', '룩셈부르크': '0201008',
+        '러시아': '0201007', '러시아연방': '0201007', '터키': '0201042',
+        # 아메리카
+        '미국': '0204000', '캐나다': '0204006', '브라질': '0205015',
+        '멕시코': '0205007',
+        # 오세아니아
+        '호주': '0203024',
+        # 영문명
+        'Germany': '0201005', 'USA': '0204000', 'Japan': '0200036',
+        'China': '0200037', 'UK': '0201035', 'France': '0201046',
+        'Italy': '0201038', 'Spain': '0201025', 'Canada': '0204006',
+        'Australia': '0203024', 'Netherlands': '0201002', 'Switzerland': '0201024',
     }
+    DIRECT_INPUT_CODE = '04'  # 직접입력 코드
 
     # 카테고리 자동 매핑 (앱 카테고리 → 네이버 카테고리코드)
     CATEGORY_CODE = {
@@ -1415,20 +1437,25 @@ def export_excel():
         # ── 필수: 재고수량
         w('재고수량', 100)
 
-        # ── 필수: 원산지코드 (한글 우선 추출, 이모지 안전하게 제거)
+        # ── 필수: 원산지코드 (Naver originarea 기준)
         country = item.get('country', '') or ''
         korean_m = re.search(r'[가-힣]+', country)
         if korean_m:
             country_key = korean_m.group(0)
         else:
             country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
-        origin = ORIGIN_CODE.get(country_key, '0276')  # 기본: 독일
-        print(f"[Excel] 원산지: country={repr(country)} → key={repr(country_key)} → code={repr(origin)} col={origin_col}")
+        origin = ORIGIN_CODE.get(country_key)
         if origin_col:
             c = ws.cell(row=row_num, column=origin_col)
             c.number_format = '@'
-            c.value = str(origin)
-            print(f"[Excel] 원산지코드 기입: row={row_num} col={origin_col} val={repr(c.value)}")
+            if origin:
+                c.value = str(origin)
+            else:
+                # 매핑 없으면 직접입력(04) + 원산지 직접입력 컬럼에 국가명 기입
+                c.value = DIRECT_INPUT_CODE
+                direct_col = col_idx('원산지 직접입력')
+                if direct_col and country_key:
+                    ws.cell(row=row_num, column=direct_col).value = country_key
 
         # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
