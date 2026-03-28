@@ -2602,15 +2602,18 @@ function renderCandidates(items) {
 // ── 네이버 쇼핑 스펙 조회 ─────────────────────────────────────────────────
 function renderSpecsCell(item) {
   const specs = item.shopping_specs;
+  const total = item.shopping_specs_total;
+  const totalHtml = total != null
+    ? `<div style="font-size:0.65rem;color:#718096;margin-bottom:3px">네이버 검색 ${total.toLocaleString()}개</div>`
+    : '';
   if (!specs) {
-    // 아직 미조회 → 자동 조회 예약
     return `<div id="specs-inner-${escHtml(item.id)}" style="color:#a0aec0;font-size:0.75rem">대기중...</div>`;
   }
   if (specs.length === 0) {
-    return `<div style="display:flex;align-items:center;gap:4px">
-      <span style="color:#a0aec0;font-size:0.75rem">결과없음</span>
+    return `<div>${totalHtml}<div style="display:flex;align-items:center;gap:4px">
+      <span style="color:#a0aec0;font-size:0.75rem">스펙 추출 없음</span>
       <button class="btn-icon" style="padding:1px 5px;font-size:0.68rem" onclick="loadSpecs('${escHtml(item.id)}','${escHtml(item.product_name||'')}','${escHtml(item.product_name_en||'')}','${escHtml(item.brand_name||'')}')">🔄</button>
-    </div>`;
+    </div></div>`;
   }
   const minPrice = Math.min(...specs.map(s => s.price));
   const rows = specs.map(s => {
@@ -2632,6 +2635,7 @@ function renderSpecsCell(item) {
     </tr>`;
   }).join('');
   return `<div>
+    ${totalHtml}
     <table style="border-collapse:collapse;width:100%">${rows}</table>
     <button class="btn-icon" style="margin-top:3px;padding:1px 6px;font-size:0.68rem" onclick="loadSpecs('${escHtml(item.id)}','${escHtml(item.product_name||'')}','${escHtml(item.product_name_en||'')}','${escHtml(item.brand_name||'')}')">🔄 새로고침</button>
   </div>`;
@@ -2656,8 +2660,11 @@ async function loadSpecs(id, productName, productNameEn, brandName) {
       return;
     }
     // 캐시 업데이트
-    if (candItemsCache[id]) candItemsCache[id].shopping_specs = data.specs;
-    if (cell) cell.innerHTML = renderSpecsCell({id, ...candItemsCache[id], shopping_specs: data.specs});
+    if (candItemsCache[id]) {
+      candItemsCache[id].shopping_specs = data.specs;
+      candItemsCache[id].shopping_specs_total = data.total;
+    }
+    if (cell) cell.innerHTML = renderSpecsCell({id, ...candItemsCache[id], shopping_specs: data.specs, shopping_specs_total: data.total});
   } catch(e) {
     if (cell) cell.innerHTML = `<span style="color:#fc8181;font-size:0.75rem">오류</span>`;
   }

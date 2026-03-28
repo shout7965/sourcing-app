@@ -1378,14 +1378,17 @@ def naver_shopping_specs():
             params={"query": query, "display": 30, "sort": "asc"},
             timeout=10,
         )
-        raw_items = resp.json().get("items", []) if resp.status_code == 200 else []
+        rj        = resp.json() if resp.status_code == 200 else {}
+        raw_items = rj.get("items", [])
+        shop_total = rj.get("total", 0)
     except Exception:
-        raw_items = []
+        raw_items  = []
+        shop_total = 0
 
     increment_usage(1)
 
     if not raw_items:
-        return jsonify({"specs": [], "product_match": query, "total": 0})
+        return jsonify({"specs": [], "product_match": query, "total": shop_total})
 
     items_text = ""
     for i, it in enumerate(raw_items, 1):
@@ -1436,12 +1439,13 @@ def naver_shopping_specs():
         try:
             db.collection('sourcing_candidates').document(candidate_id).update({
                 'shopping_specs':         specs,
+                'shopping_specs_total':   shop_total,
                 'shopping_specs_updated': fb_fs.SERVER_TIMESTAMP,
             })
         except Exception as e:
             print(f"[Firestore] specs 저장 실패: {e}")
 
-    return jsonify({"specs": specs, "product_match": query, "total": len(raw_items)})
+    return jsonify({"specs": specs, "product_match": query, "total": shop_total})
 
 
 @app.route("/api/ask", methods=["POST"])
