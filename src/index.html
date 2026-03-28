@@ -1662,15 +1662,8 @@ async function saveRegNameEdit(el) {
 }
 
 function renderRegImages(id, item) {
-  // reg_images 없으면 저장된 이미지들로 초기화 (최대 5개)
-  if (!item.reg_images) {
-    const imgs = [item.shopping_image, item.blog_image, item.thumbnail].filter(Boolean);
-    const unique = [...new Set(imgs)].slice(0, 5);
-    item.reg_images = unique;
-    if (regItemsCache[id]) regItemsCache[id].reg_images = unique;
-  }
   const imgs = item.reg_images || [];
-  if (!imgs.length) return '<span style="color:#a0aec0;font-size:0.72rem">없음</span>';
+  if (!imgs.length) return '<span style="color:#a0aec0;font-size:0.72rem">상품정보 조회 후 표시</span>';
   return `<div id="reg-imgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start">` +
     imgs.map((url, i) => `
       <div style="position:relative;display:inline-block">
@@ -3145,16 +3138,24 @@ async function fetchWeight(id) {
       calcMarginLive(id);
     }
     if (data.product_title) {
-      // 추출된 실제 제품 타이틀을 candidate에 저장 + 화면에 표시
       const titleEl = document.getElementById(`url-title-${id}`);
       if (titleEl) { titleEl.textContent = data.product_title; titleEl.style.display = ''; }
-      // candItemsCache에도 저장 (→ 상품등록대장 이동 시 활용)
       if (candItemsCache[id]) candItemsCache[id].product_title_url = data.product_title;
+      got.push(`제품명 확인`);
+    }
+    // 소싱처 이미지 저장 (reg_images)
+    const patchData = {};
+    if (data.product_title) patchData.product_title_url = data.product_title;
+    if (data.images && data.images.length) {
+      if (candItemsCache[id]) candItemsCache[id].reg_images = data.images;
+      patchData.reg_images = data.images;
+      got.push(`이미지 ${data.images.length}개`);
+    }
+    if (Object.keys(patchData).length) {
       fetch(`/api/candidates/${encodeURIComponent(id)}`, {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({product_title_url: data.product_title}),
+        body: JSON.stringify(patchData),
       });
-      got.push(`제품명 확인`);
     }
     if (got.length) showToast(`자동 추출: ${got.join(', ')}`);
     else showToast((data.error || '정보 없음') + ' — 직접 입력해주세요', true);

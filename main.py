@@ -1589,6 +1589,23 @@ def fetch_weight():
                         found_price = candidate
                         break
 
+        # 소싱처 이미지 추출 (Amazon 전용)
+        page_images = []
+        if 'amazon.' in url:
+            m_img = re.search(r'data-a-dynamic-image=["\']([^"\']+)["\']', resp.text)
+            if m_img:
+                try:
+                    img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
+                    sorted_imgs = sorted(img_dict.items(), key=lambda x: x[1][0] if x[1] else 0, reverse=True)
+                    page_images += [k for k, _ in sorted_imgs]
+                except Exception:
+                    pass
+            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/[A-Za-z0-9%+_-]+\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', resp.text):
+                large = re.sub(r'\._[A-Z0-9_,]+_\.', '.', m2.group(0))
+                if large not in page_images:
+                    page_images.append(large)
+        page_images = list(dict.fromkeys(page_images))[:5]
+
         # 제품 타이틀 추출
         product_title = None
         # 1순위: id="productTitle" span — 열린 태그에서 500자 잘라 내부 HTML 전체 스트립
@@ -1612,7 +1629,7 @@ def fetch_weight():
 
         if found_weight is not None and found_price is not None:
             return jsonify({"weight": found_weight, "price_eur": found_price, "unit": "kg",
-                            "source": "regex", "product_title": product_title})
+                            "source": "regex", "product_title": product_title, "images": page_images})
         if found_weight is not None:
             pass  # 가격은 Claude로 보완 시도
 
@@ -1651,12 +1668,13 @@ def fetch_weight():
         if out:
             out['source'] = 'claude'
             out['product_title'] = product_title
+            out['images'] = page_images
             return jsonify(out)
 
         if product_title:
-            return jsonify({"weight": None, "product_title": product_title,
+            return jsonify({"weight": None, "product_title": product_title, "images": page_images,
                             "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
-        return jsonify({"weight": None, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
+        return jsonify({"weight": None, "images": page_images, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
     except Exception as e:
         return jsonify({"weight": None, "error": str(e)}), 500
 
