@@ -993,6 +993,11 @@ function setNiche(scenario) {
 }
 
 async function runAiKeywords() {
+  if (!currentUser) {
+    showToast('AI 추천은 로그인 후 이용 가능합니다', true);
+    document.getElementById('loginModal').style.display = 'flex';
+    return;
+  }
   const hint   = document.getElementById('aiKeywordHint').value.trim();
   const btn    = document.getElementById('btnAiKeywords');
   const result = document.getElementById('aiKeywordResult');
@@ -1028,7 +1033,7 @@ function renderAiKeywords(data) {
       <div class="ai-kw-cat">${escHtml(kw.category)}</div>
       <div class="ai-kw-reason">${escHtml(kw.reason)}</div>
       <div class="ai-kw-query">🔍 ${escHtml(kw.search_query)}</div>
-      <button class="ai-kw-action" onclick="startFromAiKeyword(${JSON.stringify(escHtml(kw.keyword))})">이 키워드로 소싱 시작 →</button>
+      <button class="ai-kw-action" onclick="startFromAiKeyword(${JSON.stringify(escHtml(kw.search_query))})">이 키워드로 소싱 시작 →</button>
     </div>
   `).join('');
   el.innerHTML = `
@@ -1038,6 +1043,11 @@ function renderAiKeywords(data) {
 }
 
 async function runAiNiche() {
+  if (!currentUser) {
+    showToast('AI 추천은 로그인 후 이용 가능합니다', true);
+    document.getElementById('loginModal').style.display = 'flex';
+    return;
+  }
   const scenario = document.getElementById('aiNicheInput').value.trim();
   if (!scenario) { showToast('시나리오를 입력해주세요', true); return; }
   const btn    = document.getElementById('btnAiNiche');
@@ -1083,7 +1093,11 @@ function renderAiNiche(data) {
 }
 
 function startFromAiKeyword(keyword) {
-  // 프로젝트 탭으로 이동 후 새 프로젝트 모달 오픈
+  if (!currentUser) {
+    showToast('소싱을 시작하려면 로그인이 필요합니다', true);
+    document.getElementById('loginModal').style.display = 'flex';
+    return;
+  }
   switchTab('projects');
   document.getElementById('newProjectName').value = keyword;
   document.getElementById('newProjectModal').style.display = 'flex';

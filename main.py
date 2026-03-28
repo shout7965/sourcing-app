@@ -1233,6 +1233,8 @@ def fetch_weight():
 # ── AI 소싱 도우미 엔드포인트 ──────────────────────────────────────────────
 @app.route('/api/ai-keywords', methods=['POST'])
 def api_ai_keywords():
+    if not session.get('user'):
+        return jsonify({"error": "로그인이 필요합니다"}), 401
     data     = request.get_json() or {}
     category = data.get('category', '전체').strip()
     custom   = data.get('custom', '').strip()
@@ -1269,6 +1271,8 @@ JSON 형식으로만 응답하세요."""
 
 @app.route('/api/ai-niche-ideas', methods=['POST'])
 def api_ai_niche_ideas():
+    if not session.get('user'):
+        return jsonify({"error": "로그인이 필요합니다"}), 401
     data     = request.get_json() or {}
     scenario = data.get('scenario', '').strip()
     if not scenario:
