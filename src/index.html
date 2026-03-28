@@ -1289,6 +1289,18 @@ async function moveToRegister() {
   const ids = [...document.querySelectorAll('.cand-cb:checked')].map(cb => cb.dataset.id);
   if (!ids.length) { showToast('항목을 선택해주세요.', true); return; }
 
+  // 미저장 항목 체크 (UI 입력값 ≠ 캐시값)
+  const unsaved = ids.filter(id => {
+    const eurEl = document.getElementById(`eur-${id}`);
+    const uiVal = eurEl ? parseFloat(eurEl.value) || 0 : 0;
+    const cached = parseFloat(candItemsCache[id]?.price_eur) || 0;
+    return uiVal !== cached;
+  });
+  if (unsaved.length) {
+    showToast(`소싱가를 먼저 저장해주세요 (${unsaved.length}개 미저장)`, true);
+    return;
+  }
+
   // 이동 시점에 환율 최신화
   let rate = currentRate;
   try {
@@ -1302,27 +1314,16 @@ async function moveToRegister() {
     if (!item) return null;
     const country   = resolveCountry(item);
     const ftaInfo   = getFtaInfo(country);
-    // UI 입력값 우선 반영 (저장 안 눌러도 이동 시 반영)
-    const eurEl    = document.getElementById(`eur-${id}`);
-    const vatEl    = document.getElementById(`vat-${id}`);
-    const rateEl   = document.getElementById(`rate-${id}`);
-    const weightEl = document.getElementById(`weight-${id}`);
-    const shipEl   = document.getElementById(`ship-${id}`);
-    const priceEur  = eurEl    ? (parseFloat(eurEl.value)    || item.price_eur    || null) : (item.price_eur    || null);
-    const vatType   = vatEl    ? (vatEl.value                || item.vat_type     || '19') : (item.vat_type     || '19');
-    const exRate    = rateEl   ? (parseFloat(rateEl.value)   || rate)              : rate;
-    const weight    = weightEl ? (parseFloat(weightEl.value) || item.weight       || null) : (item.weight       || null);
-    const shipFee   = shipEl   ? (parseFloat(shipEl.value)   || 0)                : (item.shipping_fee || 0);
-    const vatPriceKrw = priceEur ? Math.round((priceEur / (1 + parseFloat(vatType) / 100)) * exRate) : 0;
+    // UI에서 수정된 배송비 우선 반영 (weight 기반 자동계산값 포함)
+    const shipEl      = document.getElementById(`ship-${id}`);
+    const shipFee     = shipEl ? (parseFloat(shipEl.value) || 0) : (item.shipping_fee || 0);
+    const vatPriceKrw = item.price_eur ? Math.round((item.price_eur / (1 + (parseFloat(item.vat_type || '19')) / 100)) * rate) : 0;
     const cifKrw      = vatPriceKrw + shipFee;
-    const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, exRate);
+    const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
     return {
       ...item,
       country,
-      price_eur:        priceEur,
-      vat_type:         vatType,
-      weight:           weight,
-      exchange_rate:    exRate,
+      exchange_rate:    rate,
       shipping_fee:     shipFee,
       cif_krw:          cifKrw,
       fta:              ftaInfo.fta,
