@@ -796,7 +796,7 @@ def search():
 {reviews_text}
 index는 게시물 번호 숫자를 그대로 사용하세요."""
     else:
-        claude_content = f"""다음은 해외 직구 관련 후기 목록입니다. 각 후기에서 정보를 추출해주세요.
+        claude_content = f"""다음은 "{keyword}" 관련 해외 직구 후기 검색 결과입니다. 각 후기에서 정보를 추출해주세요.
 
 추출 항목:
 - brand_name: 브랜드명 (예: Nike, Apple, Zara 등, 없으면 null)
@@ -805,7 +805,10 @@ index는 게시물 번호 숫자를 그대로 사용하세요."""
 - category: 신발/의류/전자제품/가방/화장품/식품/기타 중 하나 (없으면 null)
 - purchase_source: 구매처 (아마존/이베이/알리익스프레스/직접구매/구매대행 등, 없으면 null)
 - price_paid: 후기에서 언급된 구매 가격 (예: "$120", "15만원", "89달러", 없으면 null)
-- is_direct_purchase_review: 실제로 해외직구(아마존/이베이/알리/직접구매 등)로 구매한 상품의 후기면 true, 단순 브랜드 언급/AS수리안내/광고/국내구매 후기면 false
+- is_direct_purchase_review: 아래 두 조건을 모두 만족하면 true, 하나라도 아니면 false
+  조건1) 실제로 해외직구(아마존/이베이/알리/직접구매 등)로 구매한 후기일 것
+  조건2) 검색 키워드 "{keyword}"와 직접 관련된 제품의 후기일 것
+  (예: "{keyword}" 검색인데 전혀 다른 제품 후기면 false)
 
 후기 목록:
 {reviews_text}
