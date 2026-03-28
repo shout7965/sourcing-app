@@ -1431,30 +1431,32 @@ function renderRegistrations(items) {
           </div>
           <div style="min-width:100px">
             <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px" id="reg-src-label-${escHtml(id)}">소싱가 (EUR)</div>
-            <input id="reg-eur-${escHtml(id)}" type="number" value="${eur}" placeholder="0"
+            <input id="reg-eur-${escHtml(id)}" type="number" value="${escHtml(String(item.price_eur||''))}" placeholder="0"
               style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" />
           </div>
           <div style="min-width:120px">
             <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">VAT</div>
             <select id="reg-vat-${escHtml(id)}" style="width:100%;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.78rem">
-              <option value="19" ${vatType!=='7'&&vatType!=='0'?'selected':''}>공산품 19%</option>
-              <option value="7"  ${vatType==='7'?'selected':''}>식품·서적 7%</option>
-              <option value="0"  ${vatType==='0'?'selected':''}>VAT없음</option>
+              <option value="19" ${(item.vat_type||'19')!=='7'&&(item.vat_type||'19')!=='0'?'selected':''}>공산품 19%</option>
+              <option value="7"  ${item.vat_type==='7'?'selected':''}>식품·서적 7%</option>
+              <option value="0"  ${item.vat_type==='0'?'selected':''}>VAT없음</option>
             </select>
           </div>
-          <div style="min-width:100px">
+          <div style="min-width:120px">
             <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">환율 <span id="reg-rate-status-${escHtml(id)}" style="color:#63b3ed;font-size:0.65rem"></span></div>
-            <input id="reg-rate-${escHtml(id)}" type="number" value="${rate}" placeholder="1450"
-              style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" />
+            <div style="font-size:0.72rem;color:#718096;padding:5px 8px;background:#edf2f7;border-radius:6px;min-width:110px" id="reg-rate-display-${escHtml(id)}">
+              ${item.exchange_rate ? `1EUR = ${Number(item.exchange_rate).toLocaleString()}원` : 'URL 입력 시 자동'}
+            </div>
+            <input type="hidden" id="reg-rate-${escHtml(id)}" value="${item.exchange_rate||''}" />
           </div>
           <div style="min-width:80px">
             <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">무게(kg)</div>
-            <input id="reg-weight-${escHtml(id)}" type="number" step="0.1" value="${weight}"
+            <input id="reg-weight-${escHtml(id)}" type="number" step="0.1" value="${escHtml(String(item.weight_kg||''))}"
               style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" placeholder="0.5"/>
           </div>
           <div style="min-width:100px">
             <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">배대지 배송비(원)</div>
-            <input id="reg-ship-${escHtml(id)}" type="number" value="${ship}"
+            <input id="reg-ship-${escHtml(id)}" type="number" value="${escHtml(String(item.shipping_fee||''))}"
               style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" placeholder="0"/>
           </div>
           <button class="btn-search" style="height:34px;padding:0 16px;font-size:0.82rem;align-self:flex-end"
@@ -1483,18 +1485,22 @@ async function autoFetchRateForReg(id) {
   const url = urlEl.value.trim();
   if (!url) return;
   const {currency, symbol} = getUrlCurrencyInfo(url);
-  const labelEl  = document.getElementById(`reg-src-label-${id}`);
-  const statusEl = document.getElementById(`reg-rate-status-${id}`);
-  if (labelEl)  labelEl.textContent = `소싱가 (${currency})`;
-  if (statusEl) statusEl.textContent = '조회중...';
+  const labelEl   = document.getElementById(`reg-src-label-${id}`);
+  const statusEl  = document.getElementById(`reg-rate-status-${id}`);
+  const displayEl = document.getElementById(`reg-rate-display-${id}`);
+  if (labelEl)   labelEl.textContent  = `소싱가 (${currency})`;
+  if (statusEl)  statusEl.textContent = '조회중...';
+  if (displayEl) displayEl.textContent = '조회중...';
   try {
     const resp = await fetch(`/api/exchange-rate?currency=${currency}`);
     const data = await resp.json();
     const rateEl = document.getElementById(`reg-rate-${id}`);
     if (rateEl) rateEl.value = data.rate;
-    if (statusEl) statusEl.textContent = `1${symbol}=${data.rate.toLocaleString()}원`;
+    if (displayEl) displayEl.textContent = `1${symbol} = ${data.rate.toLocaleString()}원`;
+    if (statusEl)  statusEl.textContent  = '';
   } catch(e) {
-    if (statusEl) statusEl.textContent = '조회실패';
+    if (statusEl)  statusEl.textContent  = '조회실패';
+    if (displayEl) displayEl.textContent = '조회실패';
   }
 }
 
@@ -1993,8 +1999,11 @@ async function autoFetchRateForUrl(id) {
   try {
     const resp = await fetch(`/api/exchange-rate?currency=${currency}`);
     const data = await resp.json();
-    if (rateInput) { rateInput.value = data.rate; calcMarginLive(id); }
-    if (rateStatus) rateStatus.textContent = `1${symbol}=${data.rate.toLocaleString()}원`;
+    if (rateInput) rateInput.value = data.rate;
+    const displayEl = document.getElementById(`rate-display-${id}`);
+    if (displayEl) displayEl.textContent = `1${symbol} = ${data.rate.toLocaleString()}원`;
+    if (rateStatus) rateStatus.textContent = '';
+    calcMarginLive(id);
   } catch(e) {
     if (rateStatus) rateStatus.textContent = '조회실패';
   }
@@ -2691,8 +2700,11 @@ function renderCandidates(items) {
             </select>
           </div>
           <div class="margin-field">
-            <label id="rate-label-${escHtml(id)}">환율 (원/EUR) <span id="rate-status-${escHtml(id)}" style="font-size:0.65rem;color:#63b3ed"></span></label>
-            <input type="number" id="rate-${escHtml(id)}" value="${rate}" placeholder="1400" oninput="calcMarginLive('${escHtml(id)}')" />
+            <label id="rate-label-${escHtml(id)}">환율 <span id="rate-status-${escHtml(id)}" style="font-size:0.65rem;color:#63b3ed"></span></label>
+            <div style="font-size:0.72rem;color:#718096;padding:5px 8px;background:#f7faff;border-radius:6px;min-width:120px;line-height:1.6" id="rate-display-${escHtml(id)}">
+              ${rate ? `1EUR = ${Number(rate).toLocaleString()}원` : 'URL 입력 시 자동조회'}
+            </div>
+            <input type="hidden" id="rate-${escHtml(id)}" value="${rate}" />
           </div>
           <!-- 무게 + 배송비 자동계산 -->
           <div class="margin-field">
