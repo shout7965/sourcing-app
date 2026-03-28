@@ -1608,12 +1608,20 @@ def fetch_weight():
             if m_img:
                 try:
                     img_dict = json.loads(m_img.group(1).replace('&quot;', '"'))
-                    sorted_imgs = sorted(img_dict.items(), key=lambda x: x[1][0] if x[1] else 0, reverse=True)
-                    page_images += [k for k, _ in sorted_imgs]
+                    # 같은 이미지의 여러 사이즈 → base URL 기준 중복 제거, 가장 큰 사이즈만 사용
+                    base_best = {}  # base_url → (full_url, width)
+                    for full_url, dims in img_dict.items():
+                        base = re.sub(r'\._[A-Z0-9_,]+_\.', '.', full_url)
+                        w = dims[0] if dims else 0
+                        if base not in base_best or w > base_best[base][1]:
+                            base_best[base] = (full_url, w)
+                    sorted_imgs = sorted(base_best.values(), key=lambda x: x[1], reverse=True)
+                    page_images += [u for u, _ in sorted_imgs]
                 except Exception:
                     pass
-            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/[A-Za-z0-9%+_-]+\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', resp.text):
-                large = re.sub(r'\._[A-Z0-9_,]+_\.', '.', m2.group(0))
+            # 추가 이미지: 사이즈 suffix 제거 후 중복 제거
+            for m2 in re.finditer(r'https://m\.media-amazon\.com/images/I/([A-Za-z0-9%+_-]+)\._[A-Z0-9_,]+_\.(jpg|png|jpeg)', resp.text):
+                large = f'https://m.media-amazon.com/images/I/{m2.group(1)}.{m2.group(2)}'
                 if large not in page_images:
                     page_images.append(large)
         page_images = list(dict.fromkeys(page_images))[:5]
