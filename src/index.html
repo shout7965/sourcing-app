@@ -1445,7 +1445,7 @@ function renderRegistrations(items) {
       <td style="white-space:nowrap">${country}</td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
       <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
-      <td style="min-width:160px;vertical-align:top">${renderRegImages(id, item)}</td>
+      <td id="reg-imgs-${escHtml(id)}" style="min-width:160px;vertical-align:top">${renderRegImages(id, item)}</td>
       <td style="min-width:180px"><span contenteditable="true" data-id="${escHtml(id)}" data-field="product_title_url" onblur="saveRegNameEdit(this)" style="display:block;font-size:0.72rem;color:#4a5568;outline:none;border:1px dashed #e2e8f0;border-radius:4px;padding:3px 5px;min-height:22px;cursor:text" title="소싱처 원본 상품명 입력">${escHtml(item.product_title_url || '')}</span></td>
       <td style="min-width:200px">
         <div id="regname-${escHtml(id)}" style="font-size:0.78rem;color:#2d3748;line-height:1.5">${nameHtml}</div>
@@ -1673,7 +1673,7 @@ async function saveImgInput(id) {
   if (!urls.length) { showToast('유효한 URL을 입력해주세요', true); return; }
   if (regItemsCache[id]) regItemsCache[id].reg_images = urls;
   const cell = document.getElementById(`reg-imgs-${id}`);
-  if (cell) cell.outerHTML = `<td id="reg-imgs-${id}" style="min-width:160px;vertical-align:top">${renderRegImages(id, regItemsCache[id])}</td>`;
+  if (cell) cell.innerHTML = renderRegImages(id, regItemsCache[id]);
   await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
     method: 'PATCH', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({reg_images: urls}),
@@ -1695,8 +1695,8 @@ async function fetchRegImages(id) {
     const data = await resp.json();
     if (data.images && data.images.length) {
       regItemsCache[id].reg_images = data.images;
-      document.getElementById(`reg-imgs-${id}`).outerHTML =
-        `<div id="reg-imgs-${id}" style="min-width:160px;vertical-align:top">${renderRegImages(id, regItemsCache[id])}</div>`;
+      const imgCell = document.getElementById(`reg-imgs-${id}`);
+      if (imgCell) imgCell.innerHTML = renderRegImages(id, regItemsCache[id]);
       await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({reg_images: data.images}),
@@ -1735,7 +1735,8 @@ async function deleteRegImage(id, index) {
   const item = regItemsCache[id];
   if (!item) return;
   item.reg_images = (item.reg_images || []).filter((_, i) => i !== index);
-  document.getElementById(`reg-imgs-${id}`).outerHTML = renderRegImages(id, item);
+  const delCell = document.getElementById(`reg-imgs-${id}`);
+  if (delCell) delCell.innerHTML = renderRegImages(id, item);
   await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
     method: 'PATCH', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({reg_images: item.reg_images}),
