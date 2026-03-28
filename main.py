@@ -758,8 +758,17 @@ def search():
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
     keyword_lower = keyword.lower()
-    all_items = [i for i in all_items
-                 if keyword_lower in strip_html(i.get("title","") + " " + i.get("description","")).lower()]
+
+    # 날짜필터만 적용된 원본 보존 (비교용)
+    raw_items = sorted(all_items, key=lambda x: x["_date"] or date.min, reverse=True)
+
+    # 토큰 AND 매칭: 키워드의 각 단어가 모두 제목+본문에 존재해야 함
+    # "백노이즈 머신" → "백노이즈"와 "머신" 둘 다 있어야 통과 (러닝머신 등 제외)
+    keyword_tokens = [t for t in keyword_lower.split() if len(t) >= 2]
+    def token_match(item):
+        full = strip_html(item.get("title","") + " " + item.get("description","")).lower()
+        return all(t in full for t in keyword_tokens) if keyword_tokens else True
+    all_items = [i for i in all_items if token_match(i)]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
@@ -851,8 +860,16 @@ index는 후기 번호 숫자를 그대로 사용하세요."""
             "is_direct_purchase_review": getattr(ext, 'is_direct_purchase_review', True) if ext else True,
         })
 
+    raw_results = [{
+        "title":    strip_html(i.get("title", "")),
+        "link":     i.get("link", ""),
+        "postdate": format_date(i["_date"]),
+        "source":   i.get("_source", "블로그"),
+    } for i in raw_items]
+
     return jsonify({
         "results":     results,
+        "raw_results": raw_results,
         "total_blog":  total_blog,
         "total_cafe":  total_cafe,
         "next_cursor": next_cursor,

@@ -680,37 +680,51 @@
 
       <div class="error-box" id="errorBox"></div>
 
-      <div class="results-area" id="resultsArea">
-        <div class="empty-main" id="emptyMain">
-          <div class="icon">🔍</div>
-          <p>프로젝트에서 조건을 선택하고<br>조회 버튼을 눌러주세요.</p>
+      <div class="results-area" id="resultsArea" style="display:flex;gap:0;overflow:hidden">
+
+        <!-- 왼쪽: 날짜필터만 적용된 원본 전체 -->
+        <div id="rawPane" style="display:none;width:280px;min-width:220px;border-right:2px solid #2d3748;overflow-y:auto;flex-shrink:0">
+          <div style="padding:8px 12px;background:#1a2332;position:sticky;top:0;z-index:1;border-bottom:1px solid #2d3748">
+            <span style="font-size:0.78rem;font-weight:700;color:#90cdf4">네이버 원본</span>
+            <span id="rawCount" style="font-size:0.75rem;color:#718096;margin-left:6px"></span>
+          </div>
+          <div id="rawList" style="padding:8px"></div>
         </div>
-        <div class="results-table-wrap" id="resultsTableWrap" style="display:none">
-          <table>
-            <thead>
-              <tr>
-                <th class="cb-cell"><input type="checkbox" id="selectAllTop" onchange="toggleSelectAll(this)" /></th>
-                <th style="width:32px">#</th>
-                <th style="width:44px">출처</th>
-                <th style="width:64px">이미지</th>
-                <th>브랜드</th>
-                <th>상품명 / 영문명</th>
-                <th>카테고리</th>
-                <th>구매처</th>
-                <th>후기가격</th>
-                <th>제목 / 내용</th>
-                <th>날짜</th>
-              </tr>
-            </thead>
-            <tbody id="resultsBody"></tbody>
-          </table>
+
+        <!-- 오른쪽: 필터링 결과 -->
+        <div style="flex:1;overflow-y:auto;min-width:0">
+          <div class="empty-main" id="emptyMain">
+            <div class="icon">🔍</div>
+            <p>프로젝트에서 조건을 선택하고<br>조회 버튼을 눌러주세요.</p>
+          </div>
+          <div class="results-table-wrap" id="resultsTableWrap" style="display:none">
+            <table>
+              <thead>
+                <tr>
+                  <th class="cb-cell"><input type="checkbox" id="selectAllTop" onchange="toggleSelectAll(this)" /></th>
+                  <th style="width:32px">#</th>
+                  <th style="width:44px">출처</th>
+                  <th style="width:64px">이미지</th>
+                  <th>브랜드</th>
+                  <th>상품명 / 영문명</th>
+                  <th>카테고리</th>
+                  <th>구매처</th>
+                  <th>후기가격</th>
+                  <th>제목 / 내용</th>
+                  <th>날짜</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+          <div id="loadMoreWrap" style="display:none" class="load-more-wrap">
+            <div class="spinner"></div>
+            <span id="loadMoreMsg">다음 결과 불러오는 중...</span>
+          </div>
+          <div id="doneMsg" class="done-msg" style="display:none">모든 결과를 불러왔습니다.</div>
+          <div id="scrollSentinel" style="height:1px"></div>
         </div>
-        <div id="loadMoreWrap" style="display:none" class="load-more-wrap">
-          <div class="spinner"></div>
-          <span id="loadMoreMsg">다음 결과 불러오는 중...</span>
-        </div>
-        <div id="doneMsg" class="done-msg" style="display:none">모든 결과를 불러왔습니다.</div>
-        <div id="scrollSentinel" style="height:1px"></div>
+
       </div>
     </div>
 
@@ -1909,6 +1923,9 @@ function startSearch() {
   document.getElementById('loadMoreWrap').style.display    = 'none';
   document.getElementById('errorBox').style.display        = 'none';
   document.getElementById('selectAllChk').checked          = false;
+  document.getElementById('rawPane').style.display         = 'none';
+  document.getElementById('rawList').innerHTML             = '';
+  document.getElementById('rawCount').textContent          = '';
   document.getElementById('selectAllTop').checked          = false;
 
   updateMainStatus('조회 중...');
@@ -1989,9 +2006,12 @@ async function loadMore() {
     if (data.results && data.results.length > 0) {
       appendResults(data.results);
     }
-    updateMainStatus(`${allResults.length}건 표시`
-      + (data.total_blog ? ` (블로그 총 ${data.total_blog.toLocaleString()}건` : '')
-      + (data.total_cafe ? `, 카페 총 ${data.total_cafe.toLocaleString()}건)` : (data.total_blog ? ')' : '')));
+    if (data.raw_results) {
+      appendRawResults(data.raw_results);
+    }
+    updateMainStatus(`${allResults.length}건 표시 (필터 후)`
+      + (data.total_blog ? ` / 블로그 총 ${data.total_blog.toLocaleString()}건` : '')
+      + (data.total_cafe ? `, 카페 총 ${data.total_cafe.toLocaleString()}건` : ''));
     loadUsage();
   } catch (e) {
     showError(e.message);
@@ -2013,6 +2033,24 @@ async function loadMore() {
       document.getElementById('doneMsg').style.display = allResults.length > 0 ? '' : 'none';
     }
   }
+}
+
+function appendRawResults(rawItems) {
+  const list = document.getElementById('rawList');
+  const pane = document.getElementById('rawPane');
+  pane.style.display = '';
+  rawItems.forEach(r => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:6px 4px;border-bottom:1px solid #1a2332;font-size:0.75rem';
+    div.innerHTML = `
+      <div style="color:#a0aec0;margin-bottom:2px">${escHtml(r.postdate)} · ${escHtml(r.source)}</div>
+      <a href="${escHtml(r.link)}" target="_blank" style="color:#e2e8f0;text-decoration:none;line-height:1.4;display:block"
+         onmouseover="this.style.color='#90cdf4'" onmouseout="this.style.color='#e2e8f0'">
+        ${escHtml(r.title)}
+      </a>`;
+    list.appendChild(div);
+  });
+  document.getElementById('rawCount').textContent = `${list.children.length}건`;
 }
 
 function appendResults(results) {
