@@ -781,7 +781,7 @@
               <th class="cb-cell"><input type="checkbox" id="candSelectAll" onchange="toggleCandAll(this)"></th>
               <th>저장일</th><th>키워드</th><th>브랜드</th><th>상품명 / 영문명</th>
               <th>카테고리</th><th>구매처</th><th>후기가격</th><th>최저가</th>
-              <th>마진율</th><th>제목</th><th>상태</th><th>액션</th>
+              <th>마진계산</th><th>마진율</th><th>제목</th><th>상태</th><th>액션</th>
             </tr>
           </thead>
           <tbody id="candBody"></tbody>
@@ -828,6 +828,7 @@
               <th>관세+부가세</th>
               <th>순마진</th>
               <th>수익률</th>
+              <th>소싱가입력</th>
               <th>액션</th>
             </tr>
           </thead>
@@ -1414,9 +1415,118 @@ function renderRegistrations(items) {
       <td style="text-align:right;color:#c05621">${customs + vat10 ? formatPrice(customs + vat10) : '-'}</td>
       <td id="margin-${escHtml(id)}" style="text-align:right;font-weight:600;color:${marginColor}">${netMargin !== null ? formatPrice(netMargin) : '-'}</td>
       <td id="rate-${escHtml(id)}" style="text-align:right">${returnRate !== null ? `<span style="font-weight:600">${returnRate}%</span>` : '-'}</td>
+      <td style="text-align:center">
+        <button class="btn-expand" onclick="toggleRegDetail('${escHtml(id)}')" title="소싱가 입력">✏️</button>
+      </td>
       <td><button class="btn-icon del" onclick="deleteReg('${escHtml(id)}')">삭제</button></td>
+    </tr>
+    <tr id="rdrw-${escHtml(id)}" style="display:none">
+      <td colspan="16" style="background:#f7faff;padding:12px 16px;border-bottom:2px solid #bee3f8">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+          <div style="flex:2;min-width:220px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">소싱처 URL</div>
+            <input id="reg-url-${escHtml(id)}" type="url" value="${escHtml(productUrl)}" placeholder="https://www.amazon.de/dp/..."
+              style="width:100%;font-size:0.78rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px"
+              onblur="autoFetchRateForReg('${escHtml(id)}')" />
+          </div>
+          <div style="min-width:100px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px" id="reg-src-label-${escHtml(id)}">소싱가 (EUR)</div>
+            <input id="reg-eur-${escHtml(id)}" type="number" value="${eur}" placeholder="0"
+              style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" />
+          </div>
+          <div style="min-width:120px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">VAT</div>
+            <select id="reg-vat-${escHtml(id)}" style="width:100%;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.78rem">
+              <option value="19" ${vatType!=='7'&&vatType!=='0'?'selected':''}>공산품 19%</option>
+              <option value="7"  ${vatType==='7'?'selected':''}>식품·서적 7%</option>
+              <option value="0"  ${vatType==='0'?'selected':''}>VAT없음</option>
+            </select>
+          </div>
+          <div style="min-width:100px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">환율 <span id="reg-rate-status-${escHtml(id)}" style="color:#63b3ed;font-size:0.65rem"></span></div>
+            <input id="reg-rate-${escHtml(id)}" type="number" value="${rate}" placeholder="1450"
+              style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" />
+          </div>
+          <div style="min-width:80px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">무게(kg)</div>
+            <input id="reg-weight-${escHtml(id)}" type="number" step="0.1" value="${weight}"
+              style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" placeholder="0.5"/>
+          </div>
+          <div style="min-width:100px">
+            <div style="font-size:0.72rem;color:#4a5568;margin-bottom:3px">배대지 배송비(원)</div>
+            <input id="reg-ship-${escHtml(id)}" type="number" value="${ship}"
+              style="width:100%;font-size:0.82rem;padding:5px 8px;border:1px solid #cbd5e0;border-radius:6px" placeholder="0"/>
+          </div>
+          <button class="btn-search" style="height:34px;padding:0 16px;font-size:0.82rem;align-self:flex-end"
+            onclick="saveRegSourcePrice('${escHtml(id)}')">저장 & 계산</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
+}
+
+function toggleRegDetail(id) {
+  const row = document.getElementById(`rdrw-${id}`);
+  if (!row) return;
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  if (!open) {
+    // 열릴 때 URL 있으면 환율 자동조회
+    const urlEl = document.getElementById(`reg-url-${id}`);
+    if (urlEl && urlEl.value.trim()) autoFetchRateForReg(id);
+  }
+}
+
+async function autoFetchRateForReg(id) {
+  const urlEl = document.getElementById(`reg-url-${id}`);
+  if (!urlEl) return;
+  const url = urlEl.value.trim();
+  if (!url) return;
+  const {currency, symbol} = getUrlCurrencyInfo(url);
+  const labelEl  = document.getElementById(`reg-src-label-${id}`);
+  const statusEl = document.getElementById(`reg-rate-status-${id}`);
+  if (labelEl)  labelEl.textContent = `소싱가 (${currency})`;
+  if (statusEl) statusEl.textContent = '조회중...';
+  try {
+    const resp = await fetch(`/api/exchange-rate?currency=${currency}`);
+    const data = await resp.json();
+    const rateEl = document.getElementById(`reg-rate-${id}`);
+    if (rateEl) rateEl.value = data.rate;
+    if (statusEl) statusEl.textContent = `1${symbol}=${data.rate.toLocaleString()}원`;
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '조회실패';
+  }
+}
+
+async function saveRegSourcePrice(id) {
+  const item   = regItemsCache[id] || {};
+  const url    = document.getElementById(`reg-url-${id}`)?.value.trim() || '';
+  const eur    = parseFloat(document.getElementById(`reg-eur-${id}`)?.value) || 0;
+  const vat    = document.getElementById(`reg-vat-${id}`)?.value || '19';
+  const rate   = parseFloat(document.getElementById(`reg-rate-${id}`)?.value) || currentRate;
+  const weight = parseFloat(document.getElementById(`reg-weight-${id}`)?.value) || null;
+  const ship   = parseFloat(document.getElementById(`reg-ship-${id}`)?.value) || 0;
+  if (!eur || !rate) { showToast('소싱가와 환율을 입력해주세요', true); return; }
+  const country  = url ? extractCountry(url) : (item.country || '-');
+  const ftaInfo  = getFtaInfo(country);
+  const vatPrice = Math.round((eur / (1 + parseFloat(vat) / 100)) * rate);
+  const cif      = vatPrice + ship;
+  const customs  = Math.round(cif * ftaInfo.rate / 100);
+  const vat10    = Math.round((cif + customs) * 0.1);
+  const payload  = {
+    product_url: url, price_eur: eur, vat_type: vat, exchange_rate: rate,
+    weight_kg: weight, shipping_fee: ship, country,
+    fta: ftaInfo.fta, fta_agreement: ftaInfo.agreement,
+    customs_rate: ftaInfo.rate, customs_amt: customs, vat10_amt: vat10,
+  };
+  try {
+    await fetch(`/api/product-registrations/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    showToast('저장 완료, 새로고침 중...');
+    await loadRegistrations();
+  } catch(e) { showToast('저장 실패: ' + e.message, true); }
 }
 
 function onRegCheck() {
@@ -1842,6 +1952,52 @@ function updateSelectionSummary() {
   });
   summary.textContent = lines.join(' · ');
   btn.disabled = false;
+}
+
+// ── URL → 통화 감지 + 환율 자동조회 ──────────────────────────────────────
+const URL_CURRENCY_MAP = [
+  [/amazon\.de|idealo\.de|\.de[/?#]|\.de$/,        'EUR', '€'],
+  [/amazon\.fr|\.fr[/?#]|\.fr$/,                   'EUR', '€'],
+  [/amazon\.it|\.it[/?#]|\.it$/,                   'EUR', '€'],
+  [/amazon\.es|\.es[/?#]|\.es$/,                   'EUR', '€'],
+  [/amazon\.nl|\.nl[/?#]|\.nl$/,                   'EUR', '€'],
+  [/amazon\.co\.uk|\.uk[/?#]|\.uk$/,               'GBP', '£'],
+  [/amazon\.co\.jp|\.jp[/?#]|\.jp$/,               'JPY', '¥'],
+  [/amazon\.ca|\.ca[/?#]|\.ca$/,                   'CAD', 'C$'],
+  [/amazon\.com\.au|\.au[/?#]|\.au$/,              'AUD', 'A$'],
+  [/taobao|tmall|jd\.com|aliexpress|\.cn[/?#]|\.cn$/, 'CNY', '¥'],
+  [/amazon\.com/,                                  'USD', '$'],
+];
+
+function getUrlCurrencyInfo(url) {
+  if (!url) return {currency: 'EUR', symbol: '€'};
+  for (const [re, currency, symbol] of URL_CURRENCY_MAP) {
+    if (re.test(url)) return {currency, symbol};
+  }
+  return {currency: 'EUR', symbol: '€'};
+}
+
+async function autoFetchRateForUrl(id) {
+  const urlInput = document.getElementById(`purl-${id}`);
+  if (!urlInput) return;
+  const url = urlInput.value.trim();
+  if (!url) return;
+  const {currency, symbol} = getUrlCurrencyInfo(url);
+  const rateInput  = document.getElementById(`rate-${id}`);
+  const rateLabel  = document.getElementById(`rate-label-${id}`);
+  const eurLabel   = document.getElementById(`eur-label-${id}`);
+  const rateStatus = document.getElementById(`rate-status-${id}`);
+  if (eurLabel) eurLabel.textContent = `소싱가 (${currency}, VAT포함)`;
+  if (rateLabel) rateLabel.childNodes[0].textContent = `환율 (원/${currency}) `;
+  if (rateStatus) rateStatus.textContent = '조회중...';
+  try {
+    const resp = await fetch(`/api/exchange-rate?currency=${currency}`);
+    const data = await resp.json();
+    if (rateInput) { rateInput.value = data.rate; calcMarginLive(id); }
+    if (rateStatus) rateStatus.textContent = `1${symbol}=${data.rate.toLocaleString()}원`;
+  } catch(e) {
+    if (rateStatus) rateStatus.textContent = '조회실패';
+  }
 }
 
 // ── 국가 퀵 선택 ──────────────────────────────────────────────────────────
@@ -2457,6 +2613,9 @@ function renderCandidates(items) {
       <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
       <td id="specs-cell-${escHtml(id)}" style="min-width:140px">${renderSpecsCell(item)}</td>
+      <td style="text-align:center">
+        <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">▼</button>
+      </td>
       <td style="text-align:center">${hasMrg ? `<span style="font-weight:700;color:${mrgColor}">${mrgRate}%</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="blog-title" style="min-width:140px">${item.link ? `<a href="${escHtml(item.link)}" target="_blank" rel="noopener">${escHtml(item.title||'-')}</a>` : escHtml(item.title||'-')}</td>
       <td>
@@ -2466,8 +2625,7 @@ function renderCandidates(items) {
           <option value="pass"    ${item.status==='pass'?'selected':''}>제외</option>
         </select>
       </td>
-      <td style="white-space:nowrap;min-width:130px">
-        <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">마진계산</button>
+      <td style="white-space:nowrap;min-width:100px">
         ${(() => {
           const purl = item.product_url || '';
           const q    = encodeURIComponent([item.brand_name, item.product_name_en || item.product_name].filter(Boolean).join(' '));
@@ -2491,7 +2649,7 @@ function renderCandidates(items) {
       </td>
     </tr>
     <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
-      <td colspan="12">
+      <td colspan="13">
         <div class="img-compare">
           <div class="img-compare-item" style="flex:2;min-width:200px">
             <label>블로그 이미지</label>
@@ -2514,18 +2672,18 @@ function renderCandidates(items) {
           <div class="margin-field" style="flex:2;min-width:260px">
             <label>제품 URL (Amazon.de / idealo)</label>
             <div style="display:flex;gap:4px">
-              <input type="url" id="purl-${escHtml(id)}" value="${escHtml(productUrl)}" placeholder="https://www.amazon.de/dp/..." style="flex:1;font-size:0.78rem" />
+              <input type="url" id="purl-${escHtml(id)}" value="${escHtml(productUrl)}" placeholder="https://www.amazon.de/dp/..." style="flex:1;font-size:0.78rem" onblur="autoFetchRateForUrl('${escHtml(id)}')" />
               <button class="btn-sm" id="btnFW-${escHtml(id)}" onclick="fetchWeight('${escHtml(id)}')">무게 조회</button>
             </div>
             <div id="url-title-${escHtml(id)}" style="display:${item.product_title_url?'':'none'};font-size:0.72rem;color:#63b3ed;margin-top:3px;line-height:1.3">${escHtml(item.product_title_url||'')}</div>
           </div>
-          <!-- EUR + VAT + 환율 -->
+          <!-- 소싱가 + VAT + 환율 -->
           <div class="margin-field">
-            <label>독일구매가 (EUR, VAT포함)</label>
+            <label id="eur-label-${escHtml(id)}">소싱가 (EUR, VAT포함)</label>
             <input type="number" id="eur-${escHtml(id)}" value="${eur}" placeholder="0" oninput="calcMarginLive('${escHtml(id)}')" />
           </div>
           <div class="margin-field" style="min-width:130px">
-            <label>VAT (eurolife 면세)</label>
+            <label>VAT (면세 적용)</label>
             <select id="vat-${escHtml(id)}" onchange="calcMarginLive('${escHtml(id)}')" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e0;font-size:0.82rem">
               <option value="19" ${vatType==='7'||vatType==='0'?'':'selected'}>공산품 19%</option>
               <option value="7"  ${vatType==='7'?'selected':''}>식품·서적 7%</option>
@@ -2533,7 +2691,7 @@ function renderCandidates(items) {
             </select>
           </div>
           <div class="margin-field">
-            <label>환율 (원/EUR)</label>
+            <label id="rate-label-${escHtml(id)}">환율 (원/EUR) <span id="rate-status-${escHtml(id)}" style="font-size:0.65rem;color:#63b3ed"></span></label>
             <input type="number" id="rate-${escHtml(id)}" value="${rate}" placeholder="1400" oninput="calcMarginLive('${escHtml(id)}')" />
           </div>
           <!-- 무게 + 배송비 자동계산 -->

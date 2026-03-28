@@ -951,14 +951,20 @@ def delete_candidate(doc_id):
 
 @app.route("/api/exchange-rate")
 def exchange_rate():
-    """EUR/KRW 최신 환율 조회"""
+    """외화/KRW 최신 환율 조회 (?currency=EUR|USD|GBP|JPY|CNY|AUD|CAD)"""
+    currency = request.args.get("currency", "EUR").upper()
+    if currency not in {"EUR", "USD", "GBP", "JPY", "CNY", "AUD", "CAD"}:
+        currency = "EUR"
+    defaults = {"EUR": 1450, "USD": 1350, "GBP": 1680, "JPY": 9, "CNY": 185, "AUD": 850, "CAD": 990}
     try:
-        resp = requests.get("https://api.frankfurter.app/latest?base=EUR&symbols=KRW", timeout=5)
+        resp = requests.get(
+            f"https://api.frankfurter.app/latest?base={currency}&symbols=KRW", timeout=5
+        )
         data = resp.json()
-        rate = round(data['rates']['KRW'])
-        return jsonify({"rate": rate, "base": "EUR", "target": "KRW"})
+        rate = round(data["rates"]["KRW"])
+        return jsonify({"rate": rate, "base": currency, "target": "KRW"})
     except Exception as e:
-        return jsonify({"rate": 1450, "error": str(e)})
+        return jsonify({"rate": defaults.get(currency, 1350), "base": currency, "error": str(e)})
 
 
 @app.route("/api/generate-product-name", methods=["POST"])
