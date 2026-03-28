@@ -1002,36 +1002,41 @@ def generate_product_name():
     elif country and country != '-':
         sourcing_tag = '유럽직구'
 
+    # 원문에서 숫자+단위 추출 (반드시 포함 강제)
+    must_include = ''
     if product_title_url:
-        prompt = f"""아래 제품 타이틀을 한국어로 번역한 뒤, 뒤에 SEO 키워드를 붙여 상품명 두 버전을 만드세요.
+        nums = re.findall(r'[\d]+(?:[.,]\d+)?\s*(?:kg|g|ml|l|L|mg|oz|lb|pack|Pack|x\s*\d+|개|매|장|세트)', product_title_url, re.IGNORECASE)
+        if nums:
+            must_include = f"\n반드시 포함할 숫자/스펙: {' / '.join(nums)}"
+
+    if product_title_url:
+        prompt = f"""제품 타이틀을 한국어로 번역하고, 뒤에 SEO 키워드를 붙여 두 버전을 만드세요.
 
 원문: {product_title_url}
 소싱 태그: {sourcing_tag}
-후기/감성 참고: {review_title}
+후기 감성 참고: {review_title}{must_include}
 
-방법:
-- 번역: 원문을 한국어로 직역 (스펙·수량·용량 등 숫자/단위 절대 변경 금지)
-- 50자: 번역 결과 + {sourcing_tag} (50자 이하로 압축)
-- 100자: 번역 결과 + {sourcing_tag} + 후기 감성 키워드 1~2개 뒤에 추가 (100자 이하로 채우기)
-- 글자수: 한글·영문·숫자·공백 모두 1자, 특수문자 최소화
+50자: 원문 번역 + {sourcing_tag} / 50자 이하
+100자: 원문 번역 + {sourcing_tag} + 후기 감성단어 1~2개 / 100자 이하
+글자수 기준: 한글·영문·숫자·공백 모두 1자 / 특수문자 금지
 
-반드시 아래 형식으로만 반환:
-50자: [결과]
-100자: [결과]"""
+아래 형식으로만 출력:
+50자: 결과
+100자: 결과"""
     else:
-        prompt = f"""네이버 스마트스토어 등록용 한국어 상품명을 작성하세요.
+        prompt = f"""네이버 스마트스토어 등록용 한국어 상품명 두 버전을 만드세요.
 
 브랜드: {brand} / 영문명: {product_en} / 한국명: {product}
 카테고리: {category} / 소싱 태그: {sourcing_tag}
-후기 참고: {review_title}
+후기 감성 참고: {review_title}
 
-- 50자: 브랜드+제품명+스펙+소싱태그 (50자 이하)
-- 100자: 50자 내용 + 감성 키워드 추가 (100자 이하)
-- 글자수: 한글·영문·숫자·공백 모두 1자
+50자: 브랜드+제품명+소싱태그 / 50자 이하
+100자: 50자 내용 + 감성키워드 1~2개 / 100자 이하
+글자수 기준: 한글·영문·숫자·공백 모두 1자
 
-반드시 아래 형식으로만 반환:
-50자: [결과]
-100자: [결과]"""
+아래 형식으로만 출력:
+50자: 결과
+100자: 결과"""
 
     try:
         response = claude.messages.create(
