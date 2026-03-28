@@ -819,6 +819,7 @@
               <th>소싱국가</th>
               <th>카테고리</th>
               <th style="min-width:120px">소싱처</th>
+              <th style="min-width:180px">소싱처 상품명</th>
               <th style="min-width:200px">등록상품명 <span style="font-size:0.65rem;color:#63b3ed;font-weight:400">AI생성</span></th>
               <th>N스토어가</th>
               <th>쿠팡가</th>
@@ -1431,6 +1432,7 @@ function renderRegistrations(items) {
       <td style="white-space:nowrap">${country}</td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
       <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
+      <td style="min-width:180px"><span contenteditable="true" data-id="${escHtml(id)}" data-field="product_title_url" onblur="saveRegNameEdit(this)" style="display:block;font-size:0.72rem;color:#4a5568;outline:none;border:1px dashed #e2e8f0;border-radius:4px;padding:3px 5px;min-height:22px;cursor:text" title="소싱처 원본 상품명 입력">${escHtml(item.product_title_url || '')}</span></td>
       <td style="min-width:200px">
         <div id="regname-${escHtml(id)}" style="font-size:0.78rem;color:#2d3748;line-height:1.5">${nameHtml}</div>
         <button class="btn-sm" style="margin-top:3px;background:#4a6cf7;color:white;font-size:0.68rem" onclick="generateProductName('${escHtml(id)}')">AI 상품명</button>
