@@ -1334,9 +1334,6 @@ def export_excel():
     wb = openpyxl.load_workbook(template_path)
     ws = wb.active
 
-    # 행 3~6 (가이드) 삭제 → 데이터를 행 3부터 기입
-    ws.delete_rows(3, 4)
-
     # 컬럼 헤더 → 인덱스 맵 (row 2 기준)
     header_map = {}
     for col in range(1, ws.max_column + 1):
@@ -1346,6 +1343,11 @@ def export_excel():
 
     def col_idx(name):
         return header_map.get(name)
+
+    # 행 3~6 (가이드) 삭제 — 단, 원산지코드 예시행(row4)의 '@' 포맷 먼저 저장
+    origin_col = col_idx('원산지코드')
+    origin_nf  = ws.cell(4, origin_col).number_format if origin_col else '@'
+    ws.delete_rows(3, 4)
 
     # 데이터 행 기입 (행 3~)
     for row_num, item in enumerate(items, start=3):
@@ -1397,7 +1399,10 @@ def export_excel():
         else:
             country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
         origin = ORIGIN_CODE.get(country_key, '0001')
-        w('원산지코드', origin)
+        if origin_col:
+            c = ws.cell(row=row_num, column=origin_col)
+            c.number_format = origin_nf
+            c.value = origin
 
         # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
@@ -1407,13 +1412,18 @@ def export_excel():
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
-        # ── 이미지: reg_images 우선, 없으면 shopping_image → blog_image → thumbnail 순 fallback (최대 5개)
+        # ── 이미지: Cloudinary 설정 여부에 따라 소싱처 이미지 or 쇼핑 이미지 사용
+        use_cloudinary = bool(CLOUDINARY_CLOUD and CLOUDINARY_PRESET)
         reg_images = item.get('reg_images') or []
-        if not reg_images:
+        if use_cloudinary and reg_images:
+            # Cloudinary 있으면 소싱처 이미지 업로드
+            pass
+        else:
+            # Cloudinary 없거나 reg_images 없으면 Naver 쇼핑 이미지(접근 가능) 사용
             reg_images = [x for x in [
                 item.get('shopping_image'), item.get('blog_image'), item.get('thumbnail')
-            ] if x and x.startswith('http')]
-        reg_images = list(dict.fromkeys(reg_images))[:5]  # 중복제거, 최대 5개
+            ] if x and x.startswith('http') and 'amazon' not in x]
+        reg_images = list(dict.fromkeys(reg_images))[:5]
 
         uploaded_images = []
         for idx, img_url in enumerate(reg_images):
