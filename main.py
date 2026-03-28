@@ -996,7 +996,7 @@ def generate_product_name():
     elif country and country != '-':
         sourcing_tag = '유럽직구'
 
-    prompt = f"""네이버 스마트스토어/쿠팡 등록용 SEO 상품명을 50byte 버전과 100byte 버전으로 작성해주세요.
+    prompt = f"""네이버 스마트스토어/쿠팡 등록용 SEO 상품명을 25자 버전과 100자 버전으로 작성해주세요.
 
 ━━ [PRIMARY] 소싱처 제품 정보 ━━
 - 제품 타이틀: {product_title_url or '(미추출)'}
@@ -1013,7 +1013,7 @@ def generate_product_name():
 
 상품명 구성 순서: 브랜드/제조사 → 시리즈 → 모델명 → 상품유형 → 색상·소재 → 수량·사이즈 → 성별 → 속성(Spec/용량/무게/연식/호수)
 
-바이트 계산: 한글 1자=3byte, 영문·숫자·공백 1자=1byte
+글자수 계산: 한글·영문·숫자·공백 모두 1자로 계산 (바이트 아님)
 
 작성 규칙:
 1. 소싱처 제품 타이틀 정보(브랜드·모델명·스펙) 최우선 반영
@@ -1022,12 +1022,12 @@ def generate_product_name():
    (예: 맛 관련 "입에서 살살 녹는·바삭바삭한", 권위 "미슐랭 세프·성악가 사탕", 대중성 "국민 튼살크림",
     사용감 "좁쌀만큼 써도 개운한·코가뻥", 없으면 생략)
 4. 소싱 태그({sourcing_tag}) 공간이 남으면 포함
-5. 상품명은 한글 위주, 100byte 버전은 최대한 꽉 채울 것
+5. 상품명은 한글 위주, 100자 버전은 최대한 꽉 채울 것
 6. 특수문자 최소화 (공백·영문·한글·숫자·x·/·% 허용)
 
 반드시 아래 형식으로만 반환 (설명·이유 없이):
-50byte: [50바이트 이하]
-100byte: [100바이트 이하, 꽉 채운 버전]"""
+25자: [25자 이하]
+100자: [100자 이하, 꽉 채운 버전]"""
 
     try:
         response = claude.messages.create(
@@ -1038,15 +1038,15 @@ def generate_product_name():
         raw = response.content[0].text.strip()
         name_50 = name_100 = ''
         for line in raw.splitlines():
-            if line.startswith('50byte:'):
-                name_50  = line[len('50byte:'):].strip()
-            elif line.startswith('100byte:'):
-                name_100 = line[len('100byte:'):].strip()
-        # fallback: 파싱 실패 시 전체 텍스트를 100byte로
+            if line.startswith('25자:'):
+                name_50  = line[len('25자:'):].strip()
+            elif line.startswith('100자:'):
+                name_100 = line[len('100자:'):].strip()
+        # fallback: 파싱 실패 시 전체 텍스트를 100자로
         if not name_100:
             name_100 = raw.split('\n')[0].strip()
         if not name_50:
-            name_50  = name_100[:50]
+            name_50  = name_100[:25]
         return jsonify({"name_50": name_50, "name_100": name_100})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
