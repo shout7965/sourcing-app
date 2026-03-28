@@ -756,12 +756,22 @@ def search():
                  else total_blog + total_cafe)
         has_more = next_cursor <= MAX_NAVER_PAGE and (next_cursor - 1) * DISPLAY < total
 
-    # 네이버 API가 이미 키워드 기반으로 필터링한 결과이므로
-    # 제목 키워드 재필터는 하지 않고 '직구' 포함 여부만 확인
-    # (영문/한글 혼용 키워드에서 이중필터가 오히려 관련 결과를 제거하는 문제 방지)
+    # 필터: 키워드 토큰(제목+본문) ALL 매칭 + '직구' 포함
+    # - 소싱 공통어는 제거하고 실제 브랜드/제품어만 추출
+    # - 제목만이 아닌 제목+본문 합쳐서 검색 (영문/한글 혼용 대응)
+    SOURCING_STOPWORDS = {'직구', '후기', '관세', '구매', '대행', '최저가',
+                          '할인', '가격', '정품', '배송', '택배', '무료', '리뷰'}
     keyword_lower = keyword.lower()
-    all_items = [i for i in all_items
-                 if '직구' in (strip_html(i.get("title", "")) + strip_html(i.get("description", "")))]
+    keyword_tokens = [t for t in keyword_lower.split()
+                      if len(t) >= 2 and t not in SOURCING_STOPWORDS]
+
+    def item_matches(item):
+        full = strip_html(item.get("title", "") + " " + item.get("description", "")).lower()
+        kw_ok = all(t in full for t in keyword_tokens) if keyword_tokens else True
+        jikgu_ok = '직구' in full
+        return kw_ok and jikgu_ok
+
+    all_items = [i for i in all_items if item_matches(i)]
 
     exclude_keywords = [k.strip() for k in exclude_raw.split(',') if k.strip()]
     if exclude_keywords:
