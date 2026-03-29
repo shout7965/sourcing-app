@@ -861,9 +861,9 @@
         <thead>
           <tr style="background:#edf2f7">
             <th style="padding:10px 14px;text-align:left;border-bottom:2px solid #e2e8f0">아이디</th>
-            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">전체 아이템</th>
-            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">엑셀 다운로드</th>
-            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">미다운로드</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">소싱후보</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">상품등록대장</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:2px solid #e2e8f0">엑셀다운</th>
           </tr>
         </thead>
         <tbody id="dashBody"></tbody>
@@ -1965,6 +1965,15 @@ async function doLogout() {
   await fetch('/api/logout', {method: 'POST'});
   showGuestUI();
   projects = [];
+  // 작업 상태 초기화
+  candItemsCache = {};
+  regItemsCache  = {};
+  document.getElementById('candBody').innerHTML  = '';
+  document.getElementById('regBody').innerHTML   = '';
+  document.getElementById('candStats').style.display = 'none';
+  document.getElementById('regCount').textContent   = '';
+  // 프로젝트 탭으로 복귀
+  switchTab('projects');
   showToast('로그아웃 되었습니다.');
 }
 
@@ -3314,6 +3323,8 @@ async function saveMarginData(id, navPrice) {
     });
     if (!resp.ok) throw new Error('저장 실패');
     showToast('마진 정보 저장 완료');
+    // 캐시 동기화 (moveToRegister 미저장 판단 오류 방지)
+    if (candItemsCache[id]) candItemsCache[id].price_eur = eur || null;
     const row = document.getElementById(`cand-${id}`);
     if (row && marginRate != null) {
       const cells = row.querySelectorAll('td');
@@ -3379,9 +3390,9 @@ async function loadDashboard() {
       const style   = isGrand ? 'font-weight:700;background:#edf2f7;border-top:2px solid #e2e8f0' : (i % 2 === 0 ? '' : 'background:#f7fafc');
       return `<tr style="${style}">
         <td style="padding:9px 14px;border-bottom:1px solid #e2e8f0">${r.user}</td>
-        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0">${r.total}</td>
-        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#276749">${r.exported}</td>
-        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#c05621">${r.total - r.exported}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#2b6cb0">${r.candidates}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#276749">${r.registrations}</td>
+        <td style="padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0;color:#c05621">${r.exported}</td>
       </tr>`;
     }).join('');
     tbody.innerHTML = rows;

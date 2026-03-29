@@ -1160,20 +1160,35 @@ def get_dashboard():
     if not FIREBASE_ENABLED:
         return jsonify({"error": "Firebase 미설정"}), 503
     try:
-        docs = db.collection('product_registrations').stream()
         stats = {}
-        for doc in docs:
+
+        # 소싱후보 카운트 (saved_by 기준)
+        for doc in db.collection('sourcing_candidates').stream():
+            d = doc.to_dict()
+            user = d.get('saved_by') or 'anonymous'
+            if user not in stats:
+                stats[user] = {'candidates': 0, 'registrations': 0, 'exported': 0}
+            stats[user]['candidates'] += 1
+
+        # 상품등록대장 + 엑셀다운 카운트 (created_by 기준)
+        for doc in db.collection('product_registrations').stream():
             d = doc.to_dict()
             user = d.get('created_by') or 'anonymous'
             if user not in stats:
-                stats[user] = {'total': 0, 'exported': 0}
-            stats[user]['total'] += 1
+                stats[user] = {'candidates': 0, 'registrations': 0, 'exported': 0}
+            stats[user]['registrations'] += 1
             if d.get('exported_at'):
                 stats[user]['exported'] += 1
-        result = [{'user': u, 'total': v['total'], 'exported': v['exported']}
+
+        result = [{'user': u, 'candidates': v['candidates'],
+                   'registrations': v['registrations'], 'exported': v['exported']}
                   for u, v in sorted(stats.items())]
-        grand = {'user': '합계', 'total': sum(v['total'] for v in stats.values()),
-                 'exported': sum(v['exported'] for v in stats.values())}
+        grand = {
+            'user': '합계',
+            'candidates':    sum(v['candidates']    for v in stats.values()),
+            'registrations': sum(v['registrations'] for v in stats.values()),
+            'exported':      sum(v['exported']      for v in stats.values()),
+        }
         return jsonify({'stats': result, 'grand': grand})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
