@@ -3,6 +3,7 @@ import re
 import io
 import json
 import requests
+from urllib.parse import quote as url_quote
 import anthropic
 import openpyxl
 import firebase_admin
@@ -1236,7 +1237,7 @@ def _fetch_page(url: str, timeout: int = 15):
             country = 'de' if 'amazon.de' in url else 'jp' if 'amazon.co.jp' in url else 'us'
             scraper_url = (f"http://api.scraperapi.com"
                            f"?api_key={SCRAPERAPI_KEY}"
-                           f"&url={requests.utils.quote(url, safe='')}"
+                           f"&url={url_quote(url, safe='')}"
                            f"&country_code={country}")
             resp = requests.get(scraper_url, timeout=45)
         except Exception:
