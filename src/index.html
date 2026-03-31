@@ -2851,7 +2851,7 @@ function renderCandidates(items) {
       <td style="text-align:center">
         <button class="btn-expand" onclick="toggleMarginRow('${escHtml(id)}')">▼</button>
       </td>
-      <td style="text-align:center">${hasMrg ? `<span style="font-weight:700;color:${mrgColor}">${mrgRate}%</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+      <td style="text-align:center" id="mrgrate-${escHtml(id)}">${hasMrg ? `<span style="font-weight:700;color:${mrgColor}">${mrgRate}%</span>` : '<span style="color:#a0aec0">-</span>'}</td>
       <td class="blog-title" style="min-width:140px">${item.link ? `<a href="${escHtml(item.link)}" target="_blank" rel="noopener">${escHtml(item.title||'-')}</a>` : escHtml(item.title||'-')}</td>
       <td>
         <select class="btn-sm" onchange="updateStatus('${escHtml(id)}',this.value)" style="padding:4px 6px;font-size:0.75rem">
@@ -2955,12 +2955,9 @@ function renderCandidates(items) {
             <div id="fees-${escHtml(id)}" style="font-size:0.72rem;color:#718096;padding:5px 8px;background:#f7faff;border-radius:6px;min-width:120px;line-height:1.6">-</div>
           </div>
           <!-- 결과 -->
-          <div class="margin-result" id="mresult-${escHtml(id)}" data-nav="${navPrice}">
+          <div class="margin-result" id="mresult-${escHtml(id)}">
             <span><span class="lbl">VAT제외단가</span><br><span class="val" id="vatprice-${escHtml(id)}">-</span></span>
             <span><span class="lbl">원가</span><br><span class="val" id="cost-${escHtml(id)}">-</span></span>
-            <span><span class="lbl">네이버최저가</span><br><span class="val">${navPrice ? formatPrice(navPrice) : '-'}</span></span>
-            <span><span class="lbl">마진</span><br><span class="val" id="mval-${escHtml(id)}">-</span></span>
-            <span><span class="lbl">마진율</span><br><span class="val" id="mrate-${escHtml(id)}">-</span></span>
           </div>
           <!-- 스마트스토어 판매가 계산 -->
           <div style="width:100%;border-top:1px dashed #e2e8f0;margin:6px 0 4px;padding-top:8px">
@@ -2985,7 +2982,7 @@ function renderCandidates(items) {
             <label>메모</label>
             <input type="text" id="memo-${escHtml(id)}" value="${escHtml(memo)}" placeholder="메모" />
           </div>
-          <button class="btn-save-margin" onclick="saveMarginData('${escHtml(id)}',${navPrice})">저장</button>
+          <button class="btn-save-margin" onclick="saveMarginData('${escHtml(id)}')">저장</button>
         </div>
       </td>
     </tr>`;
@@ -3174,24 +3171,9 @@ function calcMarginLive(id) {
   if (vatpriceEl) vatpriceEl.textContent = eur > 0
     ? `€${eurNoVat.toFixed(2)} (절감 €${(eur - eurNoVat).toFixed(2)})` : '-';
 
-  const mresult = document.getElementById(`mresult-${id}`);
-  if (!mresult) return;
-  const nav    = parseInt(mresult.dataset.nav) || 0;
-  const margin = nav - cost;
-  const mrate  = nav > 0 ? (margin / nav * 100).toFixed(1) : null;
-
-  const costEl  = document.getElementById(`cost-${id}`);
-  const mvalEl  = document.getElementById(`mval-${id}`);
-  const mrateEl = document.getElementById(`mrate-${id}`);
+  const costEl = document.getElementById(`cost-${id}`);
   if (!costEl) return;
-  costEl.textContent  = cost > 0 ? cost.toLocaleString('ko-KR') + '원' : '-';
-  mvalEl.textContent  = nav && cost > 0 ? margin.toLocaleString('ko-KR') + '원' : '-';
-  mrateEl.textContent = mrate != null && cost > 0 ? mrate + '%' : '-';
-  if (mrate != null && cost > 0) {
-    const color = parseFloat(mrate) >= 30 ? '#276749' : parseFloat(mrate) >= 10 ? '#c05621' : '#c53030';
-    mrateEl.style.color = color;
-    mvalEl.style.color  = parseFloat(mrate) > 0 ? '#276749' : '#c53030';
-  }
+  costEl.textContent = cost > 0 ? cost.toLocaleString('ko-KR') + '원' : '-';
   calcSellPrice(id);
 }
 
@@ -3215,6 +3197,9 @@ function calcSellPrice(id) {
   netMarginEl.textContent = `${netMargin.toLocaleString('ko-KR')}원 (${netRate}%)`;
   const color = parseFloat(netRate) >= 30 ? '#276749' : parseFloat(netRate) >= 10 ? '#c05621' : '#c53030';
   netMarginEl.style.color = color;
+  // 접힌 행 마진율 셀 실시간 업데이트
+  const mrgrateCell = document.getElementById(`mrgrate-${id}`);
+  if (mrgrateCell) mrgrateCell.innerHTML = `<span style="font-weight:700;color:${color}">${netRate}%</span>`;
 }
 
 function updateShipping(id) {
@@ -3360,40 +3345,47 @@ async function fetchWeight(id) {
   }
 }
 
-async function saveMarginData(id, navPrice) {
-  const eur    = parseFloat(document.getElementById(`eur-${id}`)?.value)    || 0;
-  const vat    = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? 19;
-  const rate   = parseFloat(document.getElementById(`rate-${id}`)?.value)   || 1400;
-  const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
-  const weight    = parseFloat(document.getElementById(`weight-${id}`)?.value)    || null;
-  const packCount = parseInt(document.getElementById(`pack-${id}`)?.value)        || null;
-  const purl      = document.getElementById(`purl-${id}`)?.value?.trim()          || null;
+async function saveMarginData(id) {
+  const eur       = parseFloat(document.getElementById(`eur-${id}`)?.value)    || 0;
+  const vat       = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? 19;
+  const rate      = parseFloat(document.getElementById(`rate-${id}`)?.value)   || 1400;
+  const ship      = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
+  const weight    = parseFloat(document.getElementById(`weight-${id}`)?.value) || null;
+  const packCount = parseInt(document.getElementById(`pack-${id}`)?.value)     || null;
+  const purl      = document.getElementById(`purl-${id}`)?.value?.trim()       || null;
   const memo      = document.getElementById(`memo-${id}`)?.value || '';
 
+  // 원가 계산 (유로라이프 수수료 포함)
+  const { shoppingFee, agentFee } = calcEurolifeFees(vat > 0 ? eur / (1 + vat / 100) : eur, eur, rate);
+  const candItem = candItemsCache[id] || {};
+  const country  = candItem.country || extractCountry(purl || '');
+  const ftaInfo  = getFtaInfo(country);
   const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
-  const cost = Math.round(eurNoVat * rate + ship);
-  const margin = navPrice > 0 ? navPrice - cost : null;
-  const marginRate = navPrice > 0 && cost > 0 ? parseFloat((margin / navPrice * 100).toFixed(1)) : null;
+  const cifKrw   = Math.round(eurNoVat * rate) + ship;
+  const { customs, vat10 } = calcCustomsDuty(cifKrw, ftaInfo.rate, rate);
+  const cost = Math.round(eurNoVat * rate + ship + shoppingFee + agentFee + customs + vat10);
+
+  // 순마진율 (스마트스토어 판매가 기준)
+  const targetAmt  = parseFloat(document.getElementById(`tmargin-${id}`)?.value) || 10000;
+  const ssFee      = parseFloat(document.getElementById(`ssfee-${id}`)?.value)   || 3.5;
+  const sellPrice  = cost > 0 ? Math.ceil((cost + targetAmt) / (1 - ssFee / 100) / 100) * 100 : 0;
+  const ssFeeAmt   = Math.round(sellPrice * ssFee / 100);
+  const netMargin  = sellPrice > 0 ? sellPrice - cost - ssFeeAmt : null;
+  const marginRate = sellPrice > 0 && cost > 0 ? parseFloat((netMargin / sellPrice * 100).toFixed(1)) : null;
+
   try {
     const resp = await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
       method: 'PATCH', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         price_eur: eur||null, exchange_rate: rate, shipping_fee: ship||null,
-        cost_price: cost||null, margin, margin_rate: marginRate, memo,
+        cost_price: cost||null, margin: netMargin, margin_rate: marginRate, memo,
         weight_kg: weight, pack_count: packCount, vat_type: String(vat), product_url: purl,
         completed_by: currentUser || 'anonymous',
       }),
     });
     if (!resp.ok) throw new Error('저장 실패');
     showToast('마진 정보 저장 완료');
-    // 캐시 동기화 (moveToRegister 미저장 판단 오류 방지)
     if (candItemsCache[id]) candItemsCache[id].price_eur = eur || null;
-    const row = document.getElementById(`cand-${id}`);
-    if (row && marginRate != null) {
-      const cells = row.querySelectorAll('td');
-      const color = marginRate >= 30 ? '#276749' : marginRate >= 10 ? '#c05621' : '#c53030';
-      cells[8].innerHTML = `<span style="font-weight:700;color:${color}">${marginRate}%</span>`;
-    }
   } catch (e) { showToast('저장 실패: ' + e.message, true); }
 }
 
