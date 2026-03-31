@@ -22,6 +22,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'sourcing-dev-key')
 NAVER_CLIENT_ID     = os.environ.get('NAVER_CLIENT_ID')
 NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET')
 ANTHROPIC_API_KEY   = os.environ.get('ANTHROPIC_API_KEY')
+SCRAPERAPI_KEY      = os.environ.get('SCRAPERAPI_KEY', '')
 DAILY_LIMIT         = 25_000
 
 # 사용자 목록: APP_USERS_JSON = {"alice": "pass1", "bob": "pass2"}
@@ -955,7 +956,7 @@ ALLOWED_UPDATE_FIELDS = {
     'cost_price', 'margin', 'margin_rate', 'memo',
     'completed_by', 'completed_at',
     'weight_kg', 'vat_type', 'product_url', 'product_title_url',
-    'name_50', 'name_100', 'reg_images',
+    'name_50', 'name_100', 'reg_images', 'pack_count',
 }
 
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])
@@ -1203,6 +1204,67 @@ def get_dashboard():
 
 CLOUDINARY_CLOUD = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
 CLOUDINARY_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', '')
+
+_AMAZON_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+
+def _amazon_is_blocked(resp, url: str) -> bool:
+    if resp is None or resp.status_code != 200:
+        return True
+    if 'amazon.' in url:
+        t = resp.text
+        return ('Robot Check' in t or
+                'Enter the characters you see below' in t or
+                'api-services-support@amazon.com' in t or
+                t.strip().count('<') < 10)
+    return False
+
+def _fetch_page(url: str, timeout: int = 15):
+    """URL 가져오기: 직접 요청 → 봇 차단 시 ScraperAPI 경유"""
+    try:
+        resp = requests.get(url, timeout=timeout, headers=_AMAZON_HEADERS)
+    except Exception:
+        resp = None
+    if _amazon_is_blocked(resp, url) and SCRAPERAPI_KEY:
+        try:
+            scraper_url = (f"http://api.scraperapi.com"
+                           f"?api_key={SCRAPERAPI_KEY}"
+                           f"&url={requests.utils.quote(url, safe='')}")
+            resp = requests.get(scraper_url, timeout=45)
+        except Exception:
+            pass
+    return resp
+
+def _extract_pack_count(title: str) -> Optional[int]:
+    """묶음 수량 추출: '3er Pack', 'Pack of 3', '*3', '3 Stück' 등"""
+    if not title:
+        return None
+    patterns = [
+        r'(\d+)er[\s-]?[Pp]ack',        # 3er Pack, 3er-Pack
+        r'[Pp]ack\s+of\s+(\d+)',         # Pack of 3
+        r'(\d+)[\s-][Pp]ack\b',          # 3-Pack, 3 Pack
+        r'\*\s*(\d+)\b',                 # *3
+        r'\(\s*(\d+)\s*[Ss]tück',        # (3 Stück
+        r'(?<!\d)(\d+)\s*[Ss]tück\b',    # 3 Stück
+        r'(\d+)\s*[Pp]ieces?\b',         # 3 pieces
+        r'(\d+)\s*[Cc]ount\b',           # 3 count
+        r'(\d+)\s*[Pp]cs\b',             # 3 pcs
+        r'\bx(\d+)\b',                   # x3
+        r'\b(\d+)\s*x\s+\d',            # 3 x 500g
+    ]
+    for p in patterns:
+        m = re.search(p, title, re.IGNORECASE)
+        if m:
+            n = int(m.group(1))
+            if 2 <= n <= 200:
+                return n
+    return None
 
 def _upload_image_to_storage(img_url: str, doc_id: str, idx: int = 0) -> str:
     """외부 이미지 URL을 Firebase Storage에 업로드하고 공개 URL 반환.
@@ -1624,38 +1686,15 @@ def fetch_weight():
         if 'amazon.' in url and 'language=' not in url:
             sep = '&' if '?' in url else '?'
             fetch_url = url + sep + 'language=de_DE'
-        resp = requests.get(fetch_url, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-        })
-        if resp.status_code != 200:
+        resp = _fetch_page(fetch_url)
+        if _amazon_is_blocked(resp, fetch_url):
             slug_title = None
             if 'amazon.' in url:
                 slug_m = re.search(r'amazon\.[^/]+/([^/]+)/dp/', url)
                 if slug_m and slug_m.group(1) != 'dp':
                     slug_title = slug_m.group(1).replace('-', ' ')
-            return jsonify({"weight": None, "product_title": slug_title,
-                            "error": f"페이지 로드 실패 ({resp.status_code})"})
-        # Amazon 봇 차단 감지 (CAPTCHA 또는 Robot Check 페이지)
-        if 'amazon.' in url and (
-            'Robot Check' in resp.text or
-            'Enter the characters you see below' in resp.text or
-            'api-services-support@amazon.com' in resp.text or
-            resp.text.strip().count('<') < 10
-        ):
-            # URL 슬러그에서 상품명 추출 (amazon.de/SLUG/dp/ASIN/...)
-            slug_title = None
-            slug_m = re.search(r'amazon\.[^/]+/([^/]+)/dp/', url)
-            if slug_m:
-                slug = slug_m.group(1)
-                if slug and slug != 'dp':
-                    slug_title = slug.replace('-', ' ')
-            return jsonify({"weight": None, "product_title": slug_title,
-                            "error": "Amazon 봇 차단 — 무게/가격은 직접 입력해주세요"})
+            err = f"페이지 로드 실패 ({resp.status_code if resp else 'N/A'})" if (resp is None or resp.status_code != 200) else "Amazon 봇 차단 — SCRAPERAPI_KEY 설정 시 자동 우회"
+            return jsonify({"weight": None, "product_title": slug_title, "error": err})
 
         text = strip_html(resp.text)
 
@@ -1784,13 +1823,16 @@ def fetch_weight():
                 if len(raw_title) > 5:
                     product_title = raw_title
 
+        found_pack = _extract_pack_count(product_title)
+
         if found_weight is not None and found_price is not None:
             return jsonify({"weight": found_weight, "price_eur": found_price, "unit": "kg",
-                            "source": "regex", "product_title": product_title, "images": page_images})
+                            "source": "regex", "product_title": product_title,
+                            "pack_count": found_pack, "images": page_images})
         if found_weight is not None:
             pass  # 가격은 Claude로 보완 시도
 
-        # Claude로 무게+가격 추출 (정규식에서 못 찾은 필드 보완)
+        # Claude로 무게+가격+묶음수 추출 (정규식에서 못 찾은 필드 보완)
         relevant_text = text[:4000]
         for kw in ['Gewicht', 'Weight', 'Artikelgewicht', 'Preis', 'Price', '€', 'kg']:
             idx = text.find(kw)
@@ -1800,11 +1842,12 @@ def fetch_weight():
 
         resp_claude = claude.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=120,
+            max_tokens=150,
             messages=[{"role": "user", "content":
-                f'Extract product weight and price from this text. '
-                f'Reply ONLY with JSON: {{"weight": 0.5, "unit": "kg", "price_eur": 29.99}}. '
+                f'Extract product weight, price, and pack count from this text. '
+                f'Reply ONLY with JSON: {{"weight": 0.5, "unit": "kg", "price_eur": 29.99, "pack_count": 3}}. '
                 f'Weight in kg (convert grams to kg). Price in EUR as number only. '
+                f'pack_count = number of items in a multi-pack (null if single item). '
                 f'Use null for any field not found.\n\n{relevant_text}'
             }],
         )
@@ -1822,6 +1865,8 @@ def fetch_weight():
             out['price_eur'] = found_price
         elif result.get('price_eur') is not None:
             out['price_eur'] = round(float(result['price_eur']), 2)
+        # pack_count: 정규식 우선, 없으면 Claude
+        out['pack_count'] = found_pack or (int(result['pack_count']) if result.get('pack_count') else None)
         if out:
             out['source'] = 'claude'
             out['product_title'] = product_title
@@ -1829,8 +1874,8 @@ def fetch_weight():
             return jsonify(out)
 
         if product_title:
-            return jsonify({"weight": None, "product_title": product_title, "images": page_images,
-                            "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
+            return jsonify({"weight": None, "pack_count": found_pack, "product_title": product_title,
+                            "images": page_images, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
         return jsonify({"weight": None, "images": page_images, "error": "무게/가격 정보를 찾을 수 없습니다. 직접 입력해주세요."})
     except Exception as e:
         return jsonify({"weight": None, "error": str(e)}), 500

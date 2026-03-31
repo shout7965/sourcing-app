@@ -2932,10 +2932,14 @@ function renderCandidates(items) {
             </div>
             <input type="hidden" id="rate-${escHtml(id)}" value="${rate}" />
           </div>
-          <!-- 무게 + 배송비 자동계산 -->
+          <!-- 무게 + 묶음수 + 배송비 자동계산 -->
           <div class="margin-field">
             <label>무게 (kg)</label>
             <input type="number" id="weight-${escHtml(id)}" value="${weight}" step="0.1" placeholder="0.5" oninput="updateShipping('${escHtml(id)}')" />
+          </div>
+          <div class="margin-field" style="min-width:90px">
+            <label>묶음 수</label>
+            <input type="number" id="pack-${escHtml(id)}" value="${escHtml(String(item.pack_count||''))}" step="1" min="1" placeholder="1" style="width:100%" oninput="calcMarginLive('${escHtml(id)}')" />
           </div>
           <div class="margin-field">
             <label>배송비 (원, 자동)</label>
@@ -3240,6 +3244,12 @@ async function fetchWeight(id) {
     } else {
       calcMarginLive(id);
     }
+    if (data.pack_count) {
+      const packEl = document.getElementById(`pack-${id}`);
+      if (packEl) packEl.value = data.pack_count;
+      if (candItemsCache[id]) candItemsCache[id].pack_count = data.pack_count;
+      got.push(`묶음 ${data.pack_count}개`);
+    }
     if (data.product_title) {
       const titleEl = document.getElementById(`url-title-${id}`);
       if (titleEl) { titleEl.textContent = data.product_title; titleEl.style.display = ''; }
@@ -3249,6 +3259,7 @@ async function fetchWeight(id) {
     // 소싱처 이미지 저장 (reg_images)
     const patchData = {};
     if (data.product_title) patchData.product_title_url = data.product_title;
+    if (data.pack_count) patchData.pack_count = data.pack_count;
     if (data.images && data.images.length) {
       if (candItemsCache[id]) candItemsCache[id].reg_images = data.images;
       patchData.reg_images = data.images;
@@ -3303,9 +3314,10 @@ async function saveMarginData(id, navPrice) {
   const vat    = parseFloat(document.getElementById(`vat-${id}`)?.value)    ?? 19;
   const rate   = parseFloat(document.getElementById(`rate-${id}`)?.value)   || 1400;
   const ship   = parseFloat(document.getElementById(`ship-${id}`)?.value)   || 0;
-  const weight = parseFloat(document.getElementById(`weight-${id}`)?.value) || null;
-  const purl   = document.getElementById(`purl-${id}`)?.value?.trim()       || null;
-  const memo   = document.getElementById(`memo-${id}`)?.value || '';
+  const weight    = parseFloat(document.getElementById(`weight-${id}`)?.value)    || null;
+  const packCount = parseInt(document.getElementById(`pack-${id}`)?.value)        || null;
+  const purl      = document.getElementById(`purl-${id}`)?.value?.trim()          || null;
+  const memo      = document.getElementById(`memo-${id}`)?.value || '';
 
   const eurNoVat = vat > 0 ? eur / (1 + vat / 100) : eur;
   const cost = Math.round(eurNoVat * rate + ship);
@@ -3317,7 +3329,7 @@ async function saveMarginData(id, navPrice) {
       body: JSON.stringify({
         price_eur: eur||null, exchange_rate: rate, shipping_fee: ship||null,
         cost_price: cost||null, margin, margin_rate: marginRate, memo,
-        weight_kg: weight, vat_type: String(vat), product_url: purl,
+        weight_kg: weight, pack_count: packCount, vat_type: String(vat), product_url: purl,
         completed_by: currentUser || 'anonymous',
       }),
     });
