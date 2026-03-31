@@ -1233,9 +1233,11 @@ def _fetch_page(url: str, timeout: int = 15):
         resp = None
     if _amazon_is_blocked(resp, url) and SCRAPERAPI_KEY:
         try:
+            country = 'de' if 'amazon.de' in url else 'jp' if 'amazon.co.jp' in url else 'us'
             scraper_url = (f"http://api.scraperapi.com"
                            f"?api_key={SCRAPERAPI_KEY}"
-                           f"&url={requests.utils.quote(url, safe='')}")
+                           f"&url={requests.utils.quote(url, safe='')}"
+                           f"&country_code={country}")
             resp = requests.get(scraper_url, timeout=45)
         except Exception:
             pass
