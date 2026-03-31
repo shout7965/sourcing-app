@@ -759,6 +759,7 @@
         <span id="candCount" style="font-size:0.82rem;color:#718096"></span>
         <button class="btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCandidates()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-sm" id="btnMoveToRegister" onclick="moveToRegister()" style="background:#276749;color:white;display:none">→ 상품등록대장</button>
+        <button class="btn-sm" onclick="addBlankCandidate()" style="background:#2d3748;color:white;border-color:#4a5568">+ 빈 행 추가</button>
         <button class="btn-search" onclick="loadCandidates()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
       </div>
     </div>
@@ -3313,6 +3314,44 @@ async function fetchWeight(id) {
           showToast(`AI 상품명 생성: ${nameData.name_50||nameData.name_100}`);
         }
       } catch(e) { /* 상품명 생성 실패는 무시 */ }
+
+      // 빈 행이면 brand/product_name도 Amazon 타이틀에서 추출
+      if (candItemsCache[id]?.is_blank && !candItemsCache[id]?.brand_name) {
+        try {
+          const parseResp = await fetch('/api/parse-amazon-title', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: data.product_title}),
+          });
+          const parseData = await parseResp.json();
+          if (parseData.brand_name || parseData.product_name_en) {
+            const patch = {
+              brand_name:      parseData.brand_name      || '',
+              product_name_en: parseData.product_name_en || '',
+              product_name:    parseData.product_name    || '',
+            };
+            Object.assign(candItemsCache[id], patch);
+            await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
+              method: 'PATCH', headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(patch),
+            });
+            // 메인 행 브랜드/상품명 셀 업데이트
+            const mainRow = document.getElementById(`cand-${id}`);
+            if (mainRow) {
+              const cells = mainRow.querySelectorAll('td');
+              // 브랜드 셀 (3번째 td, index 3)
+              if (cells[3] && parseData.brand_name)
+                cells[3].innerHTML = `<span class="badge badge-brand">${escHtml(parseData.brand_name)}</span>`;
+              // 상품명 셀 (4번째 td, index 4)
+              if (cells[4] && parseData.product_name_en) {
+                cells[4].innerHTML =
+                  `<div style="font-weight:500;color:#2d3748">${escHtml(parseData.product_name||parseData.product_name_en)}</div>` +
+                  `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(parseData.product_name_en)}</div>`;
+              }
+            }
+            showToast(`브랜드/상품명 자동 추출: ${parseData.brand_name||''} ${parseData.product_name_en||''}`);
+          }
+        } catch(e) { /* 파싱 실패 무시 */ }
+      }
     }
   } catch (e) {
     showToast('조회 실패: ' + e.message, true);
@@ -3432,7 +3471,6 @@ async function loadDashboard() {
 async function cloneCandidate(id) {
   const original = candItemsCache[id];
   if (!original) { showToast('항목을 찾을 수 없습니다', true); return; }
-  // id/saved_at 제외하고 복제
   const clone = {...original};
   delete clone.id;
   delete clone.saved_at;
@@ -3444,10 +3482,37 @@ async function cloneCandidate(id) {
     });
     const data = await resp.json();
     if (!resp.ok) { showToast('복제 실패: ' + (data.error || ''), true); return; }
-    // 캐시에 추가하고 목록 새로고침
     showToast('행이 복제됐습니다. 수정 후 등록대장으로 이동하세요.');
     loadCandidates();
   } catch(e) { showToast('복제 실패: ' + e.message, true); }
+}
+
+async function addBlankCandidate() {
+  // 현재 프로젝트 키워드 가져오기 (있으면)
+  const keyword = document.getElementById('projectSelect')?.selectedOptions[0]?.dataset?.keyword || '';
+  try {
+    const resp = await fetch('/api/add-blank-candidate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({keyword}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { showToast('추가 실패: ' + (data.error || ''), true); return; }
+    // 빈 항목 캐시에 등록 후 테이블 맨 위에 삽입
+    const newItem = {
+      id: data.id, keyword, status: 'pending', is_blank: true,
+      brand_name: '', product_name: '', product_name_en: '',
+      category: '', purchase_source: '', title: '', link: '',
+      saved_at: new Date().toISOString().slice(0, 10),
+    };
+    candItemsCache[data.id] = newItem;
+    const tbody = document.getElementById('candBody');
+    const tmp = document.createElement('tbody');
+    tmp.innerHTML = buildCandDetail([newItem]);
+    Array.from(tmp.children).reverse().forEach(tr => tbody.insertBefore(tr, tbody.firstChild));
+    // 마진계산 행 자동 열기
+    toggleMarginRow(data.id);
+    showToast('빈 행 추가됨 — URL을 입력하고 상품정보 조회하세요');
+  } catch(e) { showToast('추가 실패: ' + e.message, true); }
 }
 </script>
 <!-- ── Claude 빠른 질문 위젯 ── -->

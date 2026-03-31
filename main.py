@@ -958,6 +958,7 @@ ALLOWED_UPDATE_FIELDS = {
     'completed_by', 'completed_at',
     'weight_kg', 'vat_type', 'product_url', 'product_title_url',
     'name_50', 'name_100', 'reg_images', 'pack_count',
+    'brand_name', 'product_name', 'product_name_en', 'category', 'purchase_source',
 }
 
 @app.route("/api/candidates/<doc_id>", methods=["PATCH"])
@@ -1091,6 +1092,68 @@ def generate_product_name():
         return jsonify({"name_50": name_50, "name_100": name_100})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/parse-amazon-title", methods=["POST"])
+def parse_amazon_title():
+    """Amazon 상품 타이틀에서 브랜드명, 영문 상품명, 한국어 상품명 추출"""
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+    data  = request.get_json()
+    title = data.get('title', '').strip()
+    if not title:
+        return jsonify({"error": "title 필요"}), 400
+    try:
+        resp = claude.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content":
+                f'Extract from this Amazon product title:\n'
+                f'- brand_name: the brand/manufacturer (string or null)\n'
+                f'- product_name_en: English product name without brand (string)\n'
+                f'- product_name: Korean translation of product name without brand (string)\n'
+                f'Reply ONLY as JSON with those 3 keys.\n\nTitle: {title}'
+            }],
+        )
+        raw = re.sub(r'```json?\s*|\s*```', '', resp.content[0].text.strip()).strip()
+        result = json.loads(raw)
+        return jsonify({
+            "brand_name":     (result.get('brand_name') or '').strip(),
+            "product_name_en":(result.get('product_name_en') or '').strip(),
+            "product_name":   (result.get('product_name') or '').strip(),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/add-blank-candidate", methods=["POST"])
+def add_blank_candidate():
+    """소싱후보 빈 행 추가"""
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    user = session['user']
+    data = request.get_json() or {}
+    keyword = data.get('keyword', '').strip()
+    ref = db.collection('sourcing_candidates').document()
+    ref.set({
+        'keyword':    keyword,
+        'user_id':    user,
+        'saved_by':   user,
+        'saved_at':   fb_fs.SERVER_TIMESTAMP,
+        'status':     'pending',
+        'title':      '',
+        'description':'',
+        'link':       '',
+        'brand_name': '',
+        'product_name': '',
+        'product_name_en': '',
+        'category':   '',
+        'purchase_source': '',
+        'is_blank':   True,
+    })
+    return jsonify({"id": ref.id})
 
 
 ALLOWED_REG_FIELDS = {
