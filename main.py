@@ -776,8 +776,15 @@ def search():
 
     keyword_lower = keyword.lower()
 
-    # 날짜필터만 적용된 원본 보존 (비교용)
-    raw_items = sorted(all_items, key=lambda x: x["_date"] or date.min, reverse=True)
+    # 네이버 원본 (왼쪽 패널): 직구/후기 관련 항목만 필터링 → 실제 네이버 검색결과와 정합성 맞춤
+    _jikgu_terms = ("직구", "후기", "구매대행") if mode != "gonggu" else ("직구", "공구", "구매대행")
+    def is_jikgu_related(item):
+        full = strip_html(item.get("title", "") + " " + item.get("description", "")).lower()
+        return any(t in full for t in _jikgu_terms)
+    raw_items = sorted(
+        [i for i in all_items if is_jikgu_related(i)],
+        key=lambda x: x["_date"] or date.min, reverse=True
+    )
 
     # 토큰 AND 매칭: 키워드의 각 단어가 모두 제목+본문에 존재해야 함
     # "백노이즈 머신" → "백노이즈"와 "머신" 둘 다 있어야 통과 (러닝머신 등 제외)
