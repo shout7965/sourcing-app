@@ -2885,8 +2885,9 @@ function renderCandidates(items) {
     </tr>
     <tr class="margin-row" id="mrow-${escHtml(id)}" style="display:none">
       <td colspan="13">
-        <div class="img-compare">
-          <div class="img-compare-item" style="flex:2;min-width:200px">
+        <div class="img-compare" style="align-items:flex-start;gap:16px">
+          <!-- 블로그 이미지 (왼쪽) -->
+          <div class="img-compare-item" style="flex:1;min-width:0">
             <label>블로그 이미지</label>
             <div id="blogimgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px">
               ${item.blog_image
@@ -2894,12 +2895,15 @@ function renderCandidates(items) {
                 : `<div class="img-compare-none" id="blogimg-${escHtml(id)}">로딩중...</div>`}
             </div>
           </div>
-          <div class="img-compare-item">
-            <label>쇼핑 검색 이미지</label>
-            ${item.shopping_image
-              ? `<img src="${escHtml(item.shopping_image)}" alt="쇼핑" onclick="openLightbox('${escHtml(item.shopping_image)}')" onerror="this.parentElement.innerHTML='<div class=\\'img-compare-none\\'>이미지 없음</div>'" />`
-              : `<div class="img-compare-none">-</div>`}
-            ${item.shopping_title ? `<div class="shopping-match-title" title="${escHtml(item.shopping_title)}">${escHtml(item.shopping_title)}</div>` : ''}
+          <!-- 아마존 이미지 (오른쪽) -->
+          <div class="img-compare-item" style="flex:1;min-width:0">
+            <label>아마존 이미지 <span style="font-size:0.65rem;color:#a0aec0;font-weight:400">(상품정보 조회 후 표시)</span></label>
+            <div id="amazonimgs-${escHtml(id)}" style="display:flex;flex-wrap:wrap;gap:4px">
+              ${(item.reg_images && item.reg_images.length)
+                ? item.reg_images.slice(0,5).map(u => `<img src="${escHtml(u)}" alt="아마존" onclick="openLightbox('${escHtml(u)}')" onerror="this.style.display='none'" style="width:90px;height:90px;object-fit:contain;border-radius:4px;cursor:pointer;border:1px solid #c3dafe;background:#f7faff" />`).join('')
+                : `<div class="img-compare-none" style="width:90px;height:90px">-</div>`}
+            </div>
+            ${item.shopping_title ? `<div class="shopping-match-title" style="margin-top:4px" title="${escHtml(item.shopping_title)}">${escHtml(item.shopping_title)}</div>` : ''}
           </div>
         </div>
         <div class="margin-calc">
@@ -3264,6 +3268,14 @@ async function fetchWeight(id) {
       if (candItemsCache[id]) candItemsCache[id].reg_images = data.images;
       patchData.reg_images = data.images;
       got.push(`이미지 ${data.images.length}개`);
+      // 아마존 이미지 패널 실시간 업데이트
+      const amazonEl = document.getElementById(`amazonimgs-${id}`);
+      if (amazonEl) {
+        amazonEl.innerHTML = data.images.slice(0,5).map(u =>
+          `<img src="${escHtml(u)}" alt="아마존" onclick="openLightbox('${escHtml(u)}')" onerror="this.style.display='none'"
+            style="width:90px;height:90px;object-fit:contain;border-radius:4px;cursor:pointer;border:1px solid #c3dafe;background:#f7faff" />`
+        ).join('');
+      }
     }
     if (Object.keys(patchData).length) {
       fetch(`/api/candidates/${encodeURIComponent(id)}`, {
