@@ -1174,6 +1174,8 @@ def get_product_registrations():
         items = []
         for doc in docs:
             d = doc.to_dict(); d['id'] = doc.id
+            if d.get('is_deleted'):
+                continue
             if 'created_at' in d and hasattr(d['created_at'], 'isoformat'):
                 d['created_at'] = d['created_at'].isoformat()
             items.append(d)
@@ -1221,7 +1223,10 @@ def delete_product_registration(doc_id):
     if not FIREBASE_ENABLED:
         return jsonify({"error": "Firebase 미설정"}), 503
     try:
-        db.collection('product_registrations').document(doc_id).delete()
+        db.collection('product_registrations').document(doc_id).update({
+            'is_deleted': True,
+            'deleted_at': fb_fs.SERVER_TIMESTAMP,
+        })
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

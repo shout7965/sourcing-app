@@ -2814,6 +2814,21 @@ function renderCandidates(items) {
   candItemsCache = {};
   document.getElementById('candBody').innerHTML = items.map(item => {
     candItemsCache[item.id] = item;
+    return buildCandRow(item);
+  }).join('');
+
+  items.forEach(item => {
+    if (item.price_eur) {
+      if (item.weight_kg && !item.shipping_fee) updateShipping(item.id);
+      else calcMarginLive(item.id);
+    }
+  });
+
+  // 스펙 미조회 항목 자동 조회
+  autoLoadMissingSpecs(items);
+}
+
+function buildCandRow(item) {
     const id      = item.id;
     const savedAt = item.saved_at ? item.saved_at.slice(0,10) : '-';
     const hasMrg  = item.margin_rate != null;
@@ -2986,18 +3001,6 @@ function renderCandidates(items) {
         </div>
       </td>
     </tr>`;
-  }).join('');
-
-  items.forEach(item => {
-    if (item.price_eur) {
-      // 무게가 있으면 배송비 자동계산 후 마진 계산
-      if (item.weight_kg && !item.shipping_fee) updateShipping(item.id);
-      else calcMarginLive(item.id);
-    }
-  });
-
-  // 스펙 미조회 항목 자동 조회
-  autoLoadMissingSpecs(items);
 }
 
 // ── 네이버 쇼핑 스펙 조회 ─────────────────────────────────────────────────
@@ -3499,7 +3502,7 @@ async function addBlankCandidate() {
     candItemsCache[data.id] = newItem;
     const tbody = document.getElementById('candBody');
     const tmp = document.createElement('tbody');
-    tmp.innerHTML = buildCandDetail([newItem]);
+    tmp.innerHTML = buildCandRow(newItem);
     Array.from(tmp.children).reverse().forEach(tr => tbody.insertBefore(tr, tbody.firstChild));
     // 마진계산 행 자동 열기
     toggleMarginRow(data.id);
