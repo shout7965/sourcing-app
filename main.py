@@ -1637,12 +1637,20 @@ def export_excel():
 
         # ── 필수: 원산지코드 (Naver originarea 기준)
         country = item.get('country', '') or ''
-        korean_m = re.search(r'[가-힣]+', country)
-        if korean_m:
-            country_key = korean_m.group(0)
-        else:
-            country_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
-        origin = ORIGIN_CODE.get(country_key)
+        # 복합어(예: "아마존 미국", "라쿠텐 일본") 대응: 모든 한국어 단어를 순서대로 시도
+        korean_words = re.findall(r'[가-힣]+', country)
+        origin = None
+        country_key = ''
+        for word in korean_words:
+            if word in ORIGIN_CODE:
+                origin = ORIGIN_CODE[word]
+                country_key = word
+                break
+        if not origin:
+            # 영문명 시도
+            eng_key = re.sub(r'[^a-zA-Z\s]', '', country).strip()
+            origin = ORIGIN_CODE.get(eng_key)
+            country_key = eng_key
         if origin_col:
             c = ws.cell(row=row_num, column=origin_col)
             c.number_format = '@'
@@ -1652,14 +1660,15 @@ def export_excel():
                 # 매핑 없으면 직접입력(04) + 원산지 직접입력 컬럼에 국가명 기입
                 c.value = DIRECT_INPUT_CODE
                 direct_col = col_idx('원산지 직접입력')
-                if direct_col and country_key:
-                    ws.cell(row=row_num, column=direct_col).value = country_key
+                direct_value = country_key or country or '기타'
+                if direct_col:
+                    ws.cell(row=row_num, column=direct_col).value = direct_value
 
-        # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑)
+        # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑, 없으면 기타)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
         if not naver_cat:
             app_cat = item.get('category', '') or ''
-            naver_cat = CATEGORY_CODE.get(app_cat)
+            naver_cat = CATEGORY_CODE.get(app_cat) or CATEGORY_CODE.get('기타')
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
