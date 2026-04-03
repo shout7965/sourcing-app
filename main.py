@@ -1531,13 +1531,18 @@ def export_excel():
     if not items:
         return jsonify({"error": "내보낼 항목이 없습니다"}), 400
 
-    # 원산지코드 매핑 (Naver originarea 기준 7자리 코드)
+    # 원산지코드 매핑 — Naver originarea 공식 파일 기준 (Documents/originarea_*.xls)
     ORIGIN_CODE = {
-        # 아시아
+        # 아시아 (공식 코드 기준, 한국어 국가명)
         '일본': '0200036', '중국': '0200037', '인도': '0200033',
+        '인도네시아': '0200034', '말레이시아': '0200008', '필리핀': '0200048',
         '싱가포르': '0200021', '홍콩': '0200049', '대만': '0200002',
-        '태국': '0200044', '베트남': '0200014', '인도네시아': '0200018',
-        '말레이시아': '0200011', '필리핀': '0200013',
+        '태국': '0200044', '베트남': '0200014', '미얀마': '0200011',
+        '몽골': '0200010', '마카오': '0200007', '방글라데시': '0200013',
+        '스리랑카': '0200019', '파키스탄': '0200047', '캄보디아': '0200040',
+        '라오스': '0200004', '네팔': '0200001', '우즈베키스탄': '0200028',
+        '카자흐스탄': '0200038', '아랍에미리트': '0200022', '사우디아라비아': '0200018',
+        '이스라엘': '0200032', '쿠웨이트': '0200041', '카타르': '0200039',
         # 유럽
         '독일': '0201005', '영국': '0201035', '이탈리아': '0201038',
         '프랑스': '0201046', '스페인': '0201025', '네덜란드': '0201002',
@@ -1549,29 +1554,60 @@ def export_excel():
         '크로아티아': '0201041', '슬로베니아': '0201027', '에스토니아': '0201034',
         '라트비아': '0201006', '리투아니아': '0201009', '룩셈부르크': '0201008',
         '러시아': '0201007', '러시아연방': '0201007', '터키': '0201042',
+        '아일랜드': '0201029', '아이슬란드': '0201028',
         # 아메리카
         '미국': '0204000', '캐나다': '0204006', '브라질': '0205015',
-        '멕시코': '0205007',
+        '멕시코': '0205007', '아르헨티나': '0205020', '칠레': '0205029',
+        '콜롬비아': '0205031', '페루': '0205036',
         # 오세아니아
-        '호주': '0203024',
+        '호주': '0203024', '뉴질랜드': '0203003',
+        # 아프리카
+        '남아프리카공화국': '0202008', '이집트': '0202039', '모로코': '0202017',
         # 영문명
-        'Germany': '0201005', 'USA': '0204000', 'Japan': '0200036',
-        'China': '0200037', 'UK': '0201035', 'France': '0201046',
-        'Italy': '0201038', 'Spain': '0201025', 'Canada': '0204006',
-        'Australia': '0203024', 'Netherlands': '0201002', 'Switzerland': '0201024',
+        'Germany': '0201005', 'USA': '0204000', 'United States': '0204000',
+        'Japan': '0200036', 'China': '0200037', 'UK': '0201035',
+        'United Kingdom': '0201035', 'France': '0201046', 'Italy': '0201038',
+        'Spain': '0201025', 'Canada': '0204006', 'Australia': '0203024',
+        'Netherlands': '0201002', 'Switzerland': '0201024', 'Austria': '0201036',
+        'Belgium': '0201017', 'Poland': '0201045', 'Sweden': '0201023',
+        'Norway': '0201003', 'Denmark': '0201004', 'Finland': '0201047',
+        'Portugal': '0201044', 'Greece': '0201000', 'Czech': '0201040',
+        'Hungary': '0201048', 'Romania': '0201049', 'Turkey': '0201042',
+        'Russia': '0201007', 'Indonesia': '0200034', 'Malaysia': '0200008',
+        'Philippines': '0200048', 'Thailand': '0200044', 'Vietnam': '0200014',
+        'Singapore': '0200021', 'Taiwan': '0200002', 'Hong Kong': '0200049',
+        'India': '0200033', 'Brazil': '0205015', 'Mexico': '0205007',
+        'New Zealand': '0203003', 'Ireland': '0201029',
     }
     DIRECT_INPUT_CODE = '04'  # 직접입력 코드
 
-    # 카테고리 자동 매핑 (앱 카테고리 → 네이버 카테고리코드)
-    CATEGORY_CODE = {
-        '식품':    50001921,  # 식품 > 과자/베이커리 > 기타과자
-        '의류':    50000803,  # 패션의류 > 여성의류 > 티셔츠
-        '신발':    50003839,  # 패션잡화 > 여성신발 > 운동화 > 워킹화
-        '가방':    50000639,  # 패션잡화 > 여성가방 > 숄더백
-        '전자제품': 50001579,  # 디지털/가전 > PC액세서리 > 기타PC액세서리
-        '화장품':  50000440,  # 화장품/미용 > 스킨케어 > 크림
-        '기타':    50001921,  # 식품 > 과자/베이커리 > 기타과자 (fallback)
-    }
+    # ── 사전 검증: 필수 필드 누락 체크 (force=true 아닌 경우 먼저 경고 반환)
+    force = bool(data.get('force'))
+    missing_category = [
+        (item.get('name_50') or item.get('product_name') or item.get('id', '?'))[:40]
+        for item in items
+        if not (item.get('naver_category') or item.get('naver_category_code'))
+    ]
+    missing_country = [
+        (item.get('name_50') or item.get('product_name') or item.get('id', '?'))[:40]
+        for item in items
+        if not (item.get('country', '') or '').strip()
+    ]
+    if not force and (missing_category or missing_country):
+        warnings = []
+        if missing_category:
+            warnings.append({
+                'type': 'missing_category',
+                'message': f'네이버 카테고리코드 미설정 ({len(missing_category)}건) — 업로드 시 오류 발생',
+                'items': missing_category
+            })
+        if missing_country:
+            warnings.append({
+                'type': 'missing_country',
+                'message': f'원산지 미설정 ({len(missing_country)}건) — 직접입력으로 처리됨',
+                'items': missing_country
+            })
+        return jsonify({'warnings': warnings}), 422
 
     # 템플릿 로드
     template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Documents', 'old', 'ExcelSaveTemplate_20260309.xlsx')
@@ -1664,11 +1700,9 @@ def export_excel():
                 if direct_col:
                     ws.cell(row=row_num, column=direct_col).value = direct_value
 
-        # ── 필수: 카테고리코드 (저장된 naver_category 우선, 없으면 앱 카테고리 자동 매핑, 없으면 기타)
+        # ── 필수: 카테고리코드 — naver_category가 직접 설정된 경우에만 기입
+        # (자동 매핑 코드는 검증되지 않아 오류 원인. 미설정 시 빈 칸으로 두고 warnings로 안내)
         naver_cat = item.get('naver_category') or item.get('naver_category_code')
-        if not naver_cat:
-            app_cat = item.get('category', '') or ''
-            naver_cat = CATEGORY_CODE.get(app_cat) or CATEGORY_CODE.get('기타')
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
