@@ -1679,10 +1679,14 @@ function _showExportWarnings(warnings, ids) {
       <p style="font-size:0.8rem;color:#718096;margin:0 0 16px">카테고리코드 미설정 상품은 네이버 업로드 시 오류가 납니다.<br>상품 행의 <strong>네이버 카테고리</strong> 필드를 먼저 입력하거나,<br>지금 내려받아 엑셀에서 직접 입력하세요.</p>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('exportWarnModal').remove()" style="padding:8px 16px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;cursor:pointer">취소</button>
-        <button onclick="document.getElementById('exportWarnModal').remove();exportRegExcel(true)" style="padding:8px 16px;border-radius:6px;border:none;background:#c53030;color:#fff;cursor:pointer">그래도 내려받기</button>
+        <button id="exportWarnForceBtn" style="padding:8px 16px;border-radius:6px;border:none;background:#c53030;color:#fff;cursor:pointer">그래도 내려받기</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+  document.getElementById('exportWarnForceBtn').addEventListener('click', () => {
+    document.getElementById('exportWarnModal').remove();
+    exportRegExcel(true);
+  });
 }
 function toggleRegAll(master) {
   document.querySelectorAll('.reg-cb').forEach(cb => {

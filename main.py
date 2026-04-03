@@ -1593,7 +1593,7 @@ def export_excel():
         for item in items
         if not (item.get('country', '') or '').strip()
     ]
-    if not force and (missing_category or missing_country):
+    if not force and missing_category:
         warnings = []
         if missing_category:
             warnings.append({
