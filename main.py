@@ -1593,21 +1593,48 @@ def export_excel():
         for item in items
         if not (item.get('country', '') or '').strip()
     ]
-    if not force and missing_category:
-        warnings = []
-        if missing_category:
-            warnings.append({
-                'type': 'missing_category',
-                'message': f'네이버 카테고리코드 미설정 ({len(missing_category)}건) — 업로드 시 오류 발생',
-                'items': missing_category
-            })
-        if missing_country:
-            warnings.append({
-                'type': 'missing_country',
-                'message': f'원산지 미설정 ({len(missing_country)}건) — 직접입력으로 처리됨',
-                'items': missing_country
-            })
-        return jsonify({'warnings': warnings}), 422
+    # (카테고리 미설정은 Claude API가 자동 결정하므로 블로킹 없음)
+
+    # ── Claude API로 naver_category 미설정 항목 자동 결정
+    items_need_cat = [it for it in items if not (it.get('naver_category') or it.get('naver_category_code'))]
+    if items_need_cat:
+        try:
+            product_list = '\n'.join(
+                f"{i+1}. 상품명={it.get('name_50') or it.get('product_name') or ''} "
+                f"브랜드={it.get('brand_name','')} 카테고리힌트={it.get('category','')}"
+                for i, it in enumerate(items_need_cat)
+            )
+            cat_resp = client.messages.create(
+                model='claude-opus-4-6',
+                max_tokens=512,
+                messages=[{'role':'user','content':f"""아래 상품들에 가장 적합한 네이버 스마트스토어 카테고리코드를 결정해주세요.
+반드시 실제 존재하는 8자리 숫자 코드만 사용하세요.
+
+참고 코드 예시 (검증된 코드):
+- 50012461: 식품 > 식용유/오일/식초
+- 50001921: 식품 > 과자/베이커리 > 기타과자 (← 이 코드는 존재하지 않음, 사용 금지)
+- 50003307: 패션의류 > 여성의류 > 니트/스웨터
+- 50000440: 화장품/미용 > 스킨케어 > 크림
+- 50000799: 스포츠/레저 > 스포츠용품
+
+상품 목록:
+{product_list}
+
+JSON 형식으로만 응답하세요. 다른 텍스트 없이:
+{{"results": [{{"idx": 1, "code": 50012345}}, ...]}}"""
+                }]
+            )
+            import json as _json
+            cat_text = cat_resp.content[0].text.strip()
+            if cat_text.startswith('```'):
+                cat_text = cat_text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
+            cat_data = _json.loads(cat_text)
+            for entry in cat_data.get('results', []):
+                idx = entry['idx'] - 1
+                if 0 <= idx < len(items_need_cat):
+                    items_need_cat[idx]['_auto_naver_category'] = entry['code']
+        except Exception as e:
+            print(f"[Excel] 카테고리 자동결정 실패: {e}")
 
     # 템플릿 로드
     template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Documents', 'old', 'ExcelSaveTemplate_20260309.xlsx')
@@ -1700,9 +1727,9 @@ def export_excel():
                 if direct_col:
                     ws.cell(row=row_num, column=direct_col).value = direct_value
 
-        # ── 필수: 카테고리코드 — naver_category가 직접 설정된 경우에만 기입
-        # (자동 매핑 코드는 검증되지 않아 오류 원인. 미설정 시 빈 칸으로 두고 warnings로 안내)
-        naver_cat = item.get('naver_category') or item.get('naver_category_code')
+        # ── 필수: 카테고리코드 — 직접 설정 > Claude 자동결정 순서로 사용
+        naver_cat = (item.get('naver_category') or item.get('naver_category_code')
+                     or item.get('_auto_naver_category'))
         if naver_cat:
             w('카테고리코드', int(naver_cat))
 
