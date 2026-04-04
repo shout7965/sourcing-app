@@ -1156,6 +1156,91 @@ def generate_product_name():
         return jsonify({"error": str(e)}), 500
 
 
+def _extract_purchase_source(url: str) -> str:
+    if not url: return ''
+    if 'amazon.de'     in url: return 'Amazon.de'
+    if 'amazon.co.jp'  in url: return 'Amazon JP'
+    if 'amazon.fr'     in url: return 'Amazon.fr'
+    if 'amazon.it'     in url: return 'Amazon.it'
+    if 'amazon.es'     in url: return 'Amazon.es'
+    if 'amazon.co.uk'  in url: return 'Amazon UK'
+    if 'amazon.nl'     in url: return 'Amazon.nl'
+    if 'amazon.ca'     in url: return 'Amazon CA'
+    if 'amazon.com.au' in url: return 'Amazon AU'
+    if 'amazon.com'    in url: return 'Amazon.com'
+    if 'idealo.de'     in url: return 'Idealo'
+    if 'rakuten.co.jp' in url: return 'Rakuten JP'
+    if 'taobao.com'    in url: return 'Taobao'
+    if 'tmall.com'     in url: return 'Tmall'
+    if 'jd.com'        in url: return 'JD.com'
+    if '1688.com'      in url: return '1688'
+    if 'ebay.com'      in url: return 'eBay'
+    return ''
+
+
+@app.route("/api/backfill-reg-meta", methods=["POST"])
+def backfill_reg_meta():
+    """상품등록대장 purchase_source·category 일괄 채우기 (미설정 항목만)"""
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+
+    docs  = db.collection('product_registrations').stream()
+    items = [{'id': d.id, **d.to_dict()} for d in docs]
+
+    src_updated = 0
+    cat_updated = 0
+
+    # ── 1) purchase_source: URL 패턴으로 즉시 결정 ───────────────────────
+    for item in items:
+        if not item.get('purchase_source') and item.get('product_url'):
+            src = _extract_purchase_source(item['product_url'])
+            if src:
+                db.collection('product_registrations').document(item['id']).update({'purchase_source': src})
+                item['purchase_source'] = src   # 이후 루프에서도 반영
+                src_updated += 1
+
+    # ── 2) category: Claude haiku로 배치 분류 ────────────────────────────
+    need_cat = [
+        it for it in items
+        if not it.get('category') and (it.get('product_title_url') or it.get('product_name_en') or it.get('product_name'))
+    ]
+    if need_cat:
+        BATCH = 20
+        for i in range(0, len(need_cat), BATCH):
+            batch_items = need_cat[i:i + BATCH]
+            product_list = '\n'.join(
+                f"{j+1}. {(it.get('product_title_url') or it.get('product_name_en') or it.get('product_name') or '')[:120]}"
+                for j, it in enumerate(batch_items)
+            )
+            try:
+                resp = claude.messages.create(
+                    model='claude-haiku-4-5-20251001',
+                    max_tokens=400,
+                    messages=[{'role': 'user', 'content':
+                        f"아래 상품들의 카테고리를 각각 신발/의류/전자제품/가방/화장품/식품/기타 중 하나로 분류하세요.\n\n"
+                        f"{product_list}\n\n"
+                        f"JSON으로만: {{\"results\": [{{\"idx\": 1, \"category\": \"화장품\"}}, ...]}}"
+                    }],
+                )
+                raw = re.sub(r'```json?\s*|\s*```', '', resp.content[0].text.strip()).strip()
+                results = json.loads(raw).get('results', [])
+                fb_batch = db.batch()
+                for entry in results:
+                    idx = entry.get('idx', 0) - 1
+                    cat = entry.get('category', '').strip()
+                    if 0 <= idx < len(batch_items) and cat:
+                        ref = db.collection('product_registrations').document(batch_items[idx]['id'])
+                        fb_batch.update(ref, {'category': cat})
+                        cat_updated += 1
+                fb_batch.commit()
+            except Exception as e:
+                print(f"[Backfill] 카테고리 배치 실패: {e}")
+
+    return jsonify({"src_updated": src_updated, "cat_updated": cat_updated})
+
+
 @app.route("/api/parse-amazon-title", methods=["POST"])
 def parse_amazon_title():
     """Amazon 상품 타이틀에서 브랜드명, 영문 상품명, 한국어 상품명 추출"""

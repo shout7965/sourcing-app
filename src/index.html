@@ -1439,6 +1439,9 @@ async function loadRegistrations() {
     document.getElementById('regCount').textContent = `총 ${data.items.length}개`;
     document.getElementById('regCard').style.display = 'block';
     renderRegistrations(data.items);
+    // 미설정 항목 있으면 서버에서 일괄 채우기 (fire-and-forget)
+    const hasMissing = data.items.some(i => !i.purchase_source || !i.category);
+    if (hasMissing) fetch('/api/backfill-reg-meta', { method: 'POST' });
   } catch (e) {
     document.getElementById('regLoading').style.display = 'none';
     document.getElementById('regEmpty').style.display   = 'block';
@@ -1590,45 +1593,6 @@ function renderRegistrations(items) {
       </td>
     </tr>`;
   }).join('');
-  autoFillRegMeta(items);
-}
-
-async function autoFillRegMeta(items) {
-  // 1) purchase_source 미설정 → URL에서 추출해 Firestore 저장 (표시는 이미 됨)
-  for (const item of items) {
-    if (!item.purchase_source && item.product_url) {
-      const src = extractPurchaseSource(item.product_url);
-      if (src) {
-        regItemsCache[item.id] = {...regItemsCache[item.id], purchase_source: src};
-        fetch(`/api/product-registrations/${encodeURIComponent(item.id)}`, {
-          method: 'PATCH', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ purchase_source: src }),
-        });
-      }
-    }
-  }
-
-  // 2) category 미설정 → parse-amazon-title 호출해 자동 분류 + 저장
-  const needCat = items.filter(i => !i.category && (i.product_title_url || i.product_name_en || i.product_name));
-  for (const item of needCat) {
-    try {
-      const title = item.product_title_url || item.product_name_en || item.product_name || '';
-      const resp = await fetch('/api/parse-amazon-title', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ title }),
-      });
-      const data = await resp.json();
-      if (data.category) {
-        regItemsCache[item.id] = {...regItemsCache[item.id], category: data.category};
-        const catCell = document.getElementById(`reg-cat-${item.id}`);
-        if (catCell) catCell.innerHTML = `<span class="badge badge-category">${escHtml(data.category)}</span>`;
-        fetch(`/api/product-registrations/${encodeURIComponent(item.id)}`, {
-          method: 'PATCH', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ category: data.category }),
-        });
-      }
-    } catch(e) { /* 실패 무시 */ }
-  }
 }
 
 function toggleRegDetail(id) {
