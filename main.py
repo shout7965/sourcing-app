@@ -6,6 +6,7 @@ import requests
 from urllib.parse import quote as url_quote
 import anthropic
 import openpyxl
+import xlrd
 import firebase_admin
 from firebase_admin import credentials, firestore as fb_fs, storage as fb_storage
 from datetime import datetime, date
@@ -60,6 +61,67 @@ def init_firebase():
         print(f"[Firebase] 초기화 실패: {e}")
 
 init_firebase()
+
+# ── 네이버 카테고리 DB 로드 ────────────────────────────────────────────────
+_NAVER_CATEGORIES: list[tuple] = []  # (code_str, 대분류, 중분류, 소분류, 세분류)
+
+def _load_naver_categories():
+    global _NAVER_CATEGORIES
+    try:
+        cat_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Documents', 'category_20260328_150325.xls')
+        wb = xlrd.open_workbook(cat_path)
+        ws = wb.sheet_by_index(0)
+        _NAVER_CATEGORIES = [
+            (str(int(ws.cell_value(r, 0))),
+             ws.cell_value(r, 1), ws.cell_value(r, 2),
+             ws.cell_value(r, 3), ws.cell_value(r, 4))
+            for r in range(1, ws.nrows)
+        ]
+        print(f"[Init] 네이버 카테고리 {len(_NAVER_CATEGORIES)}개 로드 완료")
+    except Exception as e:
+        print(f"[Init] 카테고리 로드 실패: {e}")
+
+_load_naver_categories()
+
+# category hint → 대분류 매핑 (1차: 핵심, 2차: 보조)
+_HINT_TO_DAEBUNRYU = {
+    '신발':    (['패션잡화'],                              []),
+    '의류':    (['패션의류'],                              ['패션잡화']),
+    '전자제품':(['디지털/가전'],                            []),
+    '가방':    (['패션잡화'],                              []),
+    '화장품':  (['화장품/미용'],                            ['생활/건강']),
+    '식품':    (['식품'],                                 []),
+    '기타':    (['생활/건강', '스포츠/레저', '여가/생활편의'], ['가구/인테리어', '출산/육아']),
+}
+
+def _get_category_candidates(product_name: str, category_hint: str) -> list[tuple]:
+    """상품명·카테고리힌트 기반으로 후보 카테고리 목록 반환 (최대 150개)."""
+    if not _NAVER_CATEGORIES:
+        return []
+
+    primary_da, secondary_da = _HINT_TO_DAEBUNRYU.get(category_hint, ([], []))
+    if not primary_da and not secondary_da:
+        # 알 수 없는 힌트 → 전체에서 키워드 검색
+        primary_da = list({c[1] for c in _NAVER_CATEGORIES})
+
+    name_chars = set(product_name.replace(' ', ''))
+
+    def keyword_score(cat):
+        label = cat[2] + cat[3] + cat[4]
+        return sum(1 for ch in label if ch in name_chars)
+
+    primary = [c for c in _NAVER_CATEGORIES if c[1] in primary_da]
+    secondary = [c for c in _NAVER_CATEGORIES if c[1] in secondary_da]
+
+    # 1차 대분류가 크면 키워드 점수 순으로 상위 100개
+    if len(primary) > 150:
+        primary = sorted(primary, key=keyword_score, reverse=True)[:100]
+
+    # 2차 대분류는 키워드 매칭 상위 50개
+    if secondary:
+        secondary = sorted(secondary, key=keyword_score, reverse=True)[:50]
+
+    return primary + secondary
 
 # ── Firebase 헬퍼 ─────────────────────────────────────────────────────────
 def _today() -> str:
@@ -1599,40 +1661,48 @@ def export_excel():
     items_need_cat = [it for it in items if not (it.get('naver_category') or it.get('naver_category_code'))]
     if items_need_cat:
         try:
+            # 상품별 후보 카테고리 수집 → 전체 유니크 합집합
+            candidate_map: dict[str, str] = {}  # code → label
+            for it in items_need_cat:
+                name  = it.get('name_50') or it.get('product_name') or ''
+                hint  = it.get('category', '기타')
+                for cat in _get_category_candidates(name, hint):
+                    code, da, jung, so, se = cat
+                    label = ' > '.join(v for v in [da, jung, so, se] if v)
+                    candidate_map[code] = label
+
+            valid_codes = set(candidate_map.keys())
+            cat_list_str = '\n'.join(
+                f"{code}: {label}" for code, label in sorted(candidate_map.items())
+            )
             product_list = '\n'.join(
                 f"{i+1}. 상품명={it.get('name_50') or it.get('product_name') or ''} "
                 f"브랜드={it.get('brand_name','')} 카테고리힌트={it.get('category','')}"
                 for i, it in enumerate(items_need_cat)
             )
-            cat_resp = client.messages.create(
+            cat_resp = claude.messages.create(
                 model='claude-opus-4-6',
                 max_tokens=512,
-                messages=[{'role':'user','content':f"""아래 상품들에 가장 적합한 네이버 스마트스토어 카테고리코드를 결정해주세요.
-반드시 실제 존재하는 8자리 숫자 코드만 사용하세요.
-
-참고 코드 예시 (검증된 코드):
-- 50012461: 식품 > 식용유/오일/식초
-- 50001921: 식품 > 과자/베이커리 > 기타과자 (← 이 코드는 존재하지 않음, 사용 금지)
-- 50003307: 패션의류 > 여성의류 > 니트/스웨터
-- 50000440: 화장품/미용 > 스킨케어 > 크림
-- 50000799: 스포츠/레저 > 스포츠용품
-
-상품 목록:
-{product_list}
-
-JSON 형식으로만 응답하세요. 다른 텍스트 없이:
-{{"results": [{{"idx": 1, "code": 50012345}}, ...]}}"""
+                messages=[{'role':'user','content':
+                    f"아래 상품들에 가장 적합한 네이버 스마트스토어 카테고리코드를 선택해주세요.\n"
+                    f"반드시 아래 [사용 가능한 코드 목록]에서만 선택하고, 목록에 없는 코드는 절대 사용하지 마세요.\n\n"
+                    f"[사용 가능한 코드 목록]\n{cat_list_str}\n\n"
+                    f"[상품 목록]\n{product_list}\n\n"
+                    f"JSON 형식으로만 응답하세요. 다른 텍스트 없이:\n"
+                    f'{{"results": [{{"idx": 1, "code": 50012345}}, ...]}}'
                 }]
             )
-            import json as _json
             cat_text = cat_resp.content[0].text.strip()
             if cat_text.startswith('```'):
                 cat_text = cat_text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
-            cat_data = _json.loads(cat_text)
+            cat_data = json.loads(cat_text)
             for entry in cat_data.get('results', []):
-                idx = entry['idx'] - 1
-                if 0 <= idx < len(items_need_cat):
-                    items_need_cat[idx]['_auto_naver_category'] = entry['code']
+                idx  = entry['idx'] - 1
+                code = str(entry['code'])
+                if 0 <= idx < len(items_need_cat) and code in valid_codes:
+                    items_need_cat[idx]['_auto_naver_category'] = code
+                elif 0 <= idx < len(items_need_cat):
+                    print(f"[Excel] Claude가 목록 외 코드 반환: {code} → 무시")
         except Exception as e:
             print(f"[Excel] 카테고리 자동결정 실패: {e}")
 

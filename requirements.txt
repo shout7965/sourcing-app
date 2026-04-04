@@ -10,3 +10,4 @@ python-dotenv
 pydantic
 firebase-admin
 openpyxl
+xlrd
