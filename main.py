@@ -1174,7 +1174,8 @@ def parse_amazon_title():
                 f'- brand_name: the brand/manufacturer (string or null)\n'
                 f'- product_name_en: English product name without brand (string)\n'
                 f'- product_name: Korean translation of product name without brand (string)\n'
-                f'Reply ONLY as JSON with those 3 keys.\n\nTitle: {title}'
+                f'- category: one of 신발/의류/전자제품/가방/화장품/식품/기타\n'
+                f'Reply ONLY as JSON with those 4 keys.\n\nTitle: {title}'
             }],
         )
         raw = re.sub(r'```json?\s*|\s*```', '', resp.content[0].text.strip()).strip()
@@ -1183,6 +1184,7 @@ def parse_amazon_title():
             "brand_name":     (result.get('brand_name') or '').strip(),
             "product_name_en":(result.get('product_name_en') or '').strip(),
             "product_name":   (result.get('product_name') or '').strip(),
+            "category":       (result.get('category') or '').strip(),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

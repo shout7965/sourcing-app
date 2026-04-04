@@ -1308,6 +1308,42 @@ function extractCountry(url) {
   if (/amazon\.com/.test(url))                                      return '🇺🇸 미국';
   return '-';
 }
+function buildSrcCell(item) {
+  const src     = item.purchase_source || extractPurchaseSource(item.product_url || '');
+  const country = extractCountry(item.product_url || '') !== '-'
+    ? extractCountry(item.product_url || '')
+    : (item.country && item.country !== '-' ? item.country : '');
+  const srcHtml = src
+    ? `<span class="badge badge-source">${escHtml(src)}</span>`
+    : '<span style="color:#a0aec0">-</span>';
+  const ctryHtml = (country && country !== '-')
+    ? `<div style="font-size:0.68rem;color:#718096;margin-top:2px">${escHtml(country)}</div>`
+    : '';
+  return srcHtml + ctryHtml;
+}
+
+function extractPurchaseSource(url) {
+  if (!url) return '';
+  if (/amazon\.de/.test(url))       return 'Amazon.de';
+  if (/amazon\.co\.jp/.test(url))   return 'Amazon JP';
+  if (/amazon\.fr/.test(url))       return 'Amazon.fr';
+  if (/amazon\.it/.test(url))       return 'Amazon.it';
+  if (/amazon\.es/.test(url))       return 'Amazon.es';
+  if (/amazon\.co\.uk/.test(url))   return 'Amazon UK';
+  if (/amazon\.nl/.test(url))       return 'Amazon.nl';
+  if (/amazon\.ca/.test(url))       return 'Amazon CA';
+  if (/amazon\.com\.au/.test(url))  return 'Amazon AU';
+  if (/amazon\.com/.test(url))      return 'Amazon.com';
+  if (/idealo\.de/.test(url))       return 'Idealo';
+  if (/rakuten\.co\.jp/.test(url))  return 'Rakuten JP';
+  if (/taobao\.com/.test(url))      return 'Taobao';
+  if (/tmall\.com/.test(url))       return 'Tmall';
+  if (/jd\.com/.test(url))          return 'JD.com';
+  if (/1688\.com/.test(url))        return '1688';
+  if (/ebay\.com/.test(url))        return 'eBay';
+  return '';
+}
+
 // item에서 country 결정: product_url → item.country → keyword 순
 function resolveCountry(item) {
   const fromUrl = extractCountry(item.product_url || '');
@@ -2237,6 +2273,20 @@ async function autoFetchRateForUrl(id) {
   if (!urlInput) return;
   const url = urlInput.value.trim();
   if (!url) return;
+
+  // URL만으로 소싱처·국가 즉시 반영
+  const srcFromUrl = extractPurchaseSource(url);
+  if (srcFromUrl && candItemsCache[id] && !candItemsCache[id].purchase_source) {
+    candItemsCache[id].purchase_source = srcFromUrl;
+    candItemsCache[id].product_url = url;
+    const srcCell = document.getElementById(`src-cell-${id}`);
+    if (srcCell) srcCell.innerHTML = buildSrcCell(candItemsCache[id]);
+    fetch(`/api/candidates/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ product_url: url, purchase_source: srcFromUrl }),
+    });
+  }
+
   const {currency, symbol} = getUrlCurrencyInfo(url);
   const rateInput  = document.getElementById(`rate-${id}`);
   const rateLabel  = document.getElementById(`rate-label-${id}`);
@@ -2892,7 +2942,7 @@ function buildCandRow(item) {
         ${item.product_name_en ? `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(item.product_name_en)}</div>` : ''}
       </td>
       <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
-      <td>${item.purchase_source ? `<span class="badge badge-source">${escHtml(item.purchase_source)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+      <td id="src-cell-${escHtml(id)}">${buildSrcCell(item)}</td>
       <td class="price-paid">${item.price_paid ? escHtml(item.price_paid) : '-'}</td>
       <td id="specs-cell-${escHtml(id)}" style="min-width:140px">${renderSpecsCell(item)}</td>
       <td style="text-align:center">
@@ -3343,32 +3393,36 @@ async function fetchWeight(id) {
             body: JSON.stringify({title: data.product_title}),
           });
           const parseData = await parseResp.json();
-          if (parseData.brand_name || parseData.product_name_en) {
+          if (parseData.brand_name || parseData.product_name_en || parseData.category) {
             const patch = {
               brand_name:      parseData.brand_name      || '',
               product_name_en: parseData.product_name_en || '',
               product_name:    parseData.product_name    || '',
+              ...(parseData.category ? { category: parseData.category } : {}),
             };
             Object.assign(candItemsCache[id], patch);
             await fetch(`/api/candidates/${encodeURIComponent(id)}`, {
               method: 'PATCH', headers: {'Content-Type': 'application/json'},
               body: JSON.stringify(patch),
             });
-            // 메인 행 브랜드/상품명 셀 업데이트
+            // 메인 행 셀 업데이트
             const mainRow = document.getElementById(`cand-${id}`);
             if (mainRow) {
               const cells = mainRow.querySelectorAll('td');
-              // 브랜드 셀 (3번째 td, index 3)
+              // 브랜드 셀 (index 3)
               if (cells[3] && parseData.brand_name)
                 cells[3].innerHTML = `<span class="badge badge-brand">${escHtml(parseData.brand_name)}</span>`;
-              // 상품명 셀 (4번째 td, index 4)
+              // 상품명 셀 (index 4)
               if (cells[4] && parseData.product_name_en) {
                 cells[4].innerHTML =
                   `<div style="font-weight:500;color:#2d3748">${escHtml(parseData.product_name||parseData.product_name_en)}</div>` +
                   `<div style="font-size:0.72rem;color:#4a6cf7;margin-top:2px">${escHtml(parseData.product_name_en)}</div>`;
               }
+              // 카테고리 셀 (index 5)
+              if (cells[5] && parseData.category)
+                cells[5].innerHTML = `<span class="badge badge-category">${escHtml(parseData.category)}</span>`;
             }
-            showToast(`브랜드/상품명 자동 추출: ${parseData.brand_name||''} ${parseData.product_name_en||''}`);
+            showToast(`자동 추출: ${[parseData.brand_name, parseData.product_name_en, parseData.category].filter(Boolean).join(' / ')}`);
           }
         } catch(e) { /* 파싱 실패 무시 */ }
       }
