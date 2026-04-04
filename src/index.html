@@ -1204,7 +1204,7 @@ function toggleNicheAll(master) {
   document.querySelectorAll('.niche-cb').forEach(cb => cb.checked = master.checked);
 }
 
-function startFromNicheSelected() {
+async function startFromNicheSelected() {
   if (!currentUser) {
     showToast('로그인이 필요합니다', true);
     document.getElementById('loginModal').style.display = 'flex';
@@ -1212,15 +1212,27 @@ function startFromNicheSelected() {
   }
   const checked = [...document.querySelectorAll('.niche-cb:checked')];
   if (!checked.length) { showToast('항목을 선택해주세요', true); return; }
-  // 첫 번째 항목은 바로 프로젝트 모달로, 나머지는 순서대로 안내
   const keywords = checked.map(cb => cb.dataset.query);
   switchTab('projects');
-  document.getElementById('newProjectName').value = keywords[0];
-  document.getElementById('newProjectModal').style.display = 'flex';
-  document.getElementById('newProjectName').focus();
-  if (keywords.length > 1) {
-    showToast(`${keywords.length}개 선택됨. 첫 번째 키워드로 시작 — 나머지는 순서대로 프로젝트 추가하세요.`);
+  showToast(`${keywords.length}개 프로젝트 생성 중...`);
+  let created = 0, failed = 0;
+  for (const name of keywords) {
+    try {
+      const resp = await fetch('/api/projects', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name}),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { failed++; continue; }
+      projects.unshift(data.project);
+      created++;
+    } catch (e) { failed++; }
   }
+  renderProjectList();
+  const msg = failed
+    ? `${created}개 생성 완료, ${failed}개 실패`
+    : `${created}개 프로젝트 생성 완료`;
+  showToast(msg, failed > 0);
 }
 
 function startFromAiKeyword(keyword) {
