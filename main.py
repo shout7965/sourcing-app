@@ -2397,18 +2397,23 @@ def ask_claude():
 # ── 주문관리 ─────────────────────────────────────────────────────────────────
 
 _SMARTSTORE_COL_MAP = {
-    'order_no':     ['주문번호'],
+    'order_no':     ['상품주문번호', '주문번호'],
+    'parent_order': ['주문번호'],
     'product_name': ['상품명'],
-    'order_date':   ['결제일', '주문일', '주문완료일'],
-    'buyer_name':   ['수취인명', '주문자명'],
-    'phone':        ['수취인전화번호1', '수취인연락처1', '수취인연락처', '주문자휴대폰번호', '주문자전화번호'],
+    'order_date':   ['주문일시', '결제일', '주문일', '주문완료일'],
+    'order_status': ['주문상태'],
+    'buyer_name':   ['수취인명', '구매자명', '주문자명'],
+    'buyer_id':     ['구매자ID', '구매자아이디'],
+    'phone':        ['수취인전화번호1', '수취인연락처1', '수취인연락처', '수취인휴대폰번호', '주문자휴대폰번호', '주문자전화번호'],
     'addr1':        ['배송지기본주소', '배송지 기본주소', '배송주소'],
     'addr2':        ['배송지상세주소', '배송지 상세주소'],
+    'zip_code':     ['우편번호', '배송지우편번호'],
     'customs_id':   ['개인통관고유부호', '통관고유부호', '통관부호'],
     'delivery_msg': ['배송메시지', '배송요청사항'],
     'sale_price':   ['결제금액', '판매가', '상품금액', '주문금액'],
-    'option_info':  ['옵션정보', '옵션'],
+    'option_info':  ['옵션정보', '판매옵션정보', '옵션'],
     'qty':          ['수량'],
+    'claim_status': ['클레임상태'],
 }
 
 
@@ -2435,7 +2440,28 @@ def import_orders():
         fee_rate = 0.0363
 
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(file.read()), data_only=True)
+        import msoffcrypto
+        raw = file.read()
+        file_bytes = io.BytesIO(raw)
+
+        # 암호화된 파일이면 복호화
+        password = request.form.get('file_password', '').strip()
+        try:
+            office = msoffcrypto.OfficeFile(file_bytes)
+            if office.is_encrypted():
+                if not password:
+                    return jsonify({"error": "이 파일은 비밀번호가 설정되어 있습니다. 비밀번호를 입력해주세요."}), 400
+                office.load_key(password=password)
+                decrypted = io.BytesIO()
+                office.decrypt(decrypted)
+                decrypted.seek(0)
+                file_bytes = decrypted
+            else:
+                file_bytes = io.BytesIO(raw)
+        except Exception:
+            file_bytes = io.BytesIO(raw)
+
+        wb = openpyxl.load_workbook(file_bytes, data_only=True)
         ws = wb.active
 
         # 헤더 행 찾기 (주문번호가 있는 행)
@@ -2489,19 +2515,25 @@ def import_orders():
 
             orders.append({
                 'order_no':        order_no,
+                'parent_order':    gcell('parent_order'),
                 'product_name':    product_name,
                 'order_date':      gcell('order_date'),
+                'order_status':    gcell('order_status'),
+                'claim_status':    gcell('claim_status'),
                 'buyer_name':      gcell('buyer_name'),
+                'buyer_id':        gcell('buyer_id'),
                 'phone':           gcell('phone'),
                 'address':         addr,
+                'zip_code':        gcell('zip_code'),
                 'customs_id':      gcell('customs_id'),
                 'delivery_msg':    gcell('delivery_msg'),
+                'qty':             int(gcell('qty') or 1),
                 'sale_price':      sale_price,
                 'fee_rate':        fee_rate,
                 'net_revenue':     net_revenue,
                 'eurolife_ordered': False,
                 'eurolife_price':   0,
-                'margin':          0 - net_revenue * 0,  # 초기 0
+                'margin':          0,
                 'tracking_no':     '',
                 'carrier':         '',
                 'note':            '',

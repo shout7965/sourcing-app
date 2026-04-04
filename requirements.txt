@@ -11,3 +11,4 @@ pydantic
 firebase-admin
 openpyxl
 xlrd
+msoffcrypto-tool

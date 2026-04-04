@@ -909,6 +909,8 @@
     <button class="btn-sm" onclick="document.getElementById('orderFileInput').click()"
       style="background:#4a6cf7;color:white;padding:6px 14px">📂 주문 Excel 불러오기</button>
     <input type="file" id="orderFileInput" accept=".xlsx,.xls" style="display:none" onchange="importOrderExcel(this)" />
+    <input type="password" id="orderFilePassword" placeholder="비밀번호 (있을 경우)"
+      style="padding:5px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;width:150px" />
     <button class="btn-sm" onclick="loadOrders()" style="background:#2d3748;color:white">새로고침</button>
     <div class="orders-fee-wrap">
       수수료율
@@ -946,8 +948,10 @@
         <tr>
           <th style="width:36px">#</th>
           <th>주문일시</th>
-          <th style="min-width:110px">주문번호</th>
+          <th style="min-width:130px">상품주문번호</th>
           <th style="min-width:200px">상품명</th>
+          <th style="text-align:center">수량</th>
+          <th>주문상태</th>
           <th>주문자</th>
           <th>연락처</th>
           <th style="min-width:160px">주소</th>
@@ -3996,11 +4000,19 @@ function renderOrders(orders) {
     const marginClass = marginVal >= 0 ? 'margin-positive' : 'margin-negative';
     const isDone = o.eurolife_ordered;
 
+    const statusColor = {
+      '결제완료': '#276749', '발송완료': '#2b6cb0', '취소': '#c53030',
+      '반품': '#c05621', '교환': '#6b46c1',
+    };
+    const sColor = statusColor[o.order_status] || '#718096';
+
     rows.push(`<tr id="row-${o.id}" class="${isDone ? 'eurolife-done' : ''}">
       <td style="color:#a0aec0">${idx + 1}</td>
-      <td style="font-size:0.73rem;color:#718096">${(o.order_date || '').substring(0,10)}</td>
-      <td style="font-size:0.73rem">${o.order_no || ''}</td>
+      <td style="font-size:0.73rem;color:#718096">${(o.order_date || '').substring(0,16).replace('T',' ')}</td>
+      <td style="font-size:0.72rem">${o.order_no || ''}</td>
       <td style="min-width:200px;white-space:normal;line-height:1.35;word-break:break-all">${escHtml(o.product_name || '')}</td>
+      <td style="text-align:center">${o.qty || 1}</td>
+      <td style="font-size:0.75rem;font-weight:600;color:${sColor}">${o.order_status || ''}${o.claim_status ? '<br><span style="font-size:0.68rem;color:#c05621">'+escHtml(o.claim_status)+'</span>' : ''}</td>
       <td>${escHtml(o.buyer_name || '')}</td>
       <td style="font-size:0.73rem">${o.phone || ''}</td>
       <td class="addr-cell">${escHtml(o.address || '')}</td>
@@ -4163,9 +4175,11 @@ async function importOrderExcel(input) {
   input.value = '';
 
   const feeRate = parseFloat(document.getElementById('orderFeeRate').value) || 3.63;
+  const password = document.getElementById('orderFilePassword').value;
   const formData = new FormData();
   formData.append('file', file);
   formData.append('fee_rate', feeRate);
+  if (password) formData.append('file_password', password);
 
   const loading = document.getElementById('ordersLoading');
   const empty   = document.getElementById('ordersEmpty');
