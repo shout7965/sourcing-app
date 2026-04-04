@@ -854,6 +854,9 @@
       <h2>상품등록대장</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span id="regCount" style="font-size:0.82rem;color:#718096"></span>
+        <input id="regSearchInput" type="text" placeholder="상품명 검색..."
+          oninput="filterRegistrations()"
+          style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;width:200px;outline:none" />
         <button class="btn-sm" id="btnDeleteReg" onclick="deleteSelectedRegs()" style="background:#c53030;color:white;display:none">선택 삭제</button>
         <button class="btn-sm" id="btnExcelReg" onclick="exportRegExcel()" style="background:#1a6a3a;color:white;display:none">📥 엑셀 다운로드</button>
         <button class="btn-search" onclick="loadRegistrations()" style="padding:8px 16px;font-size:0.82rem">새로고침</button>
@@ -1558,16 +1561,20 @@ async function moveToRegister() {
 }
 
 // ── 상품등록대장 로드 ─────────────────────────────────────────────────────
+let _regAllItems = [];
+
 async function loadRegistrations() {
   document.getElementById('regLoading').style.display = 'block';
   document.getElementById('regCard').style.display    = 'none';
   document.getElementById('regEmpty').style.display   = 'none';
+  document.getElementById('regSearchInput').value     = '';
   try {
     const data = await (await fetch('/api/product-registrations')).json();
     document.getElementById('regLoading').style.display = 'none';
     if (!data.items || !data.items.length) {
       document.getElementById('regEmpty').style.display = 'block'; return;
     }
+    _regAllItems = data.items;
     document.getElementById('regCount').textContent = `총 ${data.items.length}개`;
     document.getElementById('regCard').style.display = 'block';
     renderRegistrations(data.items);
@@ -1575,6 +1582,31 @@ async function loadRegistrations() {
     document.getElementById('regLoading').style.display = 'none';
     document.getElementById('regEmpty').style.display   = 'block';
     document.getElementById('regEmpty').textContent = '로딩 실패: ' + e.message;
+  }
+}
+
+function filterRegistrations() {
+  const q = document.getElementById('regSearchInput').value.trim().toLowerCase();
+  if (!_regAllItems.length) return;
+  const filtered = q
+    ? _regAllItems.filter(item => {
+        const name = [
+          item.name_50, item.name_100,
+          item.product_name, item.product_name_en,
+          item.product_name_display, item.brand_name
+        ].filter(Boolean).join(' ').toLowerCase();
+        return name.includes(q);
+      })
+    : _regAllItems;
+  const countEl = document.getElementById('regCount');
+  countEl.textContent = q
+    ? `${filtered.length}개 (전체 ${_regAllItems.length}개)`
+    : `총 ${_regAllItems.length}개`;
+  if (filtered.length === 0) {
+    document.getElementById('regBody').innerHTML =
+      `<tr><td colspan="18" style="text-align:center;padding:32px;color:#718096">"${q}" 검색 결과 없음</td></tr>`;
+  } else {
+    renderRegistrations(filtered);
   }
 }
 
