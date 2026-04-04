@@ -1439,9 +1439,6 @@ async function loadRegistrations() {
     document.getElementById('regCount').textContent = `총 ${data.items.length}개`;
     document.getElementById('regCard').style.display = 'block';
     renderRegistrations(data.items);
-    // 미설정 항목 있으면 서버에서 일괄 채우기 (fire-and-forget)
-    const hasMissing = data.items.some(i => !i.purchase_source || !i.category);
-    if (hasMissing) fetch('/api/backfill-reg-meta', { method: 'POST' });
   } catch (e) {
     document.getElementById('regLoading').style.display = 'none';
     document.getElementById('regEmpty').style.display   = 'block';
@@ -1464,7 +1461,6 @@ function renderRegistrations(items) {
     const id          = item.id;
     const country     = resolveCountry(item);
     const productUrl  = item.product_url || '';
-    const purchaseSrc = item.purchase_source || extractPurchaseSource(productUrl);
     const nameHtml = (item.name_50 || item.name_100)
       ? `<div style="margin-bottom:2px"><span style="font-size:0.65rem;color:#718096;background:#edf2f7;padding:1px 5px;border-radius:3px">50자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_50" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #cbd5e0;cursor:text;padding:0 2px">${escHtml(item.name_50||'')}</span></div>` +
         `<div><span style="font-size:0.65rem;color:#4a6cf7;background:#ebf4ff;padding:1px 5px;border-radius:3px">100자</span> <span contenteditable="true" data-id="${escHtml(id)}" data-field="name_100" onblur="saveRegNameEdit(this)" style="outline:none;border-bottom:1px dashed #bee3f8;cursor:text;padding:0 2px">${escHtml(item.name_100||'')}</span></div>`
@@ -1516,10 +1512,7 @@ function renderRegistrations(items) {
       <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}"${isExported ? ' data-exported="1"' : ''} onchange="onRegCheck()"></td>
       <td style="white-space:nowrap">${country}</td>
       <td id="reg-cat-${escHtml(id)}">${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
-      <td id="reg-src-${escHtml(id)}" style="min-width:110px">
-        ${purchaseSrc ? `<span class="badge badge-source" style="font-size:0.65rem;display:block;margin-bottom:2px">${escHtml(purchaseSrc)}</span>` : ''}
-        ${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '<span style="color:#a0aec0">-</span>'}
-      </td>
+      <td style="min-width:110px;font-size:0.72rem;word-break:break-all;color:#4a5568">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener">${escHtml(productUrl)}</a>` : '-'}</td>
       <td id="reg-imgs-${escHtml(id)}" style="min-width:160px;vertical-align:top">${renderRegImages(id, item)}</td>
       <td style="min-width:180px"><span contenteditable="true" data-id="${escHtml(id)}" data-field="product_title_url" onblur="saveRegNameEdit(this)" style="display:block;font-size:0.72rem;color:#4a5568;outline:none;border:1px dashed #e2e8f0;border-radius:4px;padding:3px 5px;min-height:22px;cursor:text" title="소싱처 원본 상품명 입력">${escHtml(item.product_title_url || '')}</span></td>
       <td style="min-width:200px">
