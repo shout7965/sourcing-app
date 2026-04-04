@@ -4191,7 +4191,8 @@ async function importOrderExcel(input) {
     const d = await r.json();
     loading.style.display = 'none';
     if (d.error) { showToast('오류: ' + d.error); empty.style.display = 'block'; return; }
-    showToast(`${d.imported}건 임포트 완료!`);
+    const skipMsg = d.skipped > 0 ? ` (중복 ${d.skipped}건 스킵)` : '';
+    showToast(`${d.imported}건 신규 임포트 완료!${skipMsg}`);
     loadOrders();
   } catch(e) {
     loading.style.display = 'none';

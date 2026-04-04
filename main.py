@@ -2397,31 +2397,46 @@ def ask_claude():
 # ── 주문관리 ─────────────────────────────────────────────────────────────────
 
 _SMARTSTORE_COL_MAP = {
-    'order_no':     ['상품주문번호', '주문번호'],
-    'parent_order': ['주문번호'],
-    'product_name': ['상품명'],
-    'order_date':   ['주문일시', '결제일', '주문일', '주문완료일'],
-    'order_status': ['주문상태'],
-    'buyer_name':   ['수취인명', '구매자명', '주문자명'],
-    'buyer_id':     ['구매자ID', '구매자아이디'],
-    'phone':        ['수취인전화번호1', '수취인연락처1', '수취인연락처', '수취인휴대폰번호', '주문자휴대폰번호', '주문자전화번호'],
-    'addr1':        ['배송지기본주소', '배송지 기본주소', '배송주소'],
-    'addr2':        ['배송지상세주소', '배송지 상세주소'],
-    'zip_code':     ['우편번호', '배송지우편번호'],
-    'customs_id':   ['개인통관고유부호', '통관고유부호', '통관부호'],
-    'delivery_msg': ['배송메시지', '배송요청사항'],
-    'sale_price':   ['결제금액', '판매가', '상품금액', '주문금액'],
-    'option_info':  ['옵션정보', '판매옵션정보', '옵션'],
-    'qty':          ['수량'],
-    'claim_status': ['클레임상태'],
+    'order_no':       ['상품주문번호'],
+    'parent_order':   ['주문번호'],
+    'order_date':     ['주문일시', '결제일', '주문일', '주문완료일'],
+    'order_status':   ['주문상태'],
+    'order_substatus':['주문세부상태'],
+    'claim_status':   ['클레임상태'],
+    'buyer_name':     ['수취인명', '구매자명', '주문자명'],
+    'buyer_id':       ['구매자ID', '구매자아이디'],
+    'phone':          ['수취인연락처1', '수취인전화번호1', '수취인연락처', '수취인휴대폰번호', '구매자연락처', '주문자휴대폰번호'],
+    'address':        ['통합배송지'],          # 주소 합본 컬럼 우선
+    'addr1':          ['기본배송지', '배송지기본주소', '배송지 기본주소'],
+    'addr2':          ['상세배송지', '배송지상세주소', '배송지 상세주소'],
+    'zip_code':       ['우편번호'],
+    'customs_id':     ['개인통관고유부호', '통관고유부호', '통관부호'],
+    'delivery_msg':   ['배송메세지', '배송메시지', '배송요청사항'],
+    'product_name':   ['상품명'],
+    'option_info':    ['옵션정보', '판매옵션정보', '옵션'],
+    'qty':            ['수량'],
+    'sale_price':     ['최종상품별총주문금액', '결제금액', '상품가격', '판매가', '주문금액'],
+    'net_revenue':    ['정산예정금액'],        # 이미 계산된 정산금액
+    'naver_fee':      ['네이버페이주문관리수수료'],
+    'sales_commission':['매출연동수수료'],
+    'tracking_no':    ['송장번호'],
+    'carrier':        ['택배사'],
 }
 
 
 def _find_col(headers: dict, *candidates) -> int | None:
+    """정확한 매칭 우선, 없으면 포함 매칭. 짧은 헤더명을 우선 선택."""
     for c in candidates:
+        # 1차: 정확한 매칭
         for h, idx in headers.items():
-            if c in h.replace(' ', '').replace('\n', ''):
+            if h.replace(' ', '').replace('\n', '') == c:
                 return idx
+    for c in candidates:
+        # 2차: 포함 매칭 (가장 짧은 헤더 우선 — 예: "수량" < "수량클레임여부")
+        matches = [(h, idx) for h, idx in headers.items()
+                   if c in h.replace(' ', '').replace('\n', '')]
+        if matches:
+            return min(matches, key=lambda x: len(x[0]))[1]
     return None
 
 
@@ -2464,14 +2479,18 @@ def import_orders():
         wb = openpyxl.load_workbook(file_bytes, data_only=True)
         ws = wb.active
 
-        # 헤더 행 찾기 (주문번호가 있는 행)
+        # 헤더 행 찾기: "상품주문번호"가 단독 셀로 있는 행 (안내문 텍스트 제외)
         header_row = None
         headers = {}
         for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
             row_vals = [str(v).replace(' ', '').replace('\n', '').strip() if v is not None else '' for v in row]
-            if any('주문번호' in v for v in row_vals):
-                header_row = row_idx
-                headers = {v: idx for idx, v in enumerate(row_vals) if v}
+            # 셀 값이 짧고 (< 30자) "상품주문번호"가 정확히 일치하는 셀이 있어야 함
+            for v in row_vals:
+                if v == '상품주문번호' or (len(v) < 30 and v == '주문번호'):
+                    header_row = row_idx
+                    headers = {v: idx for idx, v in enumerate(row_vals) if v}
+                    break
+            if header_row:
                 break
 
         if header_row is None:
@@ -2498,56 +2517,91 @@ def import_orders():
             if not order_no or order_no.lower() == 'none':
                 continue
 
-            addr = (gcell('addr1') + ' ' + gcell('addr2')).strip()
+            # 통합배송지 우선, 없으면 기본+상세 합치기
+            address = gcell('address') or (gcell('addr1') + ' ' + gcell('addr2')).strip()
 
-            try:
-                price_str = gcell('sale_price').replace(',', '').replace('원', '').strip()
-                sale_price = int(float(price_str)) if price_str else 0
-            except Exception:
-                sale_price = 0
+            def to_int(key):
+                try:
+                    s = gcell(key).replace(',', '').replace('원', '').replace('-', '').strip()
+                    return int(float(s)) if s else 0
+                except Exception:
+                    return 0
 
-            net_revenue = int(sale_price * (1 - fee_rate))
+            sale_price = to_int('sale_price')
+            # 정산예정금액이 있으면 그걸 사용, 없으면 수수료율로 계산
+            net_revenue_raw = gcell('net_revenue')
+            if net_revenue_raw and net_revenue_raw not in ('', 'None'):
+                try:
+                    net_revenue = int(float(net_revenue_raw.replace(',', '').replace('원', '')))
+                except Exception:
+                    net_revenue = int(sale_price * (1 - fee_rate))
+            else:
+                net_revenue = int(sale_price * (1 - fee_rate))
 
             product_name = gcell('product_name')
             option = gcell('option_info')
             if option:
                 product_name = f"{product_name} ({option})"
 
+            # 스마트스토어에서 이미 입력된 운송장/택배사 읽기
+            pre_tracking = gcell('tracking_no')
+            pre_carrier  = gcell('carrier')
+
             orders.append({
-                'order_no':        order_no,
-                'parent_order':    gcell('parent_order'),
-                'product_name':    product_name,
-                'order_date':      gcell('order_date'),
-                'order_status':    gcell('order_status'),
-                'claim_status':    gcell('claim_status'),
-                'buyer_name':      gcell('buyer_name'),
-                'buyer_id':        gcell('buyer_id'),
-                'phone':           gcell('phone'),
-                'address':         addr,
-                'zip_code':        gcell('zip_code'),
-                'customs_id':      gcell('customs_id'),
-                'delivery_msg':    gcell('delivery_msg'),
-                'qty':             int(gcell('qty') or 1),
-                'sale_price':      sale_price,
-                'fee_rate':        fee_rate,
-                'net_revenue':     net_revenue,
-                'eurolife_ordered': False,
-                'eurolife_price':   0,
-                'margin':          0,
-                'tracking_no':     '',
-                'carrier':         '',
-                'note':            '',
-                'user_id':         user_id,
-                'import_batch':    batch_id,
-                'created_at':      fb_fs.SERVER_TIMESTAMP,
+                'order_no':         order_no,
+                'parent_order':     gcell('parent_order'),
+                'product_name':     product_name,
+                'order_date':       gcell('order_date'),
+                'order_status':     gcell('order_status'),
+                'order_substatus':  gcell('order_substatus'),
+                'buyer_name':       gcell('buyer_name'),
+                'buyer_id':         gcell('buyer_id'),
+                'phone':            gcell('phone'),
+                'address':          address,
+                'zip_code':         gcell('zip_code'),
+                'customs_id':       gcell('customs_id'),
+                'delivery_msg':     gcell('delivery_msg'),
+                'qty':              int(gcell('qty') or 1),
+                'sale_price':       sale_price,
+                'naver_fee':        to_int('naver_fee'),
+                'sales_commission': to_int('sales_commission'),
+                'fee_rate':         fee_rate,
+                'net_revenue':      net_revenue,
+                'eurolife_ordered':  False,
+                'eurolife_price':    0,
+                'margin':           0,
+                'tracking_no':      pre_tracking,
+                'carrier':          pre_carrier,
+                'note':             '',
+                'user_id':          user_id,
+                'import_batch':     batch_id,
+                'created_at':       fb_fs.SERVER_TIMESTAMP,
             })
 
         if not orders:
             return jsonify({"error": "파싱된 주문이 없습니다. 스마트스토어 주문 Excel인지 확인하세요"}), 400
 
+        # 중복 체크: 기존에 저장된 상품주문번호 목록 조회
+        existing_order_nos = set()
         if FIREBASE_ENABLED:
+            try:
+                existing_docs = (db.collection('orders')
+                                 .where('user_id', '==', user_id)
+                                 .select(['order_no'])
+                                 .stream())
+                for doc in existing_docs:
+                    no = doc.to_dict().get('order_no', '')
+                    if no:
+                        existing_order_nos.add(no)
+            except Exception:
+                pass  # 중복 체크 실패해도 계속 진행
+
+        new_orders = [o for o in orders if o['order_no'] not in existing_order_nos]
+        skipped = len(orders) - len(new_orders)
+
+        if FIREBASE_ENABLED and new_orders:
             batch = db.batch()
-            for i, o in enumerate(orders):
+            for i, o in enumerate(new_orders):
                 doc_ref = db.collection('orders').document()
                 batch.set(doc_ref, o)
                 if (i + 1) % 490 == 0:
@@ -2555,7 +2609,7 @@ def import_orders():
                     batch = db.batch()
             batch.commit()
 
-        return jsonify({"imported": len(orders), "batch": batch_id})
+        return jsonify({"imported": len(new_orders), "skipped": skipped, "batch": batch_id})
 
     except Exception as e:
         return jsonify({"error": f"파싱 오류: {str(e)}"}), 500
