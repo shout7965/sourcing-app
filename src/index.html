@@ -1511,8 +1511,12 @@ function renderRegistrations(items) {
     <tr id="reg-${escHtml(id)}"${isExported ? ' style="background:#f0fff4"' : ''}>
       <td class="cb-cell"><input type="checkbox" class="reg-cb" data-id="${escHtml(id)}"${isExported ? ' data-exported="1"' : ''} onchange="onRegCheck()"></td>
       <td style="white-space:nowrap">${country}</td>
-      <td>${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '-'}</td>
-      <td style="min-width:110px">${productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '-'}</td>
+      <td id="reg-cat-${escHtml(id)}">${item.category ? `<span class="badge badge-category">${escHtml(item.category)}</span>` : '<span style="color:#a0aec0">-</span>'}</td>
+      <td id="reg-src-${escHtml(id)}" style="min-width:110px">${(() => {
+        const src = item.purchase_source || extractPurchaseSource(productUrl);
+        return (src ? `<span class="badge badge-source" style="font-size:0.65rem;display:block;margin-bottom:2px">${escHtml(src)}</span>` : '')
+          + (productUrl ? `<a href="${escHtml(productUrl)}" target="_blank" rel="noopener" class="btn-de" style="font-size:0.72rem">소싱처↗</a>` : '<span style="color:#a0aec0">-</span>');
+      })()}</td>
       <td id="reg-imgs-${escHtml(id)}" style="min-width:160px;vertical-align:top">${renderRegImages(id, item)}</td>
       <td style="min-width:180px"><span contenteditable="true" data-id="${escHtml(id)}" data-field="product_title_url" onblur="saveRegNameEdit(this)" style="display:block;font-size:0.72rem;color:#4a5568;outline:none;border:1px dashed #e2e8f0;border-radius:4px;padding:3px 5px;min-height:22px;cursor:text" title="소싱처 원본 상품명 입력">${escHtml(item.product_title_url || '')}</span></td>
       <td style="min-width:200px">
@@ -1586,6 +1590,45 @@ function renderRegistrations(items) {
       </td>
     </tr>`;
   }).join('');
+  autoFillRegMeta(items);
+}
+
+async function autoFillRegMeta(items) {
+  // 1) purchase_source 미설정 → URL에서 추출해 Firestore 저장 (표시는 이미 됨)
+  for (const item of items) {
+    if (!item.purchase_source && item.product_url) {
+      const src = extractPurchaseSource(item.product_url);
+      if (src) {
+        regItemsCache[item.id] = {...regItemsCache[item.id], purchase_source: src};
+        fetch(`/api/product-registrations/${encodeURIComponent(item.id)}`, {
+          method: 'PATCH', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ purchase_source: src }),
+        });
+      }
+    }
+  }
+
+  // 2) category 미설정 → parse-amazon-title 호출해 자동 분류 + 저장
+  const needCat = items.filter(i => !i.category && (i.product_title_url || i.product_name_en || i.product_name));
+  for (const item of needCat) {
+    try {
+      const title = item.product_title_url || item.product_name_en || item.product_name || '';
+      const resp = await fetch('/api/parse-amazon-title', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ title }),
+      });
+      const data = await resp.json();
+      if (data.category) {
+        regItemsCache[item.id] = {...regItemsCache[item.id], category: data.category};
+        const catCell = document.getElementById(`reg-cat-${item.id}`);
+        if (catCell) catCell.innerHTML = `<span class="badge badge-category">${escHtml(data.category)}</span>`;
+        fetch(`/api/product-registrations/${encodeURIComponent(item.id)}`, {
+          method: 'PATCH', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ category: data.category }),
+        });
+      }
+    } catch(e) { /* 실패 무시 */ }
+  }
 }
 
 function toggleRegDetail(id) {
