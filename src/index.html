@@ -515,6 +515,56 @@
       color: white; font-size: 2rem; cursor: pointer; line-height: 1;
     }
 
+    /* ── 주문관리 탭 ── */
+    #ordersTab.active { flex-direction: column; overflow-y: auto; }
+    .orders-toolbar {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+      padding: 14px 20px; background: white; border-bottom: 1px solid #e2e8f0;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .orders-toolbar h2 { font-size: 1.05rem; font-weight: 700; margin-right: 4px; }
+    .orders-fee-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #4a5568; margin-left: auto; }
+    .orders-fee-wrap input { width: 64px; padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.82rem; text-align: right; }
+    .orders-stats { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 20px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; }
+    .ostat { background: #edf2f7; border-radius: 16px; padding: 4px 12px; color: #4a5568; }
+    .ostat strong { color: #2d3748; }
+    .orders-table-wrap { overflow-x: auto; padding: 0; }
+    #ordersTable { width: 100%; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; }
+    #ordersTable th {
+      background: #2d3748; color: #e2e8f0; padding: 8px 10px;
+      font-weight: 600; text-align: left; position: sticky; top: 0; z-index: 5;
+    }
+    #ordersTable td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    #ordersTable tr:hover td { background: #f0f4ff; }
+    #ordersTable tr.eurolife-done td { background: #f0fff4; }
+    .order-check { width: 16px; height: 16px; cursor: pointer; accent-color: #48bb78; }
+    .order-price-input {
+      width: 90px; padding: 3px 6px; border: 1px solid #cbd5e0; border-radius: 4px;
+      font-size: 0.78rem; text-align: right;
+    }
+    .order-price-input:focus { outline: none; border-color: #4a6cf7; }
+    .tracking-input {
+      width: 130px; padding: 3px 6px; border: 1px solid #cbd5e0; border-radius: 4px;
+      font-size: 0.78rem;
+    }
+    .carrier-select {
+      padding: 3px 4px; border: 1px solid #cbd5e0; border-radius: 4px;
+      font-size: 0.75rem; background: white;
+    }
+    .margin-positive { color: #276749; font-weight: 700; }
+    .margin-negative { color: #c53030; font-weight: 700; }
+    .btn-track { padding: 3px 8px; border: none; border-radius: 4px; background: #4a6cf7; color: white; font-size: 0.72rem; cursor: pointer; }
+    .btn-track:disabled { background: #cbd5e0; cursor: default; }
+    .btn-order-del { padding: 3px 7px; border: none; border-radius: 4px; background: #fc8181; color: white; font-size: 0.72rem; cursor: pointer; }
+    .addr-cell { max-width: 180px; white-space: normal; word-break: break-all; line-height: 1.3; }
+    .msg-cell { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .import-zone {
+      border: 2px dashed #cbd5e0; border-radius: 10px; padding: 32px; text-align: center;
+      margin: 20px; cursor: pointer; transition: border-color .2s;
+    }
+    .import-zone:hover { border-color: #4a6cf7; }
+    .import-zone p { color: #718096; font-size: 0.88rem; margin-top: 8px; }
+
     /* ── AI 도우미 탭 ── */
     .ai-section { margin-bottom: 8px; }
     .ai-section-title { font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
@@ -617,6 +667,7 @@
     <button class="tab-btn" id="tab-candidates" onclick="switchTab('candidates')">소싱 후보</button>
     <button class="tab-btn" id="tab-register" onclick="switchTab('register')">상품등록대장</button>
     <button class="tab-btn" id="tab-ai" onclick="switchTab('ai')">✨ AI 도우미</button>
+    <button class="tab-btn" id="tab-orders" onclick="switchTab('orders')">주문관리</button>
     <button class="tab-btn" id="tab-dashboard" onclick="switchTab('dashboard')">대시보드</button>
   </nav>
 </header>
@@ -847,6 +898,74 @@
   </div>
 </div>
 
+<!-- ══ 주문관리 탭 ══ -->
+<div id="ordersTab" class="tab-content">
+  <!-- 툴바 -->
+  <div class="orders-toolbar">
+    <h2>주문관리</h2>
+    <button class="btn-sm" onclick="document.getElementById('orderFileInput').click()"
+      style="background:#4a6cf7;color:white;padding:6px 14px">📂 주문 Excel 불러오기</button>
+    <input type="file" id="orderFileInput" accept=".xlsx,.xls" style="display:none" onchange="importOrderExcel(this)" />
+    <button class="btn-sm" onclick="loadOrders()" style="background:#2d3748;color:white">새로고침</button>
+    <div class="orders-fee-wrap">
+      수수료율
+      <input type="number" id="orderFeeRate" value="3.63" step="0.01" min="0" max="30" />%
+      <span style="color:#a0aec0;font-size:0.75rem">(다음 임포트부터 적용)</span>
+    </div>
+  </div>
+
+  <!-- 요약 통계 -->
+  <div class="orders-stats" id="ordersStats" style="display:none">
+    <span class="ostat">전체 <strong id="osTotalCnt">0</strong>건</span>
+    <span class="ostat">판매합계 <strong id="osTotalSale">-</strong></span>
+    <span class="ostat">정산합계 <strong id="osTotalNet">-</strong></span>
+    <span class="ostat">유로라이프 주문 <strong id="osEuroCount">0</strong>건</span>
+    <span class="ostat">순마진합계 <strong id="osTotalMargin">-</strong></span>
+  </div>
+
+  <!-- 빈 상태 / 임포트 안내 -->
+  <div id="ordersEmpty" class="import-zone" onclick="document.getElementById('orderFileInput').click()">
+    <div style="font-size:2rem">📦</div>
+    <p>스마트스토어에서 다운받은 주문 Excel을 클릭하거나<br>드래그해서 업로드하세요.</p>
+    <p style="margin-top:6px;font-size:0.78rem;color:#a0aec0">주문관리 &gt; 발주/발송관리 &gt; 발주확인 &gt; 엑셀 다운로드</p>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="ordersLoading" style="display:none;text-align:center;padding:40px">
+    <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px"></div>
+    <p style="color:#718096">불러오는 중...</p>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="orders-table-wrap" id="ordersTableWrap" style="display:none">
+    <table id="ordersTable">
+      <thead>
+        <tr>
+          <th style="width:36px">#</th>
+          <th>주문일시</th>
+          <th style="min-width:110px">주문번호</th>
+          <th style="min-width:200px">상품명</th>
+          <th>주문자</th>
+          <th>연락처</th>
+          <th style="min-width:160px">주소</th>
+          <th>통관부호</th>
+          <th style="min-width:100px">배송메세지</th>
+          <th style="text-align:right">판매가</th>
+          <th style="text-align:right">정산가</th>
+          <th style="text-align:center">유로라이프<br>주문</th>
+          <th style="text-align:right">유로라이프<br>주문가</th>
+          <th style="text-align:right">순마진</th>
+          <th>택배사</th>
+          <th style="min-width:130px">운송장번호</th>
+          <th>조회</th>
+          <th>삭제</th>
+        </tr>
+      </thead>
+      <tbody id="ordersBody"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- ══ 대시보드 탭 ══ -->
 <div id="dashboardTab" class="tab-content" style="flex-direction:column;overflow-y:auto">
   <div class="container" style="max-width:700px;padding:24px 16px">
@@ -1064,12 +1183,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab', ai: 'aiTab', dashboard: 'dashboardTab'};
+  const tabMap = {projects: 'projectsTab', candidates: 'candidatesTab', register: 'registerTab', ai: 'aiTab', orders: 'ordersTab', dashboard: 'dashboardTab'};
   document.getElementById(tabMap[tab] || 'projectsTab').classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'candidates') loadCandidates();
   if (tab === 'register')   loadRegistrations();
   if (tab === 'dashboard')  loadDashboard();
+  if (tab === 'orders')     loadOrders();
 }
 
 // ── AI 도우미 ──────────────────────────────────────────────────────────────
@@ -3749,6 +3869,306 @@ async function cpSend() {
     input.focus();
   }
 }
+
+// ── 주문관리 ──────────────────────────────────────────────────────────────
+
+const CARRIER_OPTIONS = [
+  {code: '',       label: '선택'},
+  {code: 'EPOST',  label: '우체국택배'},
+  {code: 'CJ',     label: 'CJ대한통운'},
+  {code: 'HANJIN', label: '한진택배'},
+  {code: 'LOTTE',  label: '롯데택배'},
+  {code: 'LOGEN',  label: '로젠택배'},
+  {code: 'KDEXP',  label: '경동택배'},
+  {code: 'CVSNET', label: 'GS편의점택배'},
+  {code: 'CUPOST', label: 'CU편의점택배'},
+];
+
+const CARRIER_URLS = {
+  'EPOST':  'https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=',
+  'CJ':     'https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo=',
+  'HANJIN': 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2=',
+  'LOTTE':  'https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo=',
+  'LOGEN':  'https://www.ilogen.com/web/personal/trace/',
+  'KDEXP':  'https://kdexp.com/newDeliveryInfo.kd?barcode=',
+  'CVSNET': 'https://www.cvsnet.co.kr/parcel/trace.do?dispatchType=1&transNo=',
+  'CUPOST': 'https://www.cupost.co.kr/postbox/delivery/localResult.cupost?invoice_no=',
+};
+
+function getTrackingUrl(carrier, trackingNo) {
+  if (!trackingNo) return '';
+  const baseUrl = CARRIER_URLS[carrier] || 'https://www.doortodoor.co.kr/parcel/doortodoor.do?fsp_action=PARC_ACT006&fsp_cmd=retrieveRouteInfo&invc_no=';
+  return baseUrl + encodeURIComponent(trackingNo);
+}
+
+let _ordersData = [];
+
+async function loadOrders() {
+  const empty = document.getElementById('ordersEmpty');
+  const loading = document.getElementById('ordersLoading');
+  const wrap = document.getElementById('ordersTableWrap');
+  const stats = document.getElementById('ordersStats');
+
+  empty.style.display = 'none';
+  loading.style.display = 'block';
+  wrap.style.display = 'none';
+  stats.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/orders');
+    const d = await r.json();
+    loading.style.display = 'none';
+
+    if (!d.orders || d.orders.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    _ordersData = d.orders;
+    renderOrders(_ordersData);
+  } catch(e) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    showToast('주문 목록 로드 실패: ' + e.message);
+  }
+}
+
+function renderOrders(orders) {
+  const wrap = document.getElementById('ordersTableWrap');
+  const stats = document.getElementById('ordersStats');
+  const tbody = document.getElementById('ordersBody');
+
+  let totalSale = 0, totalNet = 0, totalMargin = 0, euroCount = 0;
+  const rows = [];
+
+  orders.forEach((o, idx) => {
+    totalSale += o.sale_price || 0;
+    totalNet  += o.net_revenue || 0;
+    if (o.eurolife_ordered) {
+      euroCount++;
+      totalMargin += o.margin || 0;
+    }
+
+    const carrierId = `carrier-${o.id}`;
+    const trackId   = `track-${o.id}`;
+    const euroId    = `euro-${o.id}`;
+    const priceId   = `price-${o.id}`;
+    const trackBtn  = `trackbtn-${o.id}`;
+    const marginId  = `margin-${o.id}`;
+
+    const carrierOpts = CARRIER_OPTIONS.map(c =>
+      `<option value="${c.code}" ${o.carrier === c.code ? 'selected' : ''}>${c.label}</option>`
+    ).join('');
+
+    const marginVal = o.margin || 0;
+    const marginClass = marginVal >= 0 ? 'margin-positive' : 'margin-negative';
+    const isDone = o.eurolife_ordered;
+
+    rows.push(`<tr id="row-${o.id}" class="${isDone ? 'eurolife-done' : ''}">
+      <td style="color:#a0aec0">${idx + 1}</td>
+      <td style="font-size:0.73rem;color:#718096">${(o.order_date || '').substring(0,10)}</td>
+      <td style="font-size:0.73rem">${o.order_no || ''}</td>
+      <td style="min-width:200px;white-space:normal;line-height:1.35;word-break:break-all">${escHtml(o.product_name || '')}</td>
+      <td>${escHtml(o.buyer_name || '')}</td>
+      <td style="font-size:0.73rem">${o.phone || ''}</td>
+      <td class="addr-cell">${escHtml(o.address || '')}</td>
+      <td style="font-size:0.73rem;color:#4a6cf7">${o.customs_id || ''}</td>
+      <td class="msg-cell" title="${escHtml(o.delivery_msg || '')}">${escHtml(o.delivery_msg || '')}</td>
+      <td style="text-align:right;font-weight:600">${fmt(o.sale_price)}</td>
+      <td style="text-align:right;color:#276749">${fmt(o.net_revenue)}</td>
+      <td style="text-align:center">
+        <input type="checkbox" class="order-check" id="${euroId}"
+          ${o.eurolife_ordered ? 'checked' : ''}
+          onchange="toggleEurolife('${o.id}', this.checked)" />
+      </td>
+      <td style="text-align:right">
+        <input type="number" class="order-price-input" id="${priceId}"
+          value="${o.eurolife_price || 0}" min="0" step="100"
+          onchange="saveEuroPrice('${o.id}', this.value, '${marginId}')"
+          onblur="saveEuroPrice('${o.id}', this.value, '${marginId}')" />
+      </td>
+      <td style="text-align:right" id="${marginId}">
+        <span class="${o.eurolife_price > 0 ? marginClass : ''}">${o.eurolife_price > 0 ? fmt(marginVal) : '-'}</span>
+      </td>
+      <td>
+        <select class="carrier-select" id="${carrierId}"
+          onchange="saveCarrier('${o.id}', this.value, '${trackBtn}', '${trackId}')">
+          ${carrierOpts}
+        </select>
+      </td>
+      <td>
+        <input type="text" class="tracking-input" id="${trackId}"
+          value="${escHtml(o.tracking_no || '')}"
+          placeholder="운송장번호"
+          onblur="saveTracking('${o.id}', this.value, '${trackBtn}', '${carrierId}')" />
+      </td>
+      <td>
+        <button class="btn-track" id="${trackBtn}"
+          onclick="openTracking('${carrierId}', '${trackId}')"
+          ${o.tracking_no ? '' : 'disabled'}>조회</button>
+      </td>
+      <td>
+        <button class="btn-order-del" onclick="deleteOrder('${o.id}')">삭제</button>
+      </td>
+    </tr>`);
+  });
+
+  tbody.innerHTML = rows.join('');
+
+  // 통계 업데이트
+  document.getElementById('osTotalCnt').textContent = orders.length;
+  document.getElementById('osTotalSale').textContent = fmt(totalSale);
+  document.getElementById('osTotalNet').textContent = fmt(totalNet);
+  document.getElementById('osEuroCount').textContent = euroCount;
+  document.getElementById('osTotalMargin').textContent = fmt(totalMargin);
+
+  stats.style.display = 'flex';
+  wrap.style.display = 'block';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(n) {
+  if (n == null || n === '') return '-';
+  return Number(n).toLocaleString('ko-KR') + '원';
+}
+
+async function toggleEurolife(id, checked) {
+  const row = document.getElementById(`row-${id}`);
+  if (row) row.className = checked ? 'eurolife-done' : '';
+  try {
+    await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({eurolife_ordered: checked}),
+    });
+  } catch(e) { showToast('저장 실패: ' + e.message); }
+}
+
+async function saveEuroPrice(id, val, marginElId) {
+  const price = parseInt(val) || 0;
+  const o = _ordersData.find(x => x.id === id);
+  if (!o) return;
+  const margin = (o.net_revenue || 0) - price;
+  o.eurolife_price = price;
+  o.margin = margin;
+  const el = document.getElementById(marginElId);
+  if (el) {
+    el.innerHTML = `<span class="${margin >= 0 ? 'margin-positive' : 'margin-negative'}">${fmt(margin)}</span>`;
+  }
+  try {
+    await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({eurolife_price: price}),
+    });
+  } catch(e) { showToast('저장 실패: ' + e.message); }
+}
+
+async function saveCarrier(id, carrier, trackBtnId, trackInputId) {
+  const o = _ordersData.find(x => x.id === id);
+  if (o) o.carrier = carrier;
+  const trackInput = document.getElementById(trackInputId);
+  const trackBtn = document.getElementById(trackBtnId);
+  if (trackBtn && trackInput) {
+    trackBtn.disabled = !trackInput.value.trim();
+  }
+  try {
+    await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({carrier}),
+    });
+  } catch(e) { showToast('저장 실패: ' + e.message); }
+}
+
+async function saveTracking(id, val, trackBtnId, carrierSelId) {
+  const no = val.trim();
+  const o = _ordersData.find(x => x.id === id);
+  if (o) o.tracking_no = no;
+  const btn = document.getElementById(trackBtnId);
+  if (btn) btn.disabled = !no;
+  try {
+    await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tracking_no: no}),
+    });
+  } catch(e) { showToast('저장 실패: ' + e.message); }
+}
+
+function openTracking(carrierSelId, trackInputId) {
+  const carrier = document.getElementById(carrierSelId)?.value || '';
+  const no = document.getElementById(trackInputId)?.value.trim() || '';
+  if (!no) return;
+  const url = getTrackingUrl(carrier, no);
+  window.open(url, '_blank');
+}
+
+async function deleteOrder(id) {
+  if (!confirm('이 주문을 삭제하시겠습니까?')) return;
+  try {
+    const r = await fetch(`/api/orders/${id}`, {method: 'DELETE'});
+    const d = await r.json();
+    if (d.ok) {
+      _ordersData = _ordersData.filter(x => x.id !== id);
+      if (_ordersData.length === 0) {
+        document.getElementById('ordersTableWrap').style.display = 'none';
+        document.getElementById('ordersStats').style.display = 'none';
+        document.getElementById('ordersEmpty').style.display = 'block';
+      } else {
+        renderOrders(_ordersData);
+      }
+      showToast('삭제 완료');
+    }
+  } catch(e) { showToast('삭제 실패: ' + e.message); }
+}
+
+async function importOrderExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const feeRate = parseFloat(document.getElementById('orderFeeRate').value) || 3.63;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('fee_rate', feeRate);
+
+  const loading = document.getElementById('ordersLoading');
+  const empty   = document.getElementById('ordersEmpty');
+  empty.style.display = 'none';
+  loading.style.display = 'block';
+
+  try {
+    const r = await fetch('/api/orders/import', {method: 'POST', body: formData});
+    const d = await r.json();
+    loading.style.display = 'none';
+    if (d.error) { showToast('오류: ' + d.error); empty.style.display = 'block'; return; }
+    showToast(`${d.imported}건 임포트 완료!`);
+    loadOrders();
+  } catch(e) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    showToast('임포트 실패: ' + e.message);
+  }
+}
+
+// 드래그앤드롭 지원
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('ordersEmpty');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#4a6cf7'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = '#cbd5e0'; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor = '#cbd5e0';
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const fakeInput = {files: [file], value: ''};
+    importOrderExcel(fakeInput);
+  });
+});
 </script>
 </body>
 </html>

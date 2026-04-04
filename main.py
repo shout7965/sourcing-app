@@ -2394,6 +2394,229 @@ def ask_claude():
         return jsonify({"error": str(e)}), 500
 
 
+# ── 주문관리 ─────────────────────────────────────────────────────────────────
+
+_SMARTSTORE_COL_MAP = {
+    'order_no':     ['주문번호'],
+    'product_name': ['상품명'],
+    'order_date':   ['결제일', '주문일', '주문완료일'],
+    'buyer_name':   ['수취인명', '주문자명'],
+    'phone':        ['수취인전화번호1', '수취인연락처1', '수취인연락처', '주문자휴대폰번호', '주문자전화번호'],
+    'addr1':        ['배송지기본주소', '배송지 기본주소', '배송주소'],
+    'addr2':        ['배송지상세주소', '배송지 상세주소'],
+    'customs_id':   ['개인통관고유부호', '통관고유부호', '통관부호'],
+    'delivery_msg': ['배송메시지', '배송요청사항'],
+    'sale_price':   ['결제금액', '판매가', '상품금액', '주문금액'],
+    'option_info':  ['옵션정보', '옵션'],
+    'qty':          ['수량'],
+}
+
+
+def _find_col(headers: dict, *candidates) -> int | None:
+    for c in candidates:
+        for h, idx in headers.items():
+            if c in h.replace(' ', '').replace('\n', ''):
+                return idx
+    return None
+
+
+@app.route("/api/orders/import", methods=["POST"])
+def import_orders():
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"error": "파일을 선택해주세요"}), 400
+
+    try:
+        fee_rate = float(request.form.get('fee_rate', 3.63)) / 100
+    except Exception:
+        fee_rate = 0.0363
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file.read()), data_only=True)
+        ws = wb.active
+
+        # 헤더 행 찾기 (주문번호가 있는 행)
+        header_row = None
+        headers = {}
+        for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+            row_vals = [str(v).replace(' ', '').replace('\n', '').strip() if v is not None else '' for v in row]
+            if any('주문번호' in v for v in row_vals):
+                header_row = row_idx
+                headers = {v: idx for idx, v in enumerate(row_vals) if v}
+                break
+
+        if header_row is None:
+            return jsonify({"error": "스마트스토어 주문 Excel 형식이 아닙니다 (주문번호 열 없음)"}), 400
+
+        cols = {k: _find_col(headers, *v) for k, v in _SMARTSTORE_COL_MAP.items()}
+
+        user_id = session['user']
+        batch_id = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        orders = []
+
+        for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+            if not row or all(v is None for v in row):
+                continue
+
+            def gcell(col_key):
+                idx = cols.get(col_key)
+                if idx is None or idx >= len(row):
+                    return ''
+                v = row[idx]
+                return str(v).strip() if v is not None else ''
+
+            order_no = gcell('order_no')
+            if not order_no or order_no.lower() == 'none':
+                continue
+
+            addr = (gcell('addr1') + ' ' + gcell('addr2')).strip()
+
+            try:
+                price_str = gcell('sale_price').replace(',', '').replace('원', '').strip()
+                sale_price = int(float(price_str)) if price_str else 0
+            except Exception:
+                sale_price = 0
+
+            net_revenue = int(sale_price * (1 - fee_rate))
+
+            product_name = gcell('product_name')
+            option = gcell('option_info')
+            if option:
+                product_name = f"{product_name} ({option})"
+
+            orders.append({
+                'order_no':        order_no,
+                'product_name':    product_name,
+                'order_date':      gcell('order_date'),
+                'buyer_name':      gcell('buyer_name'),
+                'phone':           gcell('phone'),
+                'address':         addr,
+                'customs_id':      gcell('customs_id'),
+                'delivery_msg':    gcell('delivery_msg'),
+                'sale_price':      sale_price,
+                'fee_rate':        fee_rate,
+                'net_revenue':     net_revenue,
+                'eurolife_ordered': False,
+                'eurolife_price':   0,
+                'margin':          0 - net_revenue * 0,  # 초기 0
+                'tracking_no':     '',
+                'carrier':         '',
+                'note':            '',
+                'user_id':         user_id,
+                'import_batch':    batch_id,
+                'created_at':      fb_fs.SERVER_TIMESTAMP,
+            })
+
+        if not orders:
+            return jsonify({"error": "파싱된 주문이 없습니다. 스마트스토어 주문 Excel인지 확인하세요"}), 400
+
+        if FIREBASE_ENABLED:
+            batch = db.batch()
+            for i, o in enumerate(orders):
+                doc_ref = db.collection('orders').document()
+                batch.set(doc_ref, o)
+                if (i + 1) % 490 == 0:
+                    batch.commit()
+                    batch = db.batch()
+            batch.commit()
+
+        return jsonify({"imported": len(orders), "batch": batch_id})
+
+    except Exception as e:
+        return jsonify({"error": f"파싱 오류: {str(e)}"}), 500
+
+
+@app.route("/api/orders", methods=["GET"])
+def get_orders():
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+
+    if not FIREBASE_ENABLED:
+        return jsonify({"orders": []})
+
+    try:
+        docs = (db.collection('orders')
+                .where('user_id', '==', session['user'])
+                .order_by('created_at', direction=fb_fs.Query.DESCENDING)
+                .limit(500)
+                .stream())
+
+        result = []
+        for doc in docs:
+            d = doc.to_dict()
+            d['id'] = doc.id
+            if hasattr(d.get('created_at'), 'isoformat'):
+                d['created_at'] = d['created_at'].isoformat()
+            result.append(d)
+
+        return jsonify({"orders": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/orders/<order_id>", methods=["PATCH"])
+def update_order(order_id):
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+
+    data = request.get_json()
+    if not FIREBASE_ENABLED:
+        return jsonify({"ok": True})
+
+    try:
+        doc_ref = db.collection('orders').document(order_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "주문 없음"}), 404
+        d = doc.to_dict()
+        if d.get('user_id') != session['user']:
+            return jsonify({"error": "권한 없음"}), 403
+
+        upd = {}
+        if 'eurolife_ordered' in data:
+            upd['eurolife_ordered'] = bool(data['eurolife_ordered'])
+        if 'eurolife_price' in data:
+            ep = int(data.get('eurolife_price') or 0)
+            upd['eurolife_price'] = ep
+            upd['margin'] = d.get('net_revenue', 0) - ep
+        if 'tracking_no' in data:
+            upd['tracking_no'] = str(data['tracking_no']).strip()
+        if 'carrier' in data:
+            upd['carrier'] = str(data['carrier']).strip()
+        if 'note' in data:
+            upd['note'] = str(data['note']).strip()
+
+        if upd:
+            doc_ref.update(upd)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/orders/<order_id>", methods=["DELETE"])
+def delete_order(order_id):
+    if not session.get('user'):
+        return jsonify({"error": "로그인 필요"}), 401
+
+    if not FIREBASE_ENABLED:
+        return jsonify({"ok": True})
+
+    try:
+        doc_ref = db.collection('orders').document(order_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "주문 없음"}), 404
+        if doc.to_dict().get('user_id') != session['user']:
+            return jsonify({"error": "권한 없음"}), 403
+        doc_ref.delete()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 def main():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 80)))
 
