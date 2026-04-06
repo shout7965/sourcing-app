@@ -2703,6 +2703,176 @@ def delete_order(order_id):
         return jsonify({"error": str(e)}), 500
 
 
+# ── 소싱 프레임워크 Analytics ────────────────────────────────────────────────
+
+FRAMEWORK_ROUTES = {
+    '1': '전문가 레퍼런스',
+    '2': '증상/문제 해결',
+    '3': '극한 취미 커뮤니티',
+    '4': '홈카페/홈쿡 업그레이드',
+    '5': 'SKU 확장',
+    '6': '직구 카페 급상승',
+    '7': '국내 PB 역추적',
+    '8': '인플루언서 여행픽',
+    '9': '가격 차익 역산',
+    '10': 'SNS 바이럴 캐치',
+}
+
+_FC_UPDATE_FIELDS = {
+    'brand', 'product_name', 'route', 'discovery_notes',
+    'step2_passed', 'step2_notes', 'step2_evidence', 'step2_block_reason',
+    'step3_keywords', 'step3_amazon_de_keyword',
+    'step4_b2b_only', 'step4_notes', 'step4_evidence',
+    'status', 'rejection_reason', 'feedback',
+}
+
+
+def _serialize_fc(doc):
+    d = doc.to_dict()
+    d['id'] = doc.id
+    for f in ('created_at', 'updated_at', 'step3_checked_at'):
+        if f in d and hasattr(d[f], 'isoformat'):
+            d[f] = d[f].isoformat()
+    if isinstance(d.get('feedback'), dict):
+        rec = d['feedback'].get('recorded_at')
+        if rec and hasattr(rec, 'isoformat'):
+            d['feedback']['recorded_at'] = rec.isoformat()
+    return d
+
+
+@app.route("/api/framework-candidates", methods=["GET"])
+def get_framework_candidates():
+    if not FIREBASE_ENABLED:
+        return jsonify({"items": [], "firebase": False})
+    user = session.get('user')
+    try:
+        q = db.collection('framework_candidates')
+        if user:
+            q = q.where('user_id', '==', user)
+        items = [_serialize_fc(d) for d in q.limit(500).stream()]
+        items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+        return jsonify({"items": items})
+    except Exception as e:
+        return jsonify({"items": [], "error": str(e)})
+
+
+@app.route("/api/framework-candidates", methods=["POST"])
+def create_framework_candidate():
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    data = request.get_json() or {}
+    data['user_id'] = session.get('user', 'anonymous')
+    data.setdefault('status', 'discovered')
+    data['created_at'] = fb_fs.SERVER_TIMESTAMP
+    data['updated_at'] = fb_fs.SERVER_TIMESTAMP
+    ref = db.collection('framework_candidates').document()
+    ref.set(data)
+    return jsonify({"id": ref.id, "success": True})
+
+
+@app.route("/api/framework-candidates/<doc_id>", methods=["PATCH"])
+def update_framework_candidate(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    data = request.get_json() or {}
+    update = {k: v for k, v in data.items() if k in _FC_UPDATE_FIELDS}
+    update['updated_at'] = fb_fs.SERVER_TIMESTAMP
+    try:
+        db.collection('framework_candidates').document(doc_id).update(update)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/framework-candidates/<doc_id>", methods=["DELETE"])
+def delete_framework_candidate(doc_id):
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    try:
+        db.collection('framework_candidates').document(doc_id).delete()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/framework-candidates/<doc_id>/naver-check", methods=["POST"])
+def framework_naver_check(doc_id):
+    """블로그/카페 총건수 + 최근 90일 건수 체크 (필터 아닌 수치 기록용)"""
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Firebase 미설정"}), 503
+    data = request.get_json() or {}
+    keywords = [k.strip() for k in data.get('keywords', []) if k.strip()]
+    amazon_de_kw = data.get('amazon_de_keyword', '').strip()
+    if not keywords and not amazon_de_kw:
+        return jsonify({"error": "키워드 없음"}), 400
+
+    naver_id = os.environ.get("NAVER_CLIENT_ID", "")
+    naver_secret = os.environ.get("NAVER_CLIENT_SECRET", "")
+    hdrs = {"X-Naver-Client-Id": naver_id, "X-Naver-Client-Secret": naver_secret}
+    cutoff = date.today() - timedelta(days=90)
+
+    results = []
+    for kw in keywords[:3]:
+        blog_items, blog_total = naver_search("blog", kw, 100, 1, hdrs)
+        cafe_items, cafe_total = naver_search("cafearticle", kw, 100, 1, hdrs)
+        increment_usage(2)
+        results.append({
+            'keyword': kw,
+            'blog_total': blog_total,
+            'blog_3m': sum(1 for it in blog_items if (d := parse_item_date(it)) and d >= cutoff),
+            'cafe_total': cafe_total,
+            'cafe_3m': sum(1 for it in cafe_items if (d := parse_item_date(it)) and d >= cutoff),
+        })
+
+    amazon_result = None
+    if amazon_de_kw:
+        q = f"아마존 독일 {amazon_de_kw}"
+        b_items, b_total = naver_search("blog", q, 100, 1, hdrs)
+        c_items, c_total = naver_search("cafearticle", q, 100, 1, hdrs)
+        increment_usage(2)
+        amazon_result = {
+            'keyword': q,
+            'blog_total': b_total,
+            'blog_3m': sum(1 for it in b_items if (d := parse_item_date(it)) and d >= cutoff),
+            'cafe_total': c_total,
+            'cafe_3m': sum(1 for it in c_items if (d := parse_item_date(it)) and d >= cutoff),
+        }
+
+    db.collection('framework_candidates').document(doc_id).update({
+        'step3_results': results,
+        'step3_amazon_result': amazon_result,
+        'step3_checked_at': fb_fs.SERVER_TIMESTAMP,
+        'updated_at': fb_fs.SERVER_TIMESTAMP,
+    })
+    return jsonify({"results": results, "amazon_result": amazon_result, "success": True})
+
+
+@app.route("/api/framework-stats", methods=["GET"])
+def get_framework_stats():
+    if not FIREBASE_ENABLED:
+        return jsonify({"stats": {}})
+    user = session.get('user')
+    try:
+        q = db.collection('framework_candidates')
+        if user:
+            q = q.where('user_id', '==', user)
+        stats: dict = {}
+        total = 0
+        for doc in q.stream():
+            total += 1
+            d = doc.to_dict()
+            route = str(d.get('route', '?'))
+            if route not in stats:
+                stats[route] = {'total': 0, 'passed': 0, 'testing': 0, 'success': 0, 'failed': 0}
+            stats[route]['total'] += 1
+            s = d.get('status', '')
+            if s in stats[route]:
+                stats[route][s] += 1
+        return jsonify({"stats": stats, "total": total, "routes": FRAMEWORK_ROUTES})
+    except Exception as e:
+        return jsonify({"stats": {}, "error": str(e)})
+
+
 def main():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 80)))
 
