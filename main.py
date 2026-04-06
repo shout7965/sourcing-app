@@ -698,11 +698,12 @@ class ThemeSuggestResult(BaseModel):
     themes: List[ThemeSuggestion]
 
 class DiscoveredBrand(BaseModel):
-    brand: str
-    product_name: str
+    brand: str            # 실제 브랜드명 (예: Gehwol, Alpecin). 카테고리명/브랜드군 금지
+    product_name: str     # 구체적 제품명+모델/용량 (예: Fusskraft Blau 125ml). "등" 금지
     why: str              # 이 루트에서 왜 유망한가
-    naver_keyword: str    # 수요 체크용 네이버 검색어
-    country: str          # 원산지 국가 (예: 독일, 프랑스, 이탈리아, 스위스, 덴마크 등. 유럽 외면 "유럽외-미국" 형태)
+    naver_keyword: str    # 수요 체크용 네이버 검색어 (한국어, 짧게)
+    amazon_keyword: str   # Amazon 검색용 영문 키워드 (브랜드+제품명 영문, 간결하게)
+    country: str          # 원산지 국가 (한국어. 예: 독일, 프랑스)
     proxy_risk: str       # "없음" | "의약외품" | "의약품" | "의료기기" | "건강기능식품" | "KC미인증" | "확인필요"
 
 class DiscoverResult(BaseModel):
@@ -2811,7 +2812,7 @@ _ROUTE_META = {
 }
 
 _FC_UPDATE_FIELDS = {
-    'brand', 'product_name', 'route', 'country', 'proxy_risk', 'why',
+    'brand', 'product_name', 'route', 'country', 'proxy_risk', 'why', 'amazon_keyword',
     'discovery_notes', 'memo',
     'step2_passed', 'step2_notes', 'step2_evidence', 'step2_block_reasons',
     'step2_official_clear', 'step2_proxy_ok',
@@ -2926,13 +2927,17 @@ def framework_discover():
 
 조건:
 - 실제로 포스트에 언급되었거나, 이 루트/테마에서 확실히 수요가 있는 것
-- 유럽(독일/프랑스/영국/이탈리아/스웨덴/스위스/덴마크/포르투갈 등) 원산지 브랜드 우선. 미국/호주/일본 등 비유럽 브랜드는 꼭 필요한 경우만 포함
+- 유럽(독일/프랑스/영국/이탈리아/스웨덴/스위스/덴마크/포르투갈 등) 원산지 브랜드 우선
 - 국내 공식 유통이 없거나 직구가 유리한 것
-- brand: 브랜드명(영문/원어), product_name: 구체적 제품명/모델
-- country: 브랜드 원산지 국가명 (한국어. 예: 독일, 프랑스, 이탈리아, 스위스, 덴마크. 유럽 외면 "미국", "호주" 등 명시)
-- why: 이 루트에서 왜 유망한지 한 줄
-- naver_keyword: 수요 확인용 네이버 검색어 (짧게, 실제 검색어로)
-- proxy_risk: 구매대행 리스크 ("없음" | "의약외품" | "의약품" | "의료기기" | "건강기능식품" | "KC미인증" | "확인필요")
+
+필드 작성 규칙 (엄수):
+- brand: 실제 브랜드명만 (예: Gehwol, Balea, Alpecin). "Eigenmarken", "등", 괄호 포함 금지
+- product_name: 구체적 제품명+모델/용량 (예: Fusskraft Blau 125ml, Caffeine Shampoo C1 250ml). "등", "종합", "시리즈" 금지. 특정 1개 SKU만
+- amazon_keyword: Amazon 검색에 쓸 간결한 영문 키워드 (예: "Gehwol Fusskraft Blue", "Alpecin Caffeine Shampoo C1"). 설명문 금지
+- naver_keyword: 한국인이 실제로 네이버에서 검색하는 짧은 키워드
+- country: 브랜드 원산지 국가 한국어 (예: 독일, 프랑스. 유럽 외면 미국/호주 등 명시)
+- why: 왜 구매대행 소싱 후보로 유망한지 한 줄
+- proxy_risk: "없음" | "의약외품" | "의약품" | "의료기기" | "건강기능식품" | "KC미인증" | "확인필요"
 
 JSON으로만 응답."""
 

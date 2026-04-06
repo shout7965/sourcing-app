@@ -4638,6 +4638,7 @@ async function saveFcCandidate(idx) {
     route: data.route,
     country: c.country || '',
     proxy_risk: c.proxy_risk || '확인필요',
+    amazon_keyword: c.amazon_keyword || '',
     discovery_notes: `[${data.theme}] ${c.why}`,
     why: c.why,
     status: 'discovered',
@@ -4797,13 +4798,10 @@ function openFcEditModal(id) {
 
   // 아마존 버튼 (국가별)
   const amazonEl = document.getElementById('fcDashAmazonBtn');
-  const domain = AMAZON_DOMAINS[item.country] || null;
-  const searchKw = encodeURIComponent(`${item.brand} ${item.product_name}`);
-  if (domain) {
-    amazonEl.innerHTML = `<a class="fc-amazon-btn" href="https://www.${domain}/s?k=${searchKw}" target="_blank">🛒 ${item.country} Amazon에서 검색</a>`;
-  } else {
-    amazonEl.innerHTML = `<a class="fc-amazon-btn" href="https://www.amazon.de/s?k=${searchKw}" target="_blank" style="background:#718096">🛒 Amazon에서 검색</a>`;
-  }
+  const domain = AMAZON_DOMAINS[item.country] || 'amazon.de';
+  const searchKw = encodeURIComponent(item.amazon_keyword || item.brand || '');
+  const countryLabel = item.country || '';
+  amazonEl.innerHTML = `<a class="fc-amazon-btn" href="https://www.${domain}/s?k=${searchKw}" target="_blank">🛒 ${countryLabel ? countryLabel + ' ' : ''}Amazon에서 검색</a>`;
 
   // 유통구조
   const distNotes = item.why || item.step4_notes || '';
