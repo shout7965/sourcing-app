@@ -9,7 +9,7 @@ import openpyxl
 import xlrd
 import firebase_admin
 from firebase_admin import credentials, firestore as fb_fs, storage as fb_storage
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Flask, send_file, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from pydantic import BaseModel
