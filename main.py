@@ -2811,9 +2811,11 @@ _ROUTE_META = {
 }
 
 _FC_UPDATE_FIELDS = {
-    'brand', 'product_name', 'route', 'discovery_notes',
-    'step2_passed', 'step2_notes', 'step2_evidence', 'step2_block_reason',
-    'step3_keywords', 'step3_amazon_de_keyword',
+    'brand', 'product_name', 'route', 'country', 'proxy_risk', 'why',
+    'discovery_notes', 'memo',
+    'step2_passed', 'step2_notes', 'step2_evidence', 'step2_block_reasons',
+    'step2_official_clear', 'step2_proxy_ok',
+    'step3_keywords', 'step3_amazon_de_keyword', 'step3_results',
     'step4_b2b_only', 'step4_notes', 'step4_evidence',
     'status', 'rejection_reason', 'feedback',
 }

@@ -4636,7 +4636,10 @@ async function saveFcCandidate(idx) {
     brand: c.brand,
     product_name: c.product_name,
     route: data.route,
+    country: c.country || '',
+    proxy_risk: c.proxy_risk || '확인필요',
     discovery_notes: `[${data.theme}] ${c.why}`,
+    why: c.why,
     status: 'discovered',
     step3_results: [{
       keyword: c.naver_keyword,
@@ -4803,7 +4806,7 @@ function openFcEditModal(id) {
   }
 
   // 유통구조
-  const distNotes = item.step4_notes || item.why || '';
+  const distNotes = item.why || item.step4_notes || '';
   if (distNotes) {
     document.getElementById('fcDashDist').textContent = distNotes;
     document.getElementById('fcDashDistSection').style.display = '';
