@@ -603,6 +603,11 @@
     .fc-result-save { margin-top:8px; width:100%; padding:6px; border-radius:6px; border:none; background:#4a6cf7; color:white; font-size:0.78rem; cursor:pointer; font-weight:600; }
     .fc-result-save:hover { background:#3d5bdb; }
     .fc-result-save:disabled { background:#a0aec0; cursor:default; }
+    .fc-country-badge { font-size:0.65rem; padding:2px 7px; border-radius:10px; background:#edf2f7; color:#4a5568; font-weight:600; }
+    .fc-country-badge.europe { background:#ebf8ff; color:#2b6cb0; }
+    .fc-country-badge.non-europe { background:#fff5f5; color:#c53030; }
+    .fc-country-filter { padding:3px 10px; border-radius:14px; border:1px solid #e2e8f0; background:white; font-size:0.72rem; cursor:pointer; color:#4a5568; }
+    .fc-country-filter.active { background:#4a6cf7; color:white; border-color:#4a6cf7; }
 
     /* 파이프라인 섹션 */
     .fc-pipeline { padding:0 16px 16px; }
@@ -1134,7 +1139,10 @@
 
   <!-- 발굴 결과 -->
   <div class="fc-discover-results" id="fcDiscoverResults" style="display:none">
-    <div class="fc-discover-header" id="fcDiscoverHeader"></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <div class="fc-discover-header" id="fcDiscoverHeader" style="margin:0"></div>
+      <div id="fcCountryFilters" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+    </div>
     <div class="fc-result-grid" id="fcResultGrid"></div>
   </div>
 
@@ -4643,26 +4651,61 @@ async function runFcDiscover() {
   }
 }
 
+const EUROPE_COUNTRIES = new Set(['독일','프랑스','영국','이탈리아','스위스','덴마크','스웨덴','노르웨이','핀란드','네덜란드','벨기에','오스트리아','포르투갈','스페인','폴란드','체코','헝가리','그리스','아일랜드','룩셈부르크']);
+let _fcCountryFilter = 'all';
+
 function renderFcDiscoverResults(data) {
   const candidates = data.candidates || [];
   const el = document.getElementById('fcDiscoverResults');
   document.getElementById('fcDiscoverHeader').textContent =
-    `루트 ${data.route} "${data.theme}" 탐색 결과 — ${candidates.length}개 후보 발굴 (포스트 ${data.posts_searched}건 분석)`;
+    `루트 ${data.route} "${data.theme}" — ${candidates.length}개 후보 (포스트 ${data.posts_searched}건 분석)`;
 
   if (!candidates.length) {
     document.getElementById('fcResultGrid').innerHTML = '<div style="color:#a0aec0;font-size:0.85rem;padding:20px">후보를 찾지 못했습니다. 다른 테마로 시도해보세요.</div>';
+    document.getElementById('fcCountryFilters').innerHTML = '';
     el.style.display = 'block';
     return;
   }
 
-  document.getElementById('fcResultGrid').innerHTML = candidates.map((c, i) => {
+  // 국가 필터 버튼 생성
+  const countries = ['전체', ...new Set(candidates.map(c => c.country || '미상').filter(Boolean))];
+  _fcCountryFilter = 'all';
+  document.getElementById('fcCountryFilters').innerHTML = countries.map(c =>
+    `<button class="fc-country-filter ${c==='전체'?'active':''}" onclick="setFcCountryFilter('${c}',this)">${c}</button>`
+  ).join('');
+
+  window._fcLastDiscoverData = data;
+  renderFcResultCards(candidates);
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function setFcCountryFilter(country, btn) {
+  _fcCountryFilter = country === '전체' ? 'all' : country;
+  document.querySelectorAll('.fc-country-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const candidates = window._fcLastDiscoverData?.candidates || [];
+  renderFcResultCards(candidates);
+}
+
+function renderFcResultCards(candidates) {
+  const filtered = _fcCountryFilter === 'all' ? candidates
+    : candidates.filter(c => (c.country || '') === _fcCountryFilter);
+
+  document.getElementById('fcResultGrid').innerHTML = filtered.map((c, i) => {
+    const origIdx = candidates.indexOf(c);
     const riskClass = c.proxy_risk === '없음' ? 'fc-risk-none'
                     : c.proxy_risk && c.proxy_risk !== '확인필요' ? 'fc-risk-block'
                     : 'fc-risk-warn';
     const b3m = c.blog_3m || 0;
     const b3mColor = b3m >= 20 ? '#276749' : b3m >= 5 ? '#92400e' : '#718096';
+    const isEurope = EUROPE_COUNTRIES.has(c.country || '');
+    const countryClass = !c.country ? '' : isEurope ? 'europe' : 'non-europe';
     return `<div class="fc-result-card">
-      <div class="fc-result-brand">${c.brand}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px">
+        <div class="fc-result-brand">${c.brand}</div>
+        ${c.country ? `<span class="fc-country-badge ${countryClass}">${c.country}</span>` : ''}
+      </div>
       <div class="fc-result-product">${c.product_name}</div>
       <div class="fc-result-why">${c.why}</div>
       <div class="fc-result-meta">
@@ -4670,14 +4713,9 @@ function renderFcDiscoverResults(data) {
         <span class="fc-naver-3m" style="color:${b3mColor}">3개월 ${b3m}건</span>
         <span class="fc-risk-chip ${riskClass}">${c.proxy_risk || '확인필요'}</span>
       </div>
-      <button class="fc-result-save" onclick="saveFcCandidate(${i})" data-idx="${i}">파이프라인에 저장</button>
+      <button class="fc-result-save" onclick="saveFcCandidate(${origIdx})" data-idx="${origIdx}">파이프라인에 저장</button>
     </div>`;
-  }).join('');
-
-  // 저장용으로 현재 결과 보관
-  window._fcLastDiscoverData = data;
-  el.style.display = 'block';
-  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }).join('') || '<div style="color:#a0aec0;font-size:0.85rem;padding:20px">해당 국가 후보 없음</div>';
 }
 
 async function saveFcCandidate(idx) {
