@@ -565,48 +565,81 @@
     .import-zone:hover { border-color: #4a6cf7; }
     .import-zone p { color: #718096; font-size: 0.88rem; margin-top: 8px; }
 
-    /* ── Analytics 탭 ── */
+    /* ── 소싱 프레임워크 탭 ── */
     #analyticsTab.active { flex-direction: column; overflow-y: auto; }
-    .fc-toolbar { display:flex; align-items:center; gap:10px; padding:14px 16px 10px; flex-wrap:wrap; border-bottom:1px solid #e2e8f0; }
-    .fc-toolbar h2 { margin:0; font-size:1rem; font-weight:700; color:#2d3748; }
-    .fc-route-stats { display:flex; gap:8px; padding:10px 16px; overflow-x:auto; flex-shrink:0; border-bottom:1px solid #edf2f7; }
-    .fc-route-chip { display:flex; flex-direction:column; align-items:center; min-width:80px; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 8px; cursor:default; }
-    .fc-route-chip .rc-num { font-size:0.68rem; font-weight:700; color:#718096; }
-    .fc-route-chip .rc-name { font-size:0.62rem; color:#a0aec0; text-align:center; line-height:1.2; margin:2px 0; }
-    .fc-route-chip .rc-stats { font-size:0.7rem; color:#4a5568; font-weight:600; }
-    .fc-route-chip.has-success { border-color:#68d391; background:#f0fff4; }
-    .fc-status-bar { display:flex; gap:6px; padding:10px 16px; flex-wrap:wrap; flex-shrink:0; }
+
+    /* 발굴 엔진 섹션 */
+    .fc-engine { background:#f7fafc; border-bottom:2px solid #e2e8f0; padding:16px; flex-shrink:0; }
+    .fc-engine-title { font-size:0.95rem; font-weight:700; color:#2d3748; margin:0 0 12px; }
+    .fc-route-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .fc-route-btn { padding:5px 12px; border-radius:20px; border:1.5px solid #e2e8f0; background:white; font-size:0.75rem; cursor:pointer; color:#4a5568; font-weight:600; transition:all .15s; }
+    .fc-route-btn:hover { border-color:#4a6cf7; color:#4a6cf7; }
+    .fc-route-btn.active { color:white; border-color:transparent; }
+    .fc-engine-input-row { display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; }
+    .fc-engine-input { flex:1; min-width:180px; padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.88rem; background:white; }
+    .fc-engine-input:focus { outline:none; border-color:#4a6cf7; }
+    .fc-engine-hint { font-size:0.72rem; color:#a0aec0; margin-top:4px; }
+    .fc-theme-pills { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+    .fc-theme-pill { padding:4px 11px; border-radius:14px; background:white; border:1px solid #e2e8f0; font-size:0.75rem; color:#4a5568; cursor:pointer; }
+    .fc-theme-pill:hover { background:#ebf4ff; border-color:#4a6cf7; color:#4a6cf7; }
+    .fc-theme-pill.loading-pill { color:#a0aec0; cursor:default; font-style:italic; }
+
+    /* 발굴 결과 */
+    .fc-discover-results { padding:14px 16px; flex-shrink:0; }
+    .fc-discover-header { font-size:0.8rem; color:#718096; margin-bottom:10px; }
+    .fc-result-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:10px; }
+    .fc-result-card { background:white; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px 14px; position:relative; }
+    .fc-result-card:hover { border-color:#4a6cf7; }
+    .fc-result-brand { font-size:0.88rem; font-weight:800; color:#2d3748; }
+    .fc-result-product { font-size:0.82rem; color:#4a5568; margin:2px 0; }
+    .fc-result-why { font-size:0.72rem; color:#718096; margin:5px 0; line-height:1.4; }
+    .fc-result-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; align-items:center; }
+    .fc-naver-chip { font-size:0.68rem; padding:2px 8px; border-radius:10px; background:#ebf8ff; color:#2b6cb0; font-weight:600; }
+    .fc-naver-3m { font-size:0.68rem; padding:2px 8px; border-radius:10px; background:#c6f6d5; color:#276749; font-weight:700; }
+    .fc-risk-chip { font-size:0.68rem; padding:2px 8px; border-radius:10px; font-weight:600; }
+    .fc-risk-none { background:#c6f6d5; color:#276749; }
+    .fc-risk-warn { background:#fef3c7; color:#92400e; }
+    .fc-risk-block { background:#fed7d7; color:#9b2c2c; }
+    .fc-result-save { margin-top:8px; width:100%; padding:6px; border-radius:6px; border:none; background:#4a6cf7; color:white; font-size:0.78rem; cursor:pointer; font-weight:600; }
+    .fc-result-save:hover { background:#3d5bdb; }
+    .fc-result-save:disabled { background:#a0aec0; cursor:default; }
+
+    /* 파이프라인 섹션 */
+    .fc-pipeline { padding:0 16px 16px; }
+    .fc-pipeline-header { display:flex; align-items:center; gap:10px; padding:12px 0 8px; border-top:2px solid #e2e8f0; margin-top:4px; }
+    .fc-pipeline-header h3 { margin:0; font-size:0.9rem; font-weight:700; color:#2d3748; }
+    .fc-status-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
     .fc-status-btn { padding:4px 12px; border-radius:20px; border:1px solid #e2e8f0; background:white; font-size:0.75rem; cursor:pointer; color:#4a5568; }
     .fc-status-btn.active { background:#4a6cf7; color:white; border-color:#4a6cf7; }
-    .fc-list { padding:12px 16px; display:flex; flex-direction:column; gap:10px; }
-    .fc-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start; box-shadow:0 1px 3px rgba(0,0,0,.04); }
-    .fc-card:hover { box-shadow:0 3px 10px rgba(0,0,0,.1); }
-    .fc-route-badge { min-width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; color:white; flex-shrink:0; }
+    .fc-list { display:flex; flex-direction:column; gap:8px; }
+    .fc-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; display:flex; gap:10px; align-items:flex-start; }
+    .fc-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .fc-route-badge { min-width:36px; height:36px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:800; color:white; flex-shrink:0; }
     .fc-card-body { flex:1; min-width:0; }
-    .fc-card-title { font-size:0.9rem; font-weight:700; color:#2d3748; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .fc-card-sub { font-size:0.75rem; color:#718096; margin-top:1px; }
-    .fc-card-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center; }
-    .fc-status-badge { padding:2px 8px; border-radius:12px; font-size:0.68rem; font-weight:700; }
-    .fc-step-tag { font-size:0.68rem; padding:2px 7px; border-radius:10px; background:#edf2f7; color:#4a5568; }
+    .fc-card-title { font-size:0.85rem; font-weight:700; color:#2d3748; }
+    .fc-card-sub { font-size:0.72rem; color:#718096; margin-top:1px; }
+    .fc-card-meta { display:flex; gap:5px; margin-top:5px; flex-wrap:wrap; align-items:center; }
+    .fc-status-badge { padding:2px 7px; border-radius:10px; font-size:0.65rem; font-weight:700; }
+    .fc-step-tag { font-size:0.65rem; padding:2px 6px; border-radius:8px; background:#edf2f7; color:#4a5568; }
     .fc-step-tag.ok { background:#c6f6d5; color:#276749; }
     .fc-step-tag.fail { background:#fed7d7; color:#9b2c2c; }
-    .fc-card-actions { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+    .fc-card-actions { flex-shrink:0; }
     .fc-btn { padding:4px 10px; border-radius:6px; border:1px solid #e2e8f0; background:white; font-size:0.72rem; cursor:pointer; color:#4a5568; white-space:nowrap; }
     .fc-btn:hover { background:#f7fafc; }
     .fc-btn.primary { background:#4a6cf7; color:white; border-color:#4a6cf7; }
     .fc-btn.danger { color:#e53e3e; border-color:#feb2b2; }
-    .fc-empty { text-align:center; padding:60px 20px; color:#a0aec0; font-size:0.9rem; }
+    .fc-empty { text-align:center; padding:30px 20px; color:#a0aec0; font-size:0.85rem; }
 
-    /* Analytics 모달 */
+    /* 편집 모달 */
     .fc-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; display:flex; align-items:center; justify-content:center; padding:16px; }
     .fc-modal { background:white; border-radius:14px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
     .fc-modal-header { padding:16px 20px 12px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; }
     .fc-modal-header h3 { margin:0; font-size:1rem; color:#2d3748; }
     .fc-modal-body { padding:16px 20px 20px; }
-    .fc-step-section { margin-bottom:18px; padding:14px; border:1px solid #e2e8f0; border-radius:10px; }
-    .fc-step-section h4 { margin:0 0 10px; font-size:0.82rem; color:#4a6cf7; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+    .fc-step-section { margin-bottom:16px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; }
+    .fc-step-section h4 { margin:0 0 10px; font-size:0.78rem; color:#4a6cf7; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
     .fc-form-row { margin-bottom:10px; }
-    .fc-form-row label { display:block; font-size:0.75rem; font-weight:600; color:#4a5568; margin-bottom:4px; }
+    .fc-form-row label { display:block; font-size:0.73rem; font-weight:600; color:#4a5568; margin-bottom:4px; }
     .fc-input { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; box-sizing:border-box; }
     .fc-input:focus { outline:none; border-color:#4a6cf7; }
     .fc-textarea { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; resize:vertical; min-height:60px; box-sizing:border-box; }
@@ -614,7 +647,6 @@
     .fc-check-row { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#4a5568; margin-bottom:6px; }
     .fc-evidence-list { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
     .fc-evidence-item { display:flex; gap:6px; align-items:center; }
-    .fc-naver-results { margin-top:10px; }
     .fc-naver-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:8px; }
     .fc-naver-table th { background:#f7fafc; padding:6px 10px; text-align:left; border-bottom:2px solid #e2e8f0; color:#4a5568; }
     .fc-naver-table td { padding:6px 10px; border-bottom:1px solid #edf2f7; }
@@ -1062,81 +1094,76 @@
 </div>
 
 
-<!-- ══ 소싱 프레임워크 Analytics 탭 ══ -->
+<!-- ══ 소싱 프레임워크 탭 ══ -->
 <div id="analyticsTab" class="tab-content">
 
-  <!-- 툴바 -->
-  <div class="fc-toolbar">
-    <h2>소싱 프레임워크</h2>
-    <button class="btn-search" onclick="openFcAddModal()" style="padding:6px 14px;font-size:0.8rem">+ 후보 추가</button>
-    <button class="fc-btn" onclick="loadAnalytics()">새로고침</button>
-    <span id="fcTotalBadge" style="font-size:0.75rem;color:#718096;margin-left:auto"></span>
+  <!-- 발굴 엔진 -->
+  <div class="fc-engine">
+    <p class="fc-engine-title">소싱 발굴 엔진 — 루트를 선택하고 탐색하세요</p>
+
+    <!-- 루트 선택 -->
+    <div class="fc-route-grid" id="fcRouteGrid">
+      <button class="fc-route-btn" data-route="1" onclick="selectFcRoute('1',this)">R1 전문가 레퍼런스</button>
+      <button class="fc-route-btn" data-route="2" onclick="selectFcRoute('2',this)">R2 증상/문제 해결</button>
+      <button class="fc-route-btn" data-route="3" onclick="selectFcRoute('3',this)">R3 극한 취미</button>
+      <button class="fc-route-btn" data-route="4" onclick="selectFcRoute('4',this)">R4 홈카페/홈쿡</button>
+      <button class="fc-route-btn" data-route="5" onclick="selectFcRoute('5',this)">R5 SKU 확장</button>
+      <button class="fc-route-btn" data-route="6" onclick="selectFcRoute('6',this)">R6 직구카페 급상승</button>
+      <button class="fc-route-btn" data-route="7" onclick="selectFcRoute('7',this)">R7 국내 PB 역추적</button>
+      <button class="fc-route-btn" data-route="8" onclick="selectFcRoute('8',this)">R8 인플루언서 여행픽</button>
+      <button class="fc-route-btn" data-route="9" onclick="selectFcRoute('9',this)">R9 가격 차익 역산</button>
+      <button class="fc-route-btn" data-route="10" onclick="selectFcRoute('10',this)">R10 SNS 바이럴</button>
+    </div>
+
+    <!-- 테마 추천 pills -->
+    <div id="fcThemePillsWrap" style="display:none">
+      <div class="fc-engine-hint" id="fcThemeHint" style="margin-bottom:6px"></div>
+      <div class="fc-theme-pills" id="fcThemePills"></div>
+    </div>
+
+    <!-- 테마 입력 + 탐색 버튼 -->
+    <div class="fc-engine-input-row" style="margin-top:10px">
+      <div style="flex:1;min-width:180px">
+        <input class="fc-engine-input" id="fcThemeInput" placeholder="탐색 테마를 입력하거나 위에서 선택하세요"
+          onkeydown="if(event.key==='Enter')runFcDiscover()" />
+        <div class="fc-engine-hint" id="fcInputHint"></div>
+      </div>
+      <button class="btn-search" id="fcDiscoverBtn" onclick="runFcDiscover()" style="padding:8px 18px;font-size:0.85rem" disabled>탐색 시작</button>
+    </div>
   </div>
 
-  <!-- 루트별 성과 -->
-  <div class="fc-route-stats" id="fcRouteStats"></div>
-
-  <!-- 상태 필터 -->
-  <div class="fc-status-bar">
-    <button class="fc-status-btn active" onclick="fcFilterStatus('all', this)">전체</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('discovered', this)">발굴됨</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('filtering', this)">검증중</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('passed', this)">통과</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('testing', this)">테스트중</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('success', this)">성공</button>
-    <button class="fc-status-btn" onclick="fcFilterStatus('failed', this)">탈락</button>
+  <!-- 발굴 결과 -->
+  <div class="fc-discover-results" id="fcDiscoverResults" style="display:none">
+    <div class="fc-discover-header" id="fcDiscoverHeader"></div>
+    <div class="fc-result-grid" id="fcResultGrid"></div>
   </div>
 
-  <!-- 로딩 -->
-  <div id="fcLoading" style="display:none;text-align:center;padding:40px">
-    <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px"></div>
-    <p style="color:#718096">불러오는 중...</p>
+  <!-- 발굴 로딩 -->
+  <div id="fcDiscoverLoading" style="display:none;text-align:center;padding:30px">
+    <div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:3px"></div>
+    <p style="color:#718096;font-size:0.85rem">Naver 검색 중 → Claude 분석 중...</p>
   </div>
 
-  <!-- 목록 -->
-  <div class="fc-list" id="fcList"></div>
-</div>
-
-<!-- Analytics 후보 추가 모달 -->
-<div id="fcAddModal" class="fc-modal-overlay" style="display:none" onclick="if(event.target===this)closeFcAddModal()">
-  <div class="fc-modal">
-    <div class="fc-modal-header">
-      <h3>후보 추가</h3>
-      <button onclick="closeFcAddModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#718096">✕</button>
+  <!-- 파이프라인 -->
+  <div class="fc-pipeline">
+    <div class="fc-pipeline-header">
+      <h3>파이프라인</h3>
+      <button class="fc-btn" onclick="loadAnalytics()" style="font-size:0.72rem">새로고침</button>
+      <span id="fcTotalBadge" style="font-size:0.72rem;color:#a0aec0;margin-left:auto"></span>
     </div>
-    <div class="fc-modal-body">
-      <div class="fc-form-row">
-        <label>브랜드명 *</label>
-        <input class="fc-input" id="fcAddBrand" placeholder="예: Gehwol" />
-      </div>
-      <div class="fc-form-row">
-        <label>제품명 *</label>
-        <input class="fc-input" id="fcAddProduct" placeholder="예: Fusskraft Blau 125ml" />
-      </div>
-      <div class="fc-form-row">
-        <label>발견 루트 *</label>
-        <select class="fc-select" id="fcAddRoute">
-          <option value="1">루트 1 — 전문가 레퍼런스</option>
-          <option value="2">루트 2 — 증상/문제 해결</option>
-          <option value="3">루트 3 — 극한 취미 커뮤니티</option>
-          <option value="4">루트 4 — 홈카페/홈쿡 업그레이드</option>
-          <option value="5">루트 5 — SKU 확장</option>
-          <option value="6">루트 6 — 직구 카페 급상승</option>
-          <option value="7">루트 7 — 국내 PB 역추적</option>
-          <option value="8">루트 8 — 인플루언서 여행픽</option>
-          <option value="9">루트 9 — 가격 차익 역산</option>
-          <option value="10">루트 10 — SNS 바이럴 캐치</option>
-        </select>
-      </div>
-      <div class="fc-form-row">
-        <label>발견 경위 (어떻게 찾았는지)</label>
-        <textarea class="fc-textarea" id="fcAddNotes" placeholder="예: 아조나 직구 포스트에서 같이 언급된 제품, 게볼 옆에 나란히 소개됨"></textarea>
-      </div>
+    <div class="fc-status-bar">
+      <button class="fc-status-btn active" onclick="fcFilterStatus('all',this)">전체</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('discovered',this)">발굴됨</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('filtering',this)">검증중</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('passed',this)">통과</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('testing',this)">테스트중</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('success',this)">성공</button>
+      <button class="fc-status-btn" onclick="fcFilterStatus('failed',this)">탈락</button>
     </div>
-    <div class="fc-modal-footer">
-      <button class="fc-btn" onclick="closeFcAddModal()">취소</button>
-      <button class="fc-btn primary" onclick="submitFcAdd()">추가</button>
+    <div id="fcPipelineLoading" style="display:none;text-align:center;padding:20px">
+      <div class="spinner" style="margin:0 auto;width:22px;height:22px;border-width:2px"></div>
     </div>
+    <div class="fc-list" id="fcList"></div>
   </div>
 </div>
 
@@ -4506,7 +4533,7 @@ async function importOrderExcel(input) {
   }
 }
 
-// ── 소싱 프레임워크 Analytics ──────────────────────────────────────────────
+// ── 소싱 프레임워크 발굴 엔진 ─────────────────────────────────────────────
 
 const FC_ROUTE_LABELS = {
   '1':'전문가 레퍼런스','2':'증상/문제 해결','3':'극한 취미 커뮤니티',
@@ -4517,54 +4544,193 @@ const FC_ROUTE_COLORS = {
   '1':'#e53e3e','2':'#dd6b20','3':'#d69e2e','4':'#38a169','5':'#3182ce',
   '6':'#805ad5','7':'#d53f8c','8':'#00b5d8','9':'#718096','10':'#4a6cf7',
 };
-const FC_STATUS_LABELS = {
-  discovered:'발굴됨', filtering:'검증중', passed:'통과',
-  testing:'테스트중', success:'성공', failed:'탈락',
-};
-const FC_STATUS_COLORS = {
-  discovered:'#a0aec0', filtering:'#f6ad55', passed:'#68d391',
-  testing:'#63b3ed', success:'#48bb78', failed:'#fc8181',
+const FC_STATUS_LABELS = {discovered:'발굴됨',filtering:'검증중',passed:'통과',testing:'테스트중',success:'성공',failed:'탈락'};
+const FC_STATUS_COLORS = {discovered:'#a0aec0',filtering:'#f6ad55',passed:'#68d391',testing:'#63b3ed',success:'#48bb78',failed:'#fc8181'};
+const FC_ROUTE_HINTS = {
+  '1':'예: 성악가, 수의사, 조향사, 물리치료사',
+  '2':'예: 탈모, 아토피, 생리통, 비염, 충치',
+  '3':'예: 목공, 승마, 수족관, 인라인스케이트',
+  '4':'예: 우유거품기, 에스프레소, 발사믹, 압력솥',
+  '5':'예: 이팔라트, 아조나, 알페신, 게볼',
+  '6':'예: 독일 화장품, 유럽 건강식품, 프랑스 뷰티',
+  '7':'예: 홈트 용품, 캠핑 도구, 반려동물 용품',
+  '8':'예: 파리 약국, 독일 슈퍼마켓, 런던 쇼핑',
+  '9':'예: 골프용품, 향수, 아웃도어 의류',
+  '10':'예: 틱톡 뷰티, 유럽 간식, 독일 빵',
 };
 
 let _fcData = [];
 let _fcEditId = null;
 let _fcFilterStatus = 'all';
+let _fcCurrentRoute = null;
 
-async function loadAnalytics() {
-  document.getElementById('fcLoading').style.display = 'block';
-  document.getElementById('fcList').innerHTML = '';
-  try {
-    const [listRes, statsRes] = await Promise.all([
-      fetch('/api/framework-candidates').then(r => r.json()),
-      fetch('/api/framework-stats').then(r => r.json()),
-    ]);
-    _fcData = listRes.items || [];
-    document.getElementById('fcTotalBadge').textContent = `총 ${_fcData.length}개 후보`;
-    renderFcRouteStats(statsRes);
-    renderFcList();
-  } catch(e) { showToast('로드 실패: ' + e.message); }
-  document.getElementById('fcLoading').style.display = 'none';
+// ── 루트 선택 ──
+
+function selectFcRoute(route, btn) {
+  _fcCurrentRoute = route;
+  document.querySelectorAll('.fc-route-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = '';
+    b.style.color = '';
+  });
+  btn.classList.add('active');
+  btn.style.background = FC_ROUTE_COLORS[route];
+  btn.style.color = 'white';
+  document.getElementById('fcInputHint').textContent = FC_ROUTE_HINTS[route] || '';
+  document.getElementById('fcDiscoverBtn').disabled = false;
+  document.getElementById('fcThemeInput').placeholder = '탐색 테마 입력 또는 아래 추천 클릭';
+  loadFcThemes(route);
 }
 
-function renderFcRouteStats(statsRes) {
-  const stats = statsRes.stats || {};
-  const el = document.getElementById('fcRouteStats');
-  el.innerHTML = Object.entries(FC_ROUTE_LABELS).map(([num, label]) => {
-    const s = stats[num] || {total:0, success:0, testing:0};
-    const hasSuc = s.success > 0;
-    return `<div class="fc-route-chip ${hasSuc?'has-success':''}" title="루트 ${num}: ${label}">
-      <span class="rc-num">루트 ${num}</span>
-      <span class="rc-name">${label}</span>
-      <span class="rc-stats">${s.total}건 / 성공 ${s.success}</span>
+async function loadFcThemes(route) {
+  const pillsEl = document.getElementById('fcThemePills');
+  const wrap = document.getElementById('fcThemePillsWrap');
+  const hint = document.getElementById('fcThemeHint');
+  wrap.style.display = 'block';
+  pillsEl.innerHTML = '<span class="fc-theme-pill loading-pill">AI 추천 로딩중...</span>';
+  hint.textContent = `루트 ${route} (${FC_ROUTE_LABELS[route]}) 탐색 테마 추천`;
+  try {
+    const r = await fetch('/api/framework-suggest-themes', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({route}),
+    });
+    const d = await r.json();
+    if (d.themes) {
+      pillsEl.innerHTML = d.themes.map(t =>
+        `<span class="fc-theme-pill" onclick="pickFcTheme('${t.theme.replace(/'/g,"\\'")}', '${t.description.replace(/'/g,"\\'")}')">
+          ${t.theme}
+        </span>`
+      ).join('');
+    } else {
+      pillsEl.innerHTML = '<span style="font-size:0.75rem;color:#a0aec0">직접 입력하세요</span>';
+    }
+  } catch(e) {
+    pillsEl.innerHTML = '<span style="font-size:0.75rem;color:#a0aec0">직접 입력하세요</span>';
+  }
+}
+
+function pickFcTheme(theme, desc) {
+  document.getElementById('fcThemeInput').value = theme;
+  document.getElementById('fcInputHint').textContent = desc;
+}
+
+// ── 발굴 탐색 ──
+
+async function runFcDiscover() {
+  const theme = document.getElementById('fcThemeInput').value.trim();
+  if (!theme) { showToast('탐색 테마를 입력하거나 선택하세요'); return; }
+  if (!_fcCurrentRoute) { showToast('루트를 먼저 선택하세요'); return; }
+
+  document.getElementById('fcDiscoverLoading').style.display = 'block';
+  document.getElementById('fcDiscoverResults').style.display = 'none';
+  const btn = document.getElementById('fcDiscoverBtn');
+  btn.textContent = '탐색중...'; btn.disabled = true;
+
+  try {
+    const r = await fetch('/api/framework-discover', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({route: _fcCurrentRoute, theme}),
+    });
+    const d = await r.json();
+    if (d.error) { showToast('오류: ' + d.error); return; }
+    renderFcDiscoverResults(d);
+  } catch(e) { showToast('실패: ' + e.message); }
+  finally {
+    document.getElementById('fcDiscoverLoading').style.display = 'none';
+    btn.textContent = '탐색 시작'; btn.disabled = false;
+  }
+}
+
+function renderFcDiscoverResults(data) {
+  const candidates = data.candidates || [];
+  const el = document.getElementById('fcDiscoverResults');
+  document.getElementById('fcDiscoverHeader').textContent =
+    `루트 ${data.route} "${data.theme}" 탐색 결과 — ${candidates.length}개 후보 발굴 (포스트 ${data.posts_searched}건 분석)`;
+
+  if (!candidates.length) {
+    document.getElementById('fcResultGrid').innerHTML = '<div style="color:#a0aec0;font-size:0.85rem;padding:20px">후보를 찾지 못했습니다. 다른 테마로 시도해보세요.</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('fcResultGrid').innerHTML = candidates.map((c, i) => {
+    const riskClass = c.proxy_risk === '없음' ? 'fc-risk-none'
+                    : c.proxy_risk && c.proxy_risk !== '확인필요' ? 'fc-risk-block'
+                    : 'fc-risk-warn';
+    const b3m = c.blog_3m || 0;
+    const b3mColor = b3m >= 20 ? '#276749' : b3m >= 5 ? '#92400e' : '#718096';
+    return `<div class="fc-result-card">
+      <div class="fc-result-brand">${c.brand}</div>
+      <div class="fc-result-product">${c.product_name}</div>
+      <div class="fc-result-why">${c.why}</div>
+      <div class="fc-result-meta">
+        <span class="fc-naver-chip">블로그 ${(c.blog_total||0).toLocaleString()}</span>
+        <span class="fc-naver-3m" style="color:${b3mColor}">3개월 ${b3m}건</span>
+        <span class="fc-risk-chip ${riskClass}">${c.proxy_risk || '확인필요'}</span>
+      </div>
+      <button class="fc-result-save" onclick="saveFcCandidate(${i})" data-idx="${i}">파이프라인에 저장</button>
     </div>`;
   }).join('');
+
+  // 저장용으로 현재 결과 보관
+  window._fcLastDiscoverData = data;
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+async function saveFcCandidate(idx) {
+  const data = window._fcLastDiscoverData;
+  if (!data) return;
+  const c = data.candidates[idx];
+  const btn = document.querySelector(`.fc-result-save[data-idx="${idx}"]`);
+  btn.textContent = '저장중...'; btn.disabled = true;
+  const payload = {
+    brand: c.brand,
+    product_name: c.product_name,
+    route: data.route,
+    discovery_notes: `[${data.theme}] ${c.why}`,
+    status: 'discovered',
+    step3_results: [{
+      keyword: c.naver_keyword,
+      blog_total: c.blog_total,
+      blog_3m: c.blog_3m,
+      cafe_total: 0,
+      cafe_3m: 0,
+    }],
+    step2_block_reasons: c.proxy_risk !== '없음' ? [c.proxy_risk] : [],
+    step2_proxy_ok: c.proxy_risk === '없음',
+  };
+  try {
+    const r = await fetch('/api/framework-candidates', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const d = await r.json();
+    if (d.success) { btn.textContent = '저장됨 ✓'; showToast(`${c.brand} 파이프라인에 추가됨`); loadFcPipeline(); }
+    else { btn.textContent = '저장 실패'; btn.disabled = false; showToast('오류: ' + d.error); }
+  } catch(e) { btn.textContent = '저장 실패'; btn.disabled = false; showToast('실패: ' + e.message); }
+}
+
+// ── 파이프라인 ──
+
+async function loadAnalytics() {
+  loadFcPipeline();
+}
+
+async function loadFcPipeline() {
+  document.getElementById('fcPipelineLoading').style.display = 'block';
+  document.getElementById('fcList').innerHTML = '';
+  try {
+    const d = await fetch('/api/framework-candidates').then(r => r.json());
+    _fcData = d.items || [];
+    document.getElementById('fcTotalBadge').textContent = `총 ${_fcData.length}개`;
+    renderFcList();
+  } catch(e) { showToast('로드 실패: ' + e.message); }
+  document.getElementById('fcPipelineLoading').style.display = 'none';
 }
 
 function renderFcList() {
   const filtered = _fcFilterStatus === 'all' ? _fcData : _fcData.filter(x => x.status === _fcFilterStatus);
   const el = document.getElementById('fcList');
   if (!filtered.length) {
-    el.innerHTML = `<div class="fc-empty">후보가 없습니다.<br><small>+ 후보 추가 버튼으로 새 제품을 등록하세요.</small></div>`;
+    el.innerHTML = `<div class="fc-empty">후보 없음 — 위 발굴 엔진으로 탐색을 시작하세요</div>`;
     return;
   }
   el.innerHTML = filtered.map(item => {
@@ -4572,31 +4738,18 @@ function renderFcList() {
     const color = FC_ROUTE_COLORS[route] || '#718096';
     const statusLabel = FC_STATUS_LABELS[item.status] || item.status;
     const statusColor = FC_STATUS_COLORS[item.status] || '#a0aec0';
-
-    // STEP 태그
-    const s2Tag = item.step2_passed === true ? '<span class="fc-step-tag ok">S2 통과</span>'
-                : item.step2_passed === false ? '<span class="fc-step-tag fail">S2 탈락</span>'
-                : '<span class="fc-step-tag">S2 미확인</span>';
-    const s4Tag = item.step4_b2b_only != null
-      ? `<span class="fc-step-tag ${item.step4_b2b_only ? 'ok' : ''}">S4 ${item.step4_b2b_only ? 'B2B전용' : 'B2C있음'}</span>`
-      : '<span class="fc-step-tag">S4 미확인</span>';
-
-    // Naver 최신 결과
-    let naverSnippet = '';
+    const s2Tag = item.step2_passed === true ? '<span class="fc-step-tag ok">S2통과</span>'
+                : item.step2_passed === false ? '<span class="fc-step-tag fail">S2탈락</span>' : '';
     const s3 = item.step3_results;
-    if (s3 && s3.length > 0) {
-      const r = s3[0];
-      naverSnippet = `<span class="fc-step-tag">블로그 ${r.blog_total?.toLocaleString() || 0} / 3개월 <span class="fc-3m-val">${r.blog_3m || 0}</span></span>`;
-    }
-
+    const naverTag = s3?.length ? `<span class="fc-step-tag">블로그 ${(s3[0].blog_total||0).toLocaleString()} / 3개월 ${s3[0].blog_3m||0}</span>` : '';
     return `<div class="fc-card">
       <div class="fc-route-badge" style="background:${color}">R${route}</div>
       <div class="fc-card-body">
         <div class="fc-card-title">${item.brand || ''} ${item.product_name || ''}</div>
-        <div class="fc-card-sub">${FC_ROUTE_LABELS[route] || ''} ${item.discovery_notes ? '· ' + item.discovery_notes.slice(0,50) : ''}</div>
+        <div class="fc-card-sub">${FC_ROUTE_LABELS[route] || ''}${item.discovery_notes ? ' · '+item.discovery_notes.slice(0,40) : ''}</div>
         <div class="fc-card-meta">
           <span class="fc-status-badge" style="background:${statusColor}20;color:${statusColor}">${statusLabel}</span>
-          ${s2Tag}${s4Tag}${naverSnippet}
+          ${s2Tag}${naverTag}
         </div>
       </div>
       <div class="fc-card-actions">
@@ -4613,42 +4766,12 @@ function fcFilterStatus(status, btn) {
   renderFcList();
 }
 
-// ── 후보 추가 모달 ──
-
-function openFcAddModal() {
-  document.getElementById('fcAddBrand').value = '';
-  document.getElementById('fcAddProduct').value = '';
-  document.getElementById('fcAddRoute').value = '1';
-  document.getElementById('fcAddNotes').value = '';
-  document.getElementById('fcAddModal').style.display = 'flex';
-}
-function closeFcAddModal() { document.getElementById('fcAddModal').style.display = 'none'; }
-
-async function submitFcAdd() {
-  const brand = document.getElementById('fcAddBrand').value.trim();
-  const product = document.getElementById('fcAddProduct').value.trim();
-  if (!brand || !product) { showToast('브랜드명과 제품명은 필수입니다'); return; }
-  const payload = {
-    brand, product_name: product,
-    route: document.getElementById('fcAddRoute').value,
-    discovery_notes: document.getElementById('fcAddNotes').value.trim(),
-    status: 'discovered',
-  };
-  try {
-    const r = await fetch('/api/framework-candidates', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-    const d = await r.json();
-    if (d.success) { closeFcAddModal(); showToast('후보 추가 완료'); loadAnalytics(); }
-    else showToast('오류: ' + (d.error || ''));
-  } catch(e) { showToast('실패: ' + e.message); }
-}
-
-// ── 후보 편집 모달 ──
+// ── 편집 모달 ──
 
 function openFcEditModal(id) {
   const item = _fcData.find(x => x.id === id);
   if (!item) return;
   _fcEditId = id;
-
   document.getElementById('fcEditTitle').textContent = `${item.brand || ''} ${item.product_name || ''}`;
   document.getElementById('fcEditBrand').value = item.brand || '';
   document.getElementById('fcEditProduct').value = item.product_name || '';
@@ -4657,8 +4780,6 @@ function openFcEditModal(id) {
   document.getElementById('fcEditStatus').value = item.status || 'discovered';
   document.getElementById('fcEditRejection').value = item.rejection_reason || '';
   toggleRejectionRow(item.status);
-
-  // STEP 2
   document.getElementById('fcS2OfficialClear').checked = !!item.step2_official_clear;
   document.getElementById('fcS2ProxyOk').checked = !!item.step2_proxy_ok;
   document.getElementById('fcS2Notes').value = item.step2_notes || '';
@@ -4667,42 +4788,25 @@ function openFcEditModal(id) {
     chip.classList.toggle('selected', blockReasons.includes(chip.dataset.val));
   });
   renderEvidenceList('fcS2EvidenceList', item.step2_evidence || []);
-
-  // STEP 3
-  const kwLines = (item.step3_keywords || []).join('\n');
-  document.getElementById('fcS3Keywords').value = kwLines;
+  document.getElementById('fcS3Keywords').value = (item.step3_keywords || []).join('\n');
   document.getElementById('fcS3AmazonKw').value = item.step3_amazon_de_keyword || '';
   const s3 = item.step3_results;
-  if (s3 && s3.length) {
-    renderNaverResults(s3, item.step3_amazon_result);
-  } else {
-    document.getElementById('fcNaverResults').style.display = 'none';
-  }
-
-  // STEP 4
+  if (s3?.length) renderNaverResults(s3, item.step3_amazon_result);
+  else document.getElementById('fcNaverResults').style.display = 'none';
   document.getElementById('fcS4B2bOnly').checked = !!item.step4_b2b_only;
   document.getElementById('fcS4Notes').value = item.step4_notes || '';
   renderEvidenceList('fcS4EvidenceList', item.step4_evidence || []);
-
-  // 피드백
   const fb = item.feedback || {};
   document.getElementById('fcFbQty').value = fb.test_qty || '';
   document.getElementById('fcFbSold').value = fb.units_sold || '';
   document.getElementById('fcFbVerdict').value = fb.verdict || '';
   document.getElementById('fcFbNotes').value = fb.notes || '';
-
   document.getElementById('fcEditModal').style.display = 'flex';
 }
 
-function closeFcEditModal() {
-  document.getElementById('fcEditModal').style.display = 'none';
-  _fcEditId = null;
-}
+function closeFcEditModal() { document.getElementById('fcEditModal').style.display = 'none'; _fcEditId = null; }
 
-document.getElementById('fcEditStatus').addEventListener('change', function() {
-  toggleRejectionRow(this.value);
-});
-
+document.getElementById('fcEditStatus').addEventListener('change', function() { toggleRejectionRow(this.value); });
 function toggleRejectionRow(status) {
   document.getElementById('fcEditRejectionRow').style.display = status === 'failed' ? 'block' : 'none';
 }
@@ -4739,7 +4843,7 @@ async function submitFcEdit() {
   try {
     const r = await fetch(`/api/framework-candidates/${_fcEditId}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const d = await r.json();
-    if (d.success) { closeFcEditModal(); showToast('저장 완료'); loadAnalytics(); }
+    if (d.success) { closeFcEditModal(); showToast('저장 완료'); loadFcPipeline(); }
     else showToast('오류: ' + (d.error || ''));
   } catch(e) { showToast('실패: ' + e.message); }
 }
@@ -4750,11 +4854,11 @@ async function deleteFcCandidate() {
   if (!confirm(`"${item?.brand} ${item?.product_name}" 후보를 삭제하시겠습니까?`)) return;
   try {
     await fetch(`/api/framework-candidates/${_fcEditId}`, {method:'DELETE'});
-    closeFcEditModal(); showToast('삭제 완료'); loadAnalytics();
+    closeFcEditModal(); showToast('삭제 완료'); loadFcPipeline();
   } catch(e) { showToast('실패: ' + e.message); }
 }
 
-// ── Naver 체크 ──
+// ── Naver 수동 체크 (편집 모달 내) ──
 
 async function runNaverCheck() {
   if (!_fcEditId) return;
@@ -4769,68 +4873,45 @@ async function runNaverCheck() {
       body: JSON.stringify({keywords, amazon_de_keyword: amazonKw}),
     });
     const d = await r.json();
-    if (d.success) {
-      renderNaverResults(d.results, d.amazon_result);
-      showToast('Naver 체크 완료');
-      // 로컬 데이터 업데이트
-      const idx = _fcData.findIndex(x => x.id === _fcEditId);
-      if (idx >= 0) { _fcData[idx].step3_results = d.results; _fcData[idx].step3_amazon_result = d.amazon_result; }
-    } else showToast('오류: ' + (d.error || ''));
+    if (d.success) { renderNaverResults(d.results, d.amazon_result); showToast('Naver 체크 완료'); }
+    else showToast('오류: ' + (d.error || ''));
   } catch(e) { showToast('실패: ' + e.message); }
   btn.textContent = 'Naver 체크 실행'; btn.disabled = false;
 }
 
 function renderNaverResults(results, amazonResult) {
-  const tbody = document.getElementById('fcNaverBody');
-  tbody.innerHTML = results.map(r => `
-    <tr>
-      <td>${r.keyword}</td>
-      <td>${(r.blog_total||0).toLocaleString()}</td>
-      <td class="fc-3m-val">${r.blog_3m || 0}</td>
-      <td>${(r.cafe_total||0).toLocaleString()}</td>
-      <td class="fc-3m-val">${r.cafe_3m || 0}</td>
-    </tr>`).join('');
-  const amazonEl = document.getElementById('fcNaverAmazon');
-  if (amazonResult) {
-    amazonEl.innerHTML = `아마존 독일 키워드 <strong>"${amazonResult.keyword}"</strong>: 블로그 ${(amazonResult.blog_total||0).toLocaleString()}건 / 3개월 <span class="fc-3m-val">${amazonResult.blog_3m||0}</span>건`;
-  } else { amazonEl.innerHTML = ''; }
+  document.getElementById('fcNaverBody').innerHTML = results.map(r =>
+    `<tr><td>${r.keyword}</td><td>${(r.blog_total||0).toLocaleString()}</td><td class="fc-3m-val">${r.blog_3m||0}</td><td>${(r.cafe_total||0).toLocaleString()}</td><td class="fc-3m-val">${r.cafe_3m||0}</td></tr>`
+  ).join('');
+  const aEl = document.getElementById('fcNaverAmazon');
+  aEl.innerHTML = amazonResult ? `아마존독일 <strong>"${amazonResult.keyword}"</strong>: 블로그 ${(amazonResult.blog_total||0).toLocaleString()} / 3개월 <span class="fc-3m-val">${amazonResult.blog_3m||0}</span>건` : '';
   document.getElementById('fcNaverResults').style.display = 'block';
 }
 
-// ── 근거 URL 리스트 헬퍼 ──
+// ── 근거 URL 헬퍼 ──
 
 function renderEvidenceList(containerId, items) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = items.map((item, i) => evidenceRowHtml(containerId, item.url || '', item.note || '', i)).join('');
+  document.getElementById(containerId).innerHTML = items.map((it, i) =>
+    `<div class="fc-evidence-item">
+      <input class="fc-input ev-url" value="${(it.url||'').replace(/"/g,'&quot;')}" placeholder="https://..." style="flex:2" />
+      <input class="fc-input ev-note" value="${(it.note||'').replace(/"/g,'&quot;')}" placeholder="메모" style="flex:1" />
+      <button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>
+    </div>`
+  ).join('');
 }
-
-function evidenceRowHtml(containerId, url, note, i) {
-  return `<div class="fc-evidence-item" data-idx="${i}">
-    <input class="fc-input ev-url" value="${url.replace(/"/g,'&quot;')}" placeholder="https://..." style="flex:2" />
-    <input class="fc-input ev-note" value="${note.replace(/"/g,'&quot;')}" placeholder="메모" style="flex:1" />
-    <button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>
-  </div>`;
-}
-
 function addEvidenceRow(containerId) {
-  const el = document.getElementById(containerId);
   const div = document.createElement('div');
   div.className = 'fc-evidence-item';
-  div.innerHTML = `<input class="fc-input ev-url" placeholder="https://..." style="flex:2" />
-    <input class="fc-input ev-note" placeholder="메모" style="flex:1" />
-    <button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>`;
-  el.appendChild(div);
+  div.innerHTML = `<input class="fc-input ev-url" placeholder="https://..." style="flex:2" /><input class="fc-input ev-note" placeholder="메모" style="flex:1" /><button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>`;
+  document.getElementById(containerId).appendChild(div);
 }
-
 function removeEvidenceRow(btn) { btn.closest('.fc-evidence-item').remove(); }
-
 function getEvidenceList(containerId) {
   return [...document.getElementById(containerId).querySelectorAll('.fc-evidence-item')].map(row => ({
     url: row.querySelector('.ev-url').value.trim(),
     note: row.querySelector('.ev-note').value.trim(),
   })).filter(e => e.url);
 }
-
 function toggleBlockChip(chip) { chip.classList.toggle('selected'); }
 
 // 드래그앤드롭 지원

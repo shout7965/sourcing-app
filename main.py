@@ -689,6 +689,24 @@ class NicheIdeaResult(BaseModel):
     items: List[NicheItem]
     tips: str
 
+# ── 프레임워크 발굴 엔진 모델 ──
+class ThemeSuggestion(BaseModel):
+    theme: str           # 예: "탈모", "목공", "아토피"
+    description: str     # 한 줄 설명
+
+class ThemeSuggestResult(BaseModel):
+    themes: List[ThemeSuggestion]
+
+class DiscoveredBrand(BaseModel):
+    brand: str
+    product_name: str
+    why: str              # 이 루트에서 왜 유망한가
+    naver_keyword: str    # 수요 체크용 네이버 검색어
+    proxy_risk: str       # "없음" | "의약외품" | "의약품" | "의료기기" | "건강기능식품" | "KC미인증" | "확인필요"
+
+class DiscoverResult(BaseModel):
+    candidates: List[DiscoveredBrand]
+
 @app.route("/api/extract-all-products", methods=["POST"])
 def extract_all_products():
     """블로그 풀텍스트에서 언급된 모든 개별 상품 추출 (하울 포스트 대응)"""
@@ -2718,6 +2736,79 @@ FRAMEWORK_ROUTES = {
     '10': 'SNS 바이럴 캐치',
 }
 
+_ROUTE_META = {
+    '1': {
+        'name': '전문가 레퍼런스',
+        'theme_hint': '직업군/전문가 유형',
+        'theme_example': '성악가, 수의사, 조향사, 물리치료사, 미슐랭 셰프',
+        'search_tmpl': ['{inp} 유럽 직구', '{inp} 추천 제품 직구', '{inp} 쓰는 제품 직구'],
+        'claude_context': '해당 전문가/직업군이 실제로 사용하는 유럽 브랜드 및 도구·소모품',
+    },
+    '2': {
+        'name': '증상/문제 해결',
+        'theme_hint': '증상 또는 건강 문제',
+        'theme_example': '탈모, 아토피, 생리통, 비염, 충치, 아기 코막힘',
+        'search_tmpl': ['{inp} 유럽 직구', '{inp} 독일 제품', '독일 {inp} 해결 직구'],
+        'claude_context': '해당 증상·문제를 해결하기 위해 한국인이 직구하는 유럽 의약외품·케어 제품',
+    },
+    '3': {
+        'name': '극한 취미 커뮤니티',
+        'theme_hint': '소수 취미 분야',
+        'theme_example': '목공, 승마, 수족관, 인라인스케이트, 플라이피싱, 드럼',
+        'search_tmpl': ['{inp} 유럽 직구', '{inp} 해외 직구 추천', '{inp} 전문 도구 직구'],
+        'claude_context': '해당 취미 커뮤니티에서 정답으로 인정받은 유럽 전문 브랜드',
+    },
+    '4': {
+        'name': '홈카페/홈쿡 업그레이드',
+        'theme_hint': '주방 도구 또는 식재료 카테고리',
+        'theme_example': '우유거품기, 에스프레소, 발사믹, 압력솥, 수제잼, 커피그라인더',
+        'search_tmpl': ['홈카페 {inp} 유럽 직구', '{inp} 유럽 직구', '독일 {inp} 직구'],
+        'claude_context': '홈카페·홈쿡을 위해 한국인이 직구하는 유럽 프리미엄 주방도구·식재료',
+    },
+    '5': {
+        'name': 'SKU 확장',
+        'theme_hint': '기존에 잘 팔리는 브랜드명',
+        'theme_example': '이팔라트, 아조나, 알페신, 게볼, 세버린',
+        'search_tmpl': ['{inp} 신제품 직구', '{inp} 용량 종류', '{inp} 라인업'],
+        'claude_context': '해당 브랜드의 아직 소개되지 않은 SKU(용량·색상·에디션·신제품)',
+    },
+    '6': {
+        'name': '직구 카페 급상승',
+        'theme_hint': '카테고리 또는 관심 키워드',
+        'theme_example': '독일 화장품, 유럽 건강식품, 영국 직구, 프랑스 뷰티',
+        'search_tmpl': ['{inp} 직구 후기 2025', '{inp} 직구 추천 최신', '{inp} 직구 입문'],
+        'claude_context': '최근 직구 커뮤니티에서 급격히 언급량이 늘어난 유럽 브랜드',
+    },
+    '7': {
+        'name': '국내 PB 역추적',
+        'theme_hint': '국내에서 잘 팔리는 PB/OEM 상품 카테고리',
+        'theme_example': '홈트 용품, 캠핑 도구, 주방 도구, 미용 기기, 반려동물 용품',
+        'search_tmpl': ['{inp} 오리지널 유럽 브랜드', '{inp} 독일 원조', '{inp} 유럽 원산지 직구'],
+        'claude_context': '국내 PB 상품의 원본이 되는 유럽 오리지널 브랜드',
+    },
+    '8': {
+        'name': '인플루언서 여행픽',
+        'theme_hint': '유럽 여행 쇼핑 카테고리',
+        'theme_example': '파리 약국, 독일 슈퍼마켓, 런던 기념품, 암스테르담 쇼핑',
+        'search_tmpl': ['{inp} 직구', '{inp} 쇼핑 추천 직구', '{inp} 사오는 것 직구'],
+        'claude_context': '유럽 여행객이 현지에서 구매해 한국에 가져오는 제품 중 직구 수요로 전환된 것',
+    },
+    '9': {
+        'name': '가격 차익 역산',
+        'theme_hint': '국내에서 비싸게 팔리는 카테고리',
+        'theme_example': '골프용품, 명품 악세서리, 운동화, 아웃도어 의류, 향수',
+        'search_tmpl': ['{inp} 유럽 직구 저렴', '{inp} 직구 국내 가격 차이', '독일 {inp} 직구'],
+        'claude_context': '국내 판매가 대비 유럽 직구가 현저히 저렴해 차익이 나는 제품',
+    },
+    '10': {
+        'name': 'SNS 바이럴 캐치',
+        'theme_hint': 'SNS에서 화제가 된 카테고리',
+        'theme_example': '틱톡 뷰티, 인스타 주방, 유럽 간식, 독일 빵, 이탈리아 식품',
+        'search_tmpl': ['{inp} 직구 후기', '{inp} 유럽 직구 추천', '{inp} 직구 화제'],
+        'claude_context': 'SNS(틱톡·인스타)에서 바이럴되어 한국 직구 수요가 생긴 유럽 제품',
+    },
+}
+
 _FC_UPDATE_FIELDS = {
     'brand', 'product_name', 'route', 'discovery_notes',
     'step2_passed', 'step2_notes', 'step2_evidence', 'step2_block_reason',
@@ -2738,6 +2829,135 @@ def _serialize_fc(doc):
         if rec and hasattr(rec, 'isoformat'):
             d['feedback']['recorded_at'] = rec.isoformat()
     return d
+
+
+@app.route("/api/framework-suggest-themes", methods=["POST"])
+def framework_suggest_themes():
+    """루트에 맞는 탐색 테마 추천 (Claude)"""
+    if not session.get('user'):
+        return jsonify({"error": "로그인이 필요합니다"}), 401
+    data = request.get_json() or {}
+    route = str(data.get('route', '2'))
+    meta = _ROUTE_META.get(route, _ROUTE_META['2'])
+
+    prompt = f"""당신은 한국 유럽 직구 구매대행 전문가입니다.
+
+소싱 루트: "{meta['name']}"
+루트 설명: {meta['claude_context']}
+테마 힌트: {meta['theme_hint']} (예: {meta['theme_example']})
+
+이 루트로 유럽 직구 소싱을 탐색할 때, 구매대행 수요가 있을 것 같은 탐색 테마 12개를 추천해주세요.
+- 한국인이 실제로 네이버에서 검색할 법한 키워드 위주
+- 너무 광범위하거나 경쟁 과다한 것 제외
+- 유럽(특히 독일/프랑스/영국/이탈리아) 제품이 있을 것 같은 것 위주
+
+JSON으로만 응답. theme은 짧게(2~6자), description은 한 줄로."""
+
+    try:
+        result = claude.messages.parse(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=ThemeSuggestResult,
+        )
+        themes = [t.model_dump() for t in result.parsed_output.themes]
+        return jsonify({"themes": themes, "route": route, "meta": meta})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/framework-discover", methods=["POST"])
+def framework_discover():
+    """루트 + 테마로 Naver 검색 후 Claude가 유럽 브랜드/제품 자동 추출"""
+    if not session.get('user'):
+        return jsonify({"error": "로그인이 필요합니다"}), 401
+    data = request.get_json() or {}
+    route = str(data.get('route', '2'))
+    theme = data.get('theme', '').strip()
+    if not theme:
+        return jsonify({"error": "테마를 입력해주세요"}), 400
+
+    meta = _ROUTE_META.get(route, _ROUTE_META['2'])
+    hdrs = {"X-Naver-Client-Id": NAVER_CLIENT_ID, "X-Naver-Client-Secret": NAVER_CLIENT_SECRET}
+    cutoff = date.today() - timedelta(days=90)
+
+    # 1. Naver 검색 (블로그 2쿼리 + 카페 1쿼리)
+    queries = [t.format(inp=theme) for t in meta['search_tmpl'][:3]]
+    all_items = []
+    for q in queries:
+        items, _ = naver_search("blog", q, 100, 1, hdrs)
+        all_items.extend(items)
+    cafe_items, _ = naver_search("cafearticle", queries[0], 50, 1, hdrs)
+    all_items.extend(cafe_items)
+    increment_usage(len(queries) + 1)
+
+    # 2. 포스트 텍스트 수집 (중복 제거, 최대 80개)
+    seen = set()
+    posts = []
+    for it in all_items:
+        title = strip_html(it.get('title', ''))
+        desc = strip_html(it.get('description', ''))
+        key = title[:40]
+        if key not in seen and (title or desc):
+            seen.add(key)
+            posts.append(f"- {title}: {desc[:150]}")
+        if len(posts) >= 80:
+            break
+
+    posts_text = "\n".join(posts) if posts else "(검색 결과 없음)"
+
+    # 3. Claude로 유럽 브랜드/제품 추출
+    prompt = f"""당신은 한국 유럽 직구 구매대행 전문가입니다.
+
+소싱 루트: {meta['name']}
+탐색 테마: "{theme}"
+루트 설명: {meta['claude_context']}
+
+아래는 네이버 블로그/카페 검색 결과입니다:
+{posts_text}
+
+이 포스트들을 분석하여, 구매대행 소싱 후보가 될 수 있는 유럽 브랜드/제품을 최대 10개 추출하세요.
+
+조건:
+- 실제로 포스트에 언급되었거나, 이 루트/테마에서 확실히 수요가 있는 것
+- 유럽(독일/프랑스/영국/이탈리아/스웨덴 등) 원산지 브랜드 우선
+- 국내 공식 유통이 없거나 직구가 유리한 것
+- brand: 브랜드명(영문/원어), product_name: 구체적 제품명/모델
+- why: 이 루트에서 왜 유망한지 한 줄
+- naver_keyword: 수요 확인용 네이버 검색어 (짧게, 실제 검색어로)
+- proxy_risk: 구매대행 리스크 ("없음" | "의약외품" | "의약품" | "의료기기" | "건강기능식품" | "KC미인증" | "확인필요")
+
+JSON으로만 응답."""
+
+    try:
+        result = claude.messages.parse(
+            model="claude-opus-4-6",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=DiscoverResult,
+        )
+        candidates = [c.model_dump() for c in result.parsed_output.candidates]
+
+        # 4. 각 후보 Naver 수요 체크
+        for c in candidates:
+            kw = c.get('naver_keyword', '')
+            if kw:
+                b_items, b_total = naver_search("blog", kw, 100, 1, hdrs)
+                c['blog_total'] = b_total
+                c['blog_3m'] = sum(1 for it in b_items if (d := parse_item_date(it)) and d >= cutoff)
+            else:
+                c['blog_total'] = 0
+                c['blog_3m'] = 0
+        increment_usage(len(candidates))
+
+        return jsonify({
+            "candidates": candidates,
+            "route": route,
+            "theme": theme,
+            "posts_searched": len(posts),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/framework-candidates", methods=["GET"])
