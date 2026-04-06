@@ -2860,9 +2860,12 @@ JSON으로만 응답. theme은 짧게(2~6자), description은 한 줄로."""
             messages=[{"role": "user", "content": prompt}],
             output_format=ThemeSuggestResult,
         )
+        if result.parsed_output is None:
+            raise ValueError("parsed_output이 None입니다")
         themes = [t.model_dump() for t in result.parsed_output.themes]
-        return jsonify({"themes": themes, "route": route, "meta": meta})
+        return jsonify({"themes": themes, "route": route})
     except Exception as e:
+        print(f"[framework-suggest-themes] 오류: {e}")
         return jsonify({"error": str(e)}), 500
 
 

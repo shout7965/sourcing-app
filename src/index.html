@@ -1528,7 +1528,7 @@ function switchTab(tab) {
   if (tab === 'register')   loadRegistrations();
   if (tab === 'dashboard')  loadDashboard();
   if (tab === 'orders')     loadOrders();
-  if (tab === 'analytics')  loadAnalytics();
+  if (tab === 'analytics')  { loadFcPipeline(); }
 }
 
 // ── AI 도우미 ──────────────────────────────────────────────────────────────
@@ -4595,17 +4595,19 @@ async function loadFcThemes(route) {
       body: JSON.stringify({route}),
     });
     const d = await r.json();
-    if (d.themes) {
+    if (d.themes && d.themes.length) {
       pillsEl.innerHTML = d.themes.map(t =>
         `<span class="fc-theme-pill" onclick="pickFcTheme('${t.theme.replace(/'/g,"\\'")}', '${t.description.replace(/'/g,"\\'")}')">
           ${t.theme}
         </span>`
       ).join('');
+    } else if (d.error) {
+      pillsEl.innerHTML = `<span style="font-size:0.73rem;color:#e53e3e">오류: ${d.error}</span>`;
     } else {
       pillsEl.innerHTML = '<span style="font-size:0.75rem;color:#a0aec0">직접 입력하세요</span>';
     }
   } catch(e) {
-    pillsEl.innerHTML = '<span style="font-size:0.75rem;color:#a0aec0">직접 입력하세요</span>';
+    pillsEl.innerHTML = `<span style="font-size:0.73rem;color:#e53e3e">네트워크 오류: ${e.message}</span>`;
   }
 }
 
