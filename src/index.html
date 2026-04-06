@@ -1173,6 +1173,7 @@
     <div class="fc-pipeline-header">
       <h3>파이프라인</h3>
       <button class="fc-btn" onclick="loadAnalytics()" style="font-size:0.72rem">새로고침</button>
+      <button id="fcBulkDeleteBtn" class="fc-btn" onclick="deleteFcSelected()" style="font-size:0.72rem;display:none;color:#e53e3e;border-color:#e53e3e">선택 삭제</button>
       <span id="fcTotalBadge" style="font-size:0.72rem;color:#a0aec0;margin-left:auto"></span>
     </div>
     <div class="fc-status-bar">
@@ -4694,7 +4695,8 @@ function renderFcList() {
                 : item.step2_passed === false ? '<span class="fc-step-tag fail">S2탈락</span>' : '';
     const s3 = item.step3_results;
     const naverTag = s3?.length ? `<span class="fc-step-tag">블로그 ${(s3[0].blog_total||0).toLocaleString()} / 3개월 ${s3[0].blog_3m||0}</span>` : '';
-    return `<div class="fc-card">
+    return `<div class="fc-card" data-id="${item.id}">
+      <input type="checkbox" class="fc-card-check" onclick="fcCheckChanged()" style="margin-top:3px;flex-shrink:0;cursor:pointer;width:15px;height:15px">
       <div class="fc-route-badge" style="background:${color}">R${route}</div>
       <div class="fc-card-body">
         <div class="fc-card-title">${item.brand || ''} ${item.product_name || ''}</div>
@@ -4716,6 +4718,24 @@ function fcFilterStatus(status, btn) {
   document.querySelectorAll('.fc-status-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderFcList();
+}
+
+function fcCheckChanged() {
+  const any = document.querySelectorAll('.fc-card-check:checked').length > 0;
+  document.getElementById('fcBulkDeleteBtn').style.display = any ? '' : 'none';
+}
+
+async function deleteFcSelected() {
+  const checked = [...document.querySelectorAll('.fc-card-check:checked')];
+  if (!checked.length) return;
+  const ids = checked.map(cb => cb.closest('.fc-card').dataset.id);
+  if (!confirm(`선택한 ${ids.length}개를 삭제하시겠습니까?`)) return;
+  try {
+    await Promise.all(ids.map(id => fetch(`/api/framework-candidates/${id}`, { method: 'DELETE' })));
+    document.getElementById('fcBulkDeleteBtn').style.display = 'none';
+    await loadAnalytics();
+    showToast(`${ids.length}개 삭제 완료`);
+  } catch(e) { showToast('삭제 실패: ' + e.message); }
 }
 
 // ── 국가별 아마존 도메인 ──
