@@ -641,26 +641,42 @@
     .fc-modal-header { padding:16px 20px 12px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; }
     .fc-modal-header h3 { margin:0; font-size:1rem; color:#2d3748; }
     .fc-modal-body { padding:16px 20px 20px; }
-    .fc-step-section { margin-bottom:16px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; }
-    .fc-step-section h4 { margin:0 0 10px; font-size:0.78rem; color:#4a6cf7; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
-    .fc-form-row { margin-bottom:10px; }
-    .fc-form-row label { display:block; font-size:0.73rem; font-weight:600; color:#4a5568; margin-bottom:4px; }
-    .fc-input { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; box-sizing:border-box; }
-    .fc-input:focus { outline:none; border-color:#4a6cf7; }
-    .fc-textarea { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; resize:vertical; min-height:60px; box-sizing:border-box; }
-    .fc-select { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; background:white; box-sizing:border-box; }
-    .fc-check-row { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#4a5568; margin-bottom:6px; }
+    /* 파이프라인 상세 대시보드 모달 */
+    .fc-dash-section { margin-bottom:14px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fafafa; }
+    .fc-dash-section-title { font-size:0.72rem; font-weight:700; color:#718096; text-transform:uppercase; letter-spacing:.6px; margin:0 0 8px; }
+    .fc-dash-brand { font-size:1.1rem; font-weight:800; color:#1a202c; }
+    .fc-dash-product { font-size:0.9rem; color:#4a5568; margin-top:2px; }
+    .fc-dash-route-row { display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .fc-dash-discovery { font-size:0.8rem; color:#718096; margin-top:6px; line-height:1.5; }
+    .fc-qualify-ok { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f0fff4; border:1px solid #68d391; border-radius:8px; }
+    .fc-qualify-fail { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fff5f5; border:1px solid #fc8181; border-radius:8px; }
+    .fc-qualify-warn { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fffbeb; border:1px solid #f6ad55; border-radius:8px; }
+    .fc-qualify-icon { font-size:1.1rem; flex-shrink:0; }
+    .fc-qualify-text { font-size:0.82rem; color:#2d3748; }
+    .fc-qualify-reason { font-size:0.75rem; color:#718096; margin-top:2px; }
+    .fc-naver-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+    .fc-naver-kw { grid-column:1/-1; font-size:0.75rem; color:#718096; margin-bottom:2px; }
+    .fc-naver-stat { background:white; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; text-align:center; }
+    .fc-naver-stat .ns-label { font-size:0.65rem; color:#a0aec0; display:block; margin-bottom:2px; }
+    .fc-naver-stat .ns-val { font-size:1.1rem; font-weight:800; color:#2d3748; }
+    .fc-naver-stat .ns-val.hot { color:#276749; }
+    .fc-naver-stat .ns-val.cold { color:#a0aec0; }
+    .fc-amazon-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:#ff9900; color:white; font-size:0.8rem; font-weight:700; text-decoration:none; border:none; cursor:pointer; }
+    .fc-amazon-btn:hover { background:#e68a00; }
+    .fc-dist-text { font-size:0.82rem; color:#4a5568; line-height:1.6; }
+    .fc-modal-footer { padding:12px 16px; border-top:1px solid #e2e8f0; display:flex; gap:8px; justify-content:flex-end; position:sticky; bottom:0; background:white; }
+    .fc-btn-send { flex:1; padding:10px; border-radius:8px; border:none; background:#4a6cf7; color:white; font-size:0.88rem; font-weight:700; cursor:pointer; }
+    .fc-btn-send:hover { background:#3d5bdb; }
+    .fc-select { padding:6px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.82rem; background:white; }
+    .fc-textarea-memo { width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.82rem; resize:vertical; min-height:50px; box-sizing:border-box; }
     .fc-evidence-list { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
     .fc-evidence-item { display:flex; gap:6px; align-items:center; }
+    .fc-input { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.83rem; box-sizing:border-box; }
     .fc-naver-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:8px; }
     .fc-naver-table th { background:#f7fafc; padding:6px 10px; text-align:left; border-bottom:2px solid #e2e8f0; color:#4a5568; }
     .fc-naver-table td { padding:6px 10px; border-bottom:1px solid #edf2f7; }
     .fc-naver-table tr:last-child td { border-bottom:none; }
     .fc-3m-val { font-weight:700; color:#276749; }
-    .fc-modal-footer { padding:12px 20px; border-top:1px solid #e2e8f0; display:flex; gap:8px; justify-content:flex-end; position:sticky; bottom:0; background:white; }
-    .fc-block-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-    .fc-block-chip { padding:3px 10px; border-radius:12px; font-size:0.72rem; border:1px solid #e2e8f0; background:#f7fafc; cursor:pointer; color:#4a5568; }
-    .fc-block-chip.selected { background:#fed7d7; border-color:#fc8181; color:#9b2c2c; font-weight:700; }
 
     /* ── AI 도우미 탭 ── */
     .ai-section { margin-bottom: 8px; }
@@ -1175,167 +1191,59 @@
   </div>
 </div>
 
-<!-- Analytics 편집 모달 -->
+<!-- 파이프라인 상세 대시보드 모달 -->
 <div id="fcEditModal" class="fc-modal-overlay" style="display:none" onclick="if(event.target===this)closeFcEditModal()">
   <div class="fc-modal">
     <div class="fc-modal-header">
-      <h3 id="fcEditTitle">후보 편집</h3>
-      <button onclick="closeFcEditModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#718096">✕</button>
+      <div>
+        <div id="fcDashBrand" class="fc-dash-brand"></div>
+        <div id="fcDashProduct" class="fc-dash-product"></div>
+      </div>
+      <button onclick="closeFcEditModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#718096;flex-shrink:0">✕</button>
     </div>
     <div class="fc-modal-body">
 
-      <!-- 기본 정보 -->
-      <div class="fc-step-section">
-        <h4>기본 정보</h4>
-        <div class="fc-form-row">
-          <label>브랜드명</label>
-          <input class="fc-input" id="fcEditBrand" />
+      <!-- 발견 경위 -->
+      <div class="fc-dash-section">
+        <div class="fc-dash-section-title">발견 경위</div>
+        <div class="fc-dash-route-row">
+          <span id="fcDashRouteBadge" class="fc-route-badge" style="min-width:32px;height:32px;font-size:0.7rem"></span>
+          <span id="fcDashRouteName" style="font-size:0.82rem;color:#4a5568;font-weight:600"></span>
+          <span id="fcDashCountry" class="fc-country-badge" style="margin-left:auto"></span>
         </div>
-        <div class="fc-form-row">
-          <label>제품명</label>
-          <input class="fc-input" id="fcEditProduct" />
-        </div>
-        <div class="fc-form-row">
-          <label>발견 루트</label>
-          <select class="fc-select" id="fcEditRoute">
-            <option value="1">루트 1 — 전문가 레퍼런스</option>
-            <option value="2">루트 2 — 증상/문제 해결</option>
-            <option value="3">루트 3 — 극한 취미 커뮤니티</option>
-            <option value="4">루트 4 — 홈카페/홈쿡 업그레이드</option>
-            <option value="5">루트 5 — SKU 확장</option>
-            <option value="6">루트 6 — 직구 카페 급상승</option>
-            <option value="7">루트 7 — 국내 PB 역추적</option>
-            <option value="8">루트 8 — 인플루언서 여행픽</option>
-            <option value="9">루트 9 — 가격 차익 역산</option>
-            <option value="10">루트 10 — SNS 바이럴 캐치</option>
-          </select>
-        </div>
-        <div class="fc-form-row">
-          <label>발견 경위</label>
-          <textarea class="fc-textarea" id="fcEditNotes"></textarea>
-        </div>
-        <div class="fc-form-row">
-          <label>상태</label>
-          <select class="fc-select" id="fcEditStatus">
-            <option value="discovered">발굴됨</option>
-            <option value="filtering">검증중</option>
-            <option value="passed">통과</option>
-            <option value="testing">테스트중</option>
-            <option value="success">성공</option>
-            <option value="failed">탈락</option>
-          </select>
-        </div>
-        <div class="fc-form-row" id="fcEditRejectionRow" style="display:none">
-          <label>탈락 사유</label>
-          <input class="fc-input" id="fcEditRejection" placeholder="탈락 이유를 간략히 입력" />
-        </div>
+        <div id="fcDashDiscovery" class="fc-dash-discovery"></div>
       </div>
 
-      <!-- STEP 2: 진입 자격 필터 -->
-      <div class="fc-step-section">
-        <h4>STEP 2 — 진입 자격 필터</h4>
-        <div class="fc-check-row">
-          <input type="checkbox" id="fcS2OfficialClear" />
-          <label for="fcS2OfficialClear">공식 유통 없음 (올리브영/쿠팡/코스트코/한국법인 미확인)</label>
-        </div>
-        <div class="fc-check-row">
-          <input type="checkbox" id="fcS2ProxyOk" />
-          <label for="fcS2ProxyOk">구매대행 가능 품목</label>
-        </div>
-        <div class="fc-form-row" style="margin-top:6px">
-          <label>구매대행 불가 해당 항목 (해당시 클릭)</label>
-          <div class="fc-block-list" id="fcS2BlockList">
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="의약외품">의약외품 (치약·파스·반창고 등)</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="의약품">의약품 (OTC/처방)</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="의료기기">의료기기</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="건강기능식품">건강기능식품 (미인정 성분)</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="검역필요식품">검역필요 식품 (육류·유제품·과일)</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="KC미인증">KC 미인증 전기용품</span>
-            <span class="fc-block-chip" onclick="toggleBlockChip(this)" data-val="전파법">전파법 위반 기기</span>
-          </div>
-        </div>
-        <div class="fc-form-row">
-          <label>메모</label>
-          <input class="fc-input" id="fcS2Notes" placeholder="예: 올리브영 없음 확인, 치약류 아닌 일반 크림" />
-        </div>
-        <div class="fc-form-row">
-          <label>근거 URL</label>
-          <div class="fc-evidence-list" id="fcS2EvidenceList"></div>
-          <button class="fc-btn" style="margin-top:6px" onclick="addEvidenceRow('fcS2EvidenceList')">+ URL 추가</button>
-        </div>
+      <!-- 진입 자격 -->
+      <div class="fc-dash-section">
+        <div class="fc-dash-section-title">진입 자격</div>
+        <div id="fcDashQualify"></div>
       </div>
 
-      <!-- STEP 3: Naver 수요 측정 -->
-      <div class="fc-step-section">
-        <h4>STEP 3 — Naver 수요 측정</h4>
-        <div class="fc-form-row">
-          <label>검색 키워드 (최대 3개, 엔터로 구분)</label>
-          <textarea class="fc-textarea" id="fcS3Keywords" placeholder="예:&#10;게볼 직구&#10;Gehwol 발각질&#10;독일 발각질 크림" style="min-height:70px"></textarea>
-        </div>
-        <div class="fc-form-row">
-          <label>아마존 독일 검색어 (선택 — 한국 언급량 체크)</label>
-          <input class="fc-input" id="fcS3AmazonKw" placeholder="예: Gehwol Fusskraft" />
-        </div>
-        <button class="fc-btn primary" id="fcNaverCheckBtn" onclick="runNaverCheck()">Naver 체크 실행</button>
-        <div id="fcNaverResults" class="fc-naver-results" style="display:none">
-          <table class="fc-naver-table">
-            <thead><tr><th>키워드</th><th>블로그 전체</th><th>블로그 3개월</th><th>카페 전체</th><th>카페 3개월</th></tr></thead>
-            <tbody id="fcNaverBody"></tbody>
-          </table>
-          <div id="fcNaverAmazon" style="margin-top:8px;font-size:0.78rem;color:#718096"></div>
-          <div style="font-size:0.7rem;color:#a0aec0;margin-top:4px">* 3개월 수치는 최신 100건 기준 (근사치)</div>
-        </div>
+      <!-- Naver 수요 -->
+      <div class="fc-dash-section">
+        <div class="fc-dash-section-title">Naver 수요</div>
+        <div id="fcDashNaver"></div>
+        <div id="fcDashAmazonBtn" style="margin-top:10px"></div>
       </div>
 
-      <!-- STEP 4: 유통구조 분석 -->
-      <div class="fc-step-section">
-        <h4>STEP 4 — 유통구조 분석</h4>
-        <div class="fc-check-row">
-          <input type="checkbox" id="fcS4B2bOnly" />
-          <label for="fcS4B2bOnly">B2B 전용 (소비자 직접 구매 채널 없음)</label>
-        </div>
-        <div class="fc-form-row" style="margin-top:6px">
-          <label>분석 메모</label>
-          <textarea class="fc-textarea" id="fcS4Notes" placeholder="예: 게볼코리아는 미용실/병원 B2B 전용. 유럽 직구만 가능한 B2C 공백 확인."></textarea>
-        </div>
-        <div class="fc-form-row">
-          <label>근거 URL</label>
-          <div class="fc-evidence-list" id="fcS4EvidenceList"></div>
-          <button class="fc-btn" style="margin-top:6px" onclick="addEvidenceRow('fcS4EvidenceList')">+ URL 추가</button>
-        </div>
+      <!-- 유통구조 -->
+      <div class="fc-dash-section" id="fcDashDistSection" style="display:none">
+        <div class="fc-dash-section-title">유통구조</div>
+        <div id="fcDashDist" class="fc-dist-text"></div>
       </div>
 
-      <!-- 피드백 (테스트 결과) -->
-      <div class="fc-step-section" id="fcFeedbackSection">
-        <h4>테스트 피드백</h4>
-        <div class="fc-form-row">
-          <label>테스트 수량</label>
-          <input class="fc-input" id="fcFbQty" type="number" placeholder="5" style="width:120px" />
-        </div>
-        <div class="fc-form-row">
-          <label>판매 수량</label>
-          <input class="fc-input" id="fcFbSold" type="number" placeholder="3" style="width:120px" />
-        </div>
-        <div class="fc-form-row">
-          <label>결과</label>
-          <select class="fc-select" id="fcFbVerdict" style="width:200px">
-            <option value="">— 미기록 —</option>
-            <option value="success">성공 (재주문)</option>
-            <option value="partial">부분 성공 (추가 검토)</option>
-            <option value="failed">실패 (중단)</option>
-          </select>
-        </div>
-        <div class="fc-form-row">
-          <label>메모</label>
-          <textarea class="fc-textarea" id="fcFbNotes" placeholder="예: 2주내 3개 판매, 가격 민감도 높음, 재주문 예정"></textarea>
-        </div>
+      <!-- 메모 -->
+      <div class="fc-dash-section">
+        <div class="fc-dash-section-title">메모 (선택)</div>
+        <textarea class="fc-textarea-memo" id="fcDashMemo" placeholder="직접 확인한 내용, 추가 메모..."></textarea>
       </div>
 
     </div>
     <div class="fc-modal-footer">
-      <button class="fc-btn danger" onclick="deleteFcCandidate()">삭제</button>
-      <button class="fc-btn" onclick="closeFcEditModal()">취소</button>
-      <button class="fc-btn primary" onclick="submitFcEdit()">저장</button>
+      <button class="fc-btn danger" onclick="markFcFailed()">탈락</button>
+      <button class="fc-btn" onclick="deleteFcCandidate()" style="color:#718096">삭제</button>
+      <button class="fc-btn-send" onclick="sendToSourcingCandidates()">소싱후보로 보내기 →</button>
     </div>
   </div>
 </div>
@@ -4806,86 +4714,119 @@ function fcFilterStatus(status, btn) {
   renderFcList();
 }
 
-// ── 편집 모달 ──
+// ── 국가별 아마존 도메인 ──
+const AMAZON_DOMAINS = {
+  '독일':'amazon.de','프랑스':'amazon.fr','이탈리아':'amazon.it','영국':'amazon.co.uk',
+  '스페인':'amazon.es','네덜란드':'amazon.nl','스웨덴':'amazon.se','폴란드':'amazon.pl',
+  '벨기에':'amazon.com.be','오스트리아':'amazon.de','스위스':'amazon.de',
+  '미국':'amazon.com','일본':'amazon.co.jp','캐나다':'amazon.ca','호주':'amazon.com.au',
+};
+
+// ── 파이프라인 상세 대시보드 ──
 
 function openFcEditModal(id) {
   const item = _fcData.find(x => x.id === id);
   if (!item) return;
   _fcEditId = id;
-  document.getElementById('fcEditTitle').textContent = `${item.brand || ''} ${item.product_name || ''}`;
-  document.getElementById('fcEditBrand').value = item.brand || '';
-  document.getElementById('fcEditProduct').value = item.product_name || '';
-  document.getElementById('fcEditRoute').value = String(item.route || '1');
-  document.getElementById('fcEditNotes').value = item.discovery_notes || '';
-  document.getElementById('fcEditStatus').value = item.status || 'discovered';
-  document.getElementById('fcEditRejection').value = item.rejection_reason || '';
-  toggleRejectionRow(item.status);
-  document.getElementById('fcS2OfficialClear').checked = !!item.step2_official_clear;
-  document.getElementById('fcS2ProxyOk').checked = !!item.step2_proxy_ok;
-  document.getElementById('fcS2Notes').value = item.step2_notes || '';
-  const blockReasons = item.step2_block_reasons || [];
-  document.querySelectorAll('#fcS2BlockList .fc-block-chip').forEach(chip => {
-    chip.classList.toggle('selected', blockReasons.includes(chip.dataset.val));
-  });
-  renderEvidenceList('fcS2EvidenceList', item.step2_evidence || []);
-  document.getElementById('fcS3Keywords').value = (item.step3_keywords || []).join('\n');
-  document.getElementById('fcS3AmazonKw').value = item.step3_amazon_de_keyword || '';
+
+  // 기본 정보
+  document.getElementById('fcDashBrand').textContent = item.brand || '';
+  document.getElementById('fcDashProduct').textContent = item.product_name || '';
+
+  // 루트 배지
+  const route = String(item.route || '1');
+  const routeColor = FC_ROUTE_COLORS[route] || '#718096';
+  const routeBadge = document.getElementById('fcDashRouteBadge');
+  routeBadge.textContent = `R${route}`;
+  routeBadge.style.background = routeColor;
+
+  document.getElementById('fcDashRouteName').textContent = FC_ROUTE_LABELS[route] || '';
+
+  // 국가 배지
+  const countryEl = document.getElementById('fcDashCountry');
+  if (item.country) {
+    const isEu = EUROPE_COUNTRIES.has(item.country);
+    countryEl.textContent = item.country;
+    countryEl.className = `fc-country-badge ${isEu ? 'europe' : 'non-europe'}`;
+    countryEl.style.display = '';
+  } else { countryEl.style.display = 'none'; }
+
+  // 발견 경위
+  document.getElementById('fcDashDiscovery').textContent = item.discovery_notes || '—';
+
+  // 진입 자격
+  const risk = item.proxy_risk || (item.step2_block_reasons?.length ? item.step2_block_reasons[0] : null);
+  const proxyOk = item.step2_proxy_ok !== false && risk === '없음';
+  const qEl = document.getElementById('fcDashQualify');
+  if (risk === '없음' || (!risk && item.step2_proxy_ok)) {
+    qEl.innerHTML = `<div class="fc-qualify-ok"><span class="fc-qualify-icon">✅</span><div><div class="fc-qualify-text" style="font-weight:700;color:#276749">구매대행 가능</div><div class="fc-qualify-reason">공식 유통 미확인, 규제 품목 해당 없음</div></div></div>`;
+  } else if (risk && risk !== '없음' && risk !== '확인필요') {
+    const riskDesc = {
+      '의약외품':'치약·파스·반창고 등 의약외품은 식약처 허가 없이 구매대행 불가',
+      '의약품':'처방·일반의약품 모두 구매대행 불가',
+      '의료기기':'의료기기법 적용 대상, 허가 없이 판매 불가',
+      '건강기능식품':'식약처 미인정 성분 포함 시 통관 불가',
+      'KC미인증':'KC 인증 없는 전기용품은 국내 판매 불가',
+    };
+    qEl.innerHTML = `<div class="fc-qualify-fail"><span class="fc-qualify-icon">🚫</span><div><div class="fc-qualify-text" style="font-weight:700;color:#c53030">구매대행 불가 — ${risk}</div><div class="fc-qualify-reason">${riskDesc[risk] || '해당 품목은 구매대행에 제한이 있습니다'}</div></div></div>`;
+  } else {
+    qEl.innerHTML = `<div class="fc-qualify-warn"><span class="fc-qualify-icon">⚠️</span><div><div class="fc-qualify-text" style="font-weight:600">확인 필요</div><div class="fc-qualify-reason">품목 규제 여부를 직접 확인해주세요</div></div></div>`;
+  }
+
+  // Naver 수요
+  const naverEl = document.getElementById('fcDashNaver');
   const s3 = item.step3_results;
-  if (s3?.length) renderNaverResults(s3, item.step3_amazon_result);
-  else document.getElementById('fcNaverResults').style.display = 'none';
-  document.getElementById('fcS4B2bOnly').checked = !!item.step4_b2b_only;
-  document.getElementById('fcS4Notes').value = item.step4_notes || '';
-  renderEvidenceList('fcS4EvidenceList', item.step4_evidence || []);
-  const fb = item.feedback || {};
-  document.getElementById('fcFbQty').value = fb.test_qty || '';
-  document.getElementById('fcFbSold').value = fb.units_sold || '';
-  document.getElementById('fcFbVerdict').value = fb.verdict || '';
-  document.getElementById('fcFbNotes').value = fb.notes || '';
+  if (s3?.length) {
+    naverEl.innerHTML = s3.map(r => {
+      const b3m = r.blog_3m || 0;
+      const hotClass = b3m >= 20 ? 'hot' : b3m === 0 ? 'cold' : '';
+      return `<div class="fc-naver-kw">"${r.keyword}"</div>
+        <div class="fc-naver-grid">
+          <div class="fc-naver-stat"><span class="ns-label">블로그 전체</span><span class="ns-val">${(r.blog_total||0).toLocaleString()}</span></div>
+          <div class="fc-naver-stat"><span class="ns-label">블로그 3개월</span><span class="ns-val ${hotClass}">${b3m}</span></div>
+          <div class="fc-naver-stat"><span class="ns-label">카페 전체</span><span class="ns-val">${(r.cafe_total||0).toLocaleString()}</span></div>
+          <div class="fc-naver-stat"><span class="ns-label">카페 3개월</span><span class="ns-val ${r.cafe_3m >= 5 ? 'hot' : ''}">${r.cafe_3m||0}</span></div>
+        </div>`;
+    }).join('<div style="margin:8px 0;border-top:1px dashed #e2e8f0"></div>');
+  } else {
+    naverEl.innerHTML = '<div style="color:#a0aec0;font-size:0.82rem">수요 데이터 없음</div>';
+  }
+
+  // 아마존 버튼 (국가별)
+  const amazonEl = document.getElementById('fcDashAmazonBtn');
+  const domain = AMAZON_DOMAINS[item.country] || null;
+  const searchKw = encodeURIComponent(`${item.brand} ${item.product_name}`);
+  if (domain) {
+    amazonEl.innerHTML = `<a class="fc-amazon-btn" href="https://www.${domain}/s?k=${searchKw}" target="_blank">🛒 ${item.country} Amazon에서 검색</a>`;
+  } else {
+    amazonEl.innerHTML = `<a class="fc-amazon-btn" href="https://www.amazon.de/s?k=${searchKw}" target="_blank" style="background:#718096">🛒 Amazon에서 검색</a>`;
+  }
+
+  // 유통구조
+  const distNotes = item.step4_notes || item.why || '';
+  if (distNotes) {
+    document.getElementById('fcDashDist').textContent = distNotes;
+    document.getElementById('fcDashDistSection').style.display = '';
+  } else {
+    document.getElementById('fcDashDistSection').style.display = 'none';
+  }
+
+  // 메모
+  document.getElementById('fcDashMemo').value = item.memo || '';
+
   document.getElementById('fcEditModal').style.display = 'flex';
 }
 
 function closeFcEditModal() { document.getElementById('fcEditModal').style.display = 'none'; _fcEditId = null; }
 
-document.getElementById('fcEditStatus').addEventListener('change', function() { toggleRejectionRow(this.value); });
-function toggleRejectionRow(status) {
-  document.getElementById('fcEditRejectionRow').style.display = status === 'failed' ? 'block' : 'none';
-}
-
-async function submitFcEdit() {
+async function markFcFailed() {
   if (!_fcEditId) return;
-  const blockReasons = [...document.querySelectorAll('#fcS2BlockList .fc-block-chip.selected')].map(c => c.dataset.val);
-  const fbVerdict = document.getElementById('fcFbVerdict').value;
-  const payload = {
-    brand: document.getElementById('fcEditBrand').value.trim(),
-    product_name: document.getElementById('fcEditProduct').value.trim(),
-    route: document.getElementById('fcEditRoute').value,
-    discovery_notes: document.getElementById('fcEditNotes').value.trim(),
-    status: document.getElementById('fcEditStatus').value,
-    rejection_reason: document.getElementById('fcEditRejection').value.trim(),
-    step2_official_clear: document.getElementById('fcS2OfficialClear').checked,
-    step2_proxy_ok: document.getElementById('fcS2ProxyOk').checked,
-    step2_block_reasons: blockReasons,
-    step2_passed: document.getElementById('fcS2OfficialClear').checked && document.getElementById('fcS2ProxyOk').checked && blockReasons.length === 0,
-    step2_notes: document.getElementById('fcS2Notes').value.trim(),
-    step2_evidence: getEvidenceList('fcS2EvidenceList'),
-    step3_keywords: document.getElementById('fcS3Keywords').value.split('\n').map(s=>s.trim()).filter(Boolean),
-    step3_amazon_de_keyword: document.getElementById('fcS3AmazonKw').value.trim(),
-    step4_b2b_only: document.getElementById('fcS4B2bOnly').checked,
-    step4_notes: document.getElementById('fcS4Notes').value.trim(),
-    step4_evidence: getEvidenceList('fcS4EvidenceList'),
-    feedback: fbVerdict ? {
-      test_qty: parseInt(document.getElementById('fcFbQty').value) || null,
-      units_sold: parseInt(document.getElementById('fcFbSold').value) || null,
-      verdict: fbVerdict,
-      notes: document.getElementById('fcFbNotes').value.trim(),
-    } : null,
-  };
-  try {
-    const r = await fetch(`/api/framework-candidates/${_fcEditId}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-    const d = await r.json();
-    if (d.success) { closeFcEditModal(); showToast('저장 완료'); loadFcPipeline(); }
-    else showToast('오류: ' + (d.error || ''));
-  } catch(e) { showToast('실패: ' + e.message); }
+  const memo = document.getElementById('fcDashMemo').value.trim();
+  await fetch(`/api/framework-candidates/${_fcEditId}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status:'failed', ...(memo && {discovery_notes: memo})}),
+  });
+  closeFcEditModal(); showToast('탈락으로 표시됨'); loadFcPipeline();
 }
 
 async function deleteFcCandidate() {
@@ -4898,61 +4839,37 @@ async function deleteFcCandidate() {
   } catch(e) { showToast('실패: ' + e.message); }
 }
 
-// ── Naver 수동 체크 (편집 모달 내) ──
-
-async function runNaverCheck() {
+async function sendToSourcingCandidates() {
   if (!_fcEditId) return;
-  const keywords = document.getElementById('fcS3Keywords').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  const amazonKw = document.getElementById('fcS3AmazonKw').value.trim();
-  if (!keywords.length && !amazonKw) { showToast('키워드를 입력해주세요'); return; }
-  const btn = document.getElementById('fcNaverCheckBtn');
-  btn.textContent = '체크 중...'; btn.disabled = true;
+  const item = _fcData.find(x => x.id === _fcEditId);
+  if (!item) return;
+  const memo = document.getElementById('fcDashMemo').value.trim();
+  const s3 = item.step3_results?.[0];
+  const payload = {
+    brand_name: item.brand || '',
+    product_name: item.product_name || '',
+    memo: [item.discovery_notes, memo].filter(Boolean).join(' / '),
+    status: 'review',
+    naver_count: s3?.blog_total || 0,
+    product_url: '',
+  };
   try {
-    const r = await fetch(`/api/framework-candidates/${_fcEditId}/naver-check`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({keywords, amazon_de_keyword: amazonKw}),
-    });
+    const r = await fetch('/api/candidates', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const d = await r.json();
-    if (d.success) { renderNaverResults(d.results, d.amazon_result); showToast('Naver 체크 완료'); }
-    else showToast('오류: ' + (d.error || ''));
+    if (d.id || d.success) {
+      // 파이프라인 상태도 passed로 업데이트
+      await fetch(`/api/framework-candidates/${_fcEditId}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status:'passed'}),
+      });
+      closeFcEditModal();
+      showToast('소싱후보 탭에 추가됨');
+      loadFcPipeline();
+    } else showToast('오류: ' + (d.error || ''));
   } catch(e) { showToast('실패: ' + e.message); }
-  btn.textContent = 'Naver 체크 실행'; btn.disabled = false;
 }
 
-function renderNaverResults(results, amazonResult) {
-  document.getElementById('fcNaverBody').innerHTML = results.map(r =>
-    `<tr><td>${r.keyword}</td><td>${(r.blog_total||0).toLocaleString()}</td><td class="fc-3m-val">${r.blog_3m||0}</td><td>${(r.cafe_total||0).toLocaleString()}</td><td class="fc-3m-val">${r.cafe_3m||0}</td></tr>`
-  ).join('');
-  const aEl = document.getElementById('fcNaverAmazon');
-  aEl.innerHTML = amazonResult ? `아마존독일 <strong>"${amazonResult.keyword}"</strong>: 블로그 ${(amazonResult.blog_total||0).toLocaleString()} / 3개월 <span class="fc-3m-val">${amazonResult.blog_3m||0}</span>건` : '';
-  document.getElementById('fcNaverResults').style.display = 'block';
-}
-
-// ── 근거 URL 헬퍼 ──
-
-function renderEvidenceList(containerId, items) {
-  document.getElementById(containerId).innerHTML = items.map((it, i) =>
-    `<div class="fc-evidence-item">
-      <input class="fc-input ev-url" value="${(it.url||'').replace(/"/g,'&quot;')}" placeholder="https://..." style="flex:2" />
-      <input class="fc-input ev-note" value="${(it.note||'').replace(/"/g,'&quot;')}" placeholder="메모" style="flex:1" />
-      <button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>
-    </div>`
-  ).join('');
-}
-function addEvidenceRow(containerId) {
-  const div = document.createElement('div');
-  div.className = 'fc-evidence-item';
-  div.innerHTML = `<input class="fc-input ev-url" placeholder="https://..." style="flex:2" /><input class="fc-input ev-note" placeholder="메모" style="flex:1" /><button class="fc-btn danger" onclick="removeEvidenceRow(this)" style="padding:4px 8px">✕</button>`;
-  document.getElementById(containerId).appendChild(div);
-}
-function removeEvidenceRow(btn) { btn.closest('.fc-evidence-item').remove(); }
-function getEvidenceList(containerId) {
-  return [...document.getElementById(containerId).querySelectorAll('.fc-evidence-item')].map(row => ({
-    url: row.querySelector('.ev-url').value.trim(),
-    note: row.querySelector('.ev-note').value.trim(),
-  })).filter(e => e.url);
-}
-function toggleBlockChip(chip) { chip.classList.toggle('selected'); }
+function renderNaverResults() {} // legacy stub
 
 // 드래그앤드롭 지원
 document.addEventListener('DOMContentLoaded', () => {
